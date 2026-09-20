@@ -32,7 +32,7 @@ try {
       packageManager: "pnpm@10.15.0",
     }),
   );
-  execFileSync("pnpm", ["add", "--offline", "--ignore-scripts", archive], {
+  execFileSync("pnpm", ["add", "--ignore-scripts", archive], {
     cwd: temporary,
     stdio: "pipe",
     timeout: 60000,
