@@ -1,10 +1,10 @@
 Ingestron
 Copyright 2026 [confirmed legal copyright owner / owners].
-Product owner: Otrera [confirmed legal name].
+Product owner: Otrera Limited [confirmed legal name].
 Licensor: [confirmed legal entity authorised to grant the licence].
 
 Original material is licensed under Apache License, Version 2.0.
 Third-party material retains its separately identified terms and notices.
 
 DRAFT ONLY: replace bracketed fields from confirmed records before applying.
-Do not claim that all authors assigned copyright to Otrera without evidence.
+Do not claim that all authors assigned copyright to Otrera Limited without evidence.

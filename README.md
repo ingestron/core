@@ -24,7 +24,7 @@ Use Node 22 and pnpm 10.15.0. Run `pnpm install --frozen-lockfile`, `pnpm valida
 and `pnpm pack`. Build assets and declarations are in `dist`; source is not copied
 from a sibling checkout at build time. Tests use synthetic local fixtures only.
 
-Otrera is the intended Ingestron product owner. Public Apache-2.0 and npm release
+Otrera Limited is the intended Ingestron product owner. Public Apache-2.0 and npm release
 are planned; current original code remains UNLICENSED until the legal licensor and
 rights are confirmed. See [licensing status](licensing/README.md) and
 [extraction provenance](docs/extraction-provenance.json). Private Git distribution

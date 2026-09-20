@@ -2,9 +2,9 @@
 
 Date: 2026-09-20. Status: draft, original code currently UNLICENSED.
 
-The owner directs use of Otrera as the product and licensing owner. Existing
+The owner directs use of Otrera Limited as the product and licensing owner. Existing
 company records still describe a proposed entity and incomplete IP transfer; the
-exact current legal identity and authority have been requested. No transfer or
+owner has selected the name Otrera Limited and is registering the company; incorporation and IP authority remain owner-supplied prerequisites. No transfer or
 incorporation is implied by repository creation or contributor access.
 
 Prepared files:
