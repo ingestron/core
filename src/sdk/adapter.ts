@@ -17,3 +17,15 @@ export {
   validateOutput,
 } from "../core/generate.js";
 export { checkPluginCompatibility } from "../plugins/compatibility.js";
+export {
+  canonicalPackageReference,
+  packageLock,
+  extensionPackSchema,
+} from "../core/packages.js";
+export {
+  officialPlugins,
+  taggedVersions,
+  providerVersions,
+} from "../core/provider-catalogue.js";
+export { initialise, addFlow, addTable, apply } from "../core/authoring.js";
+export { contractColumns } from "../core/contracts.js";
