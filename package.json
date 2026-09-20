@@ -1,0 +1,71 @@
+{
+  "name": "@ingestron-io/core",
+  "version": "0.12.0",
+  "type": "module",
+  "description": "Shared Ingestron project compiler, operations and editor schemas",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
+    "licensing",
+    "scripts/release-check.mjs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/sdk/schemas.d.ts",
+      "import": "./dist/sdk/schemas.js"
+    },
+    "./adapter": {
+      "types": "./dist/sdk/adapter.d.ts",
+      "import": "./dist/sdk/adapter.js"
+    }
+  },
+  "dependencies": {
+    "@lezer/python": "1.1.19",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "quickjs-emscripten": "0.32.0",
+    "yaml": "2.9.0",
+    "zod": "4.5.4"
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ingestron-io/core.git"
+  },
+  "scripts": {
+    "build": "node scripts/build-assets.mjs && tsc && node scripts/compiler-fingerprint.mjs",
+    "test": "tsx --test --test-concurrency=1 test/unit/*.test.ts test/providers/*.test.ts test/integration/*.test.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "secrets:check": "node scripts/secrets.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "package:check": "tsx scripts/package-check.ts",
+    "validate": "pnpm format:check && pnpm build && pnpm test && pnpm secrets:check && pnpm release:check && pnpm package:check",
+    "prepare": "pnpm build",
+    "prepack": "pnpm build",
+    "prepublishOnly": "node scripts/release-check.mjs --publish",
+    "licences:inventory": "node scripts/licence-inventory.mjs"
+  },
+  "packageManager": "pnpm@10.15.0",
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "prettier": "3.9.6",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

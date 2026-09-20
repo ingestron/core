@@ -1,0 +1,4 @@
+Meltano Hub metadata, copyright its contributors, Apache-2.0.
+Source: https://github.com/meltano/hub/tree/71adbda3f6adbb8189bca5686d36dc3c8f713277
+Modified by Ingestron: normalised summaries and setting names/kinds; upstream commands and defaults are not executed or copied.
+Catalogue licence does not license the listed connector implementations.

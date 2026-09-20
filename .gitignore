@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tgz
+.env
+.env.*
+!.env.example
+__pycache__/
