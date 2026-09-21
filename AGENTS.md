@@ -6,6 +6,5 @@ It does not own terminal UI, MCP transport, editor UI or native provider generat
 Use Node 22 and pnpm 10.15.0, scoped codex/ branches, synthetic fixtures and no
 cloud execution. Run pnpm validate. Check installed tarballs, not sibling source.
 Preserve required upstream schema/catalogue notices. Otrera Limited is the licensor
-for original code under Apache-2.0, selected by the owner on 2026-09-21.
-Public source and @ingestron/core release preparation are authorised.
+for original code under Apache-2.0.
 Do not weaken execution permissions or generated-file ownership to make tests pass.

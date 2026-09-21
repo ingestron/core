@@ -8,5 +8,4 @@ examples/**/generated/
 catalogue/
 
 dist/
-licensing/third-party/
-licensing/drafts/
+THIRD_PARTY_NOTICES.md
