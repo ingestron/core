@@ -1,0 +1,12 @@
+schemas/
+node_modules/
+build/
+**/.ingestron/
+examples/**/generated/
+
+# Deterministic imported upstream metadata and verbatim notices
+catalogue/
+
+dist/
+licensing/third-party/
+licensing/drafts/

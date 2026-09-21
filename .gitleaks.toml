@@ -1,0 +1,11 @@
+# The provenance manifest records this exact SHA-256 of scripts/secrets.mjs.
+# It is a file digest, not a credential. Match both the path and exact digest.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Verified provenance checksum of the secret scanner source"
+condition = "AND"
+paths = ['''^docs/extraction-provenance\.json$''']
+regexTarget = "secret"
+regexes = ['''^2fa4efdd542771e9233e8c5aa14781e08c49938011b8997b28223623369caeb2$''']

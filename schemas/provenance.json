@@ -1,0 +1,16 @@
+[
+  {
+    "file": "odcs-3.1.0.json",
+    "source": "https://api.github.com/repos/bitol-io/open-data-contract-standard/git/blobs/fb74095224e367b6be7bb12d96a3624db2685c81",
+    "blob": "fb74095224e367b6be7bb12d96a3624db2685c81",
+    "sha256": "1a35de14c688b400fef306564f66e2af3304f057cd5cd6e7b847c1a8bf252c5b",
+    "accessed": "2026-09-06"
+  },
+  {
+    "file": "ODCS-LICENSE",
+    "source": "https://api.github.com/repos/bitol-io/open-data-contract-standard/git/blobs/261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+    "blob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "accessed": "2026-09-06"
+  }
+]
