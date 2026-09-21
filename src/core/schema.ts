@@ -175,13 +175,12 @@ export interface Node {
   output: string;
   interface: { input: string; output: string };
   generation?: {
-    builtin?: boolean;
     kind: string;
     artifactKind?: string;
     entrypoint: string;
     runtime?: string;
     runtimeRef?: string;
-    execution?: "batch" | "lakeflow";
+    execution?: string;
     persistence?: "capture" | "ephemeral" | "durable";
     code?: string;
     codeRef?: string;

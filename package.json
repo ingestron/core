@@ -54,7 +54,6 @@
     "release:check": "node scripts/release-check.mjs",
     "package:check": "tsx scripts/package-check.ts",
     "validate": "pnpm format:check && pnpm build && pnpm test && pnpm secrets:check && pnpm release:check && pnpm package:check",
-    "prepare": "npm run build",
     "prepack": "npm run build",
     "prepublishOnly": "node scripts/release-check.mjs --publish",
     "licences:inventory": "node scripts/licence-inventory.mjs"

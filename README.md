@@ -1,38 +1,56 @@
 # Ingestron core
 
-Shared project compiler, operation API and configuration schemas for Ingestron CLI,
-MCP adapters and editor integrations. Native generators stay in separately installed
-providers; this library contains no terminal UI or MCP transport.
+The shared TypeScript library for Ingestron project configuration, contract
+validation, planning, generation and plugin execution. Applications use the same
+operation API to preserve project semantics and generated-file ownership.
+
+Core contains the host and its contracts. Providers supply platform generators,
+connector runtime assets and standards through explicit package references.
+
+## Use the library
+
+Requires Node 22 for runtime operations. The npm package name is `@ingestron/core`;
+initial registry publication is pending. To build the public source checkout:
 
 ```sh
-npm install @ingestron/core
+pnpm install --frozen-lockfile
+pnpm build
 ```
 
-```ts
+Consumers import the runtime and editor entry points separately:
+
+```js
 import { executeAsync } from "@ingestron/core";
 import { validateDocument } from "@ingestron/core/schemas";
+
+const result = validateDocument({
+  kind: "environment",
+  uri: "untitled:environment",
+  content: "apiVersion: ingestron.environment/v1\nvalues: {}\n",
+});
+console.log(result.valid); // true
 ```
 
-Use Node 22 for runtime operations. Pass the project root and explicit write,
-network and execution permissions. Core is a trusted library, not a hostile-caller
-sandbox. Installed command namespaces and their target selection share the same
-operation API used by CLI and MCP.
+[Run the quickstart](docs/api.md#first-project) to create and validate a temporary
+project through a reviewed change proposal. It needs no provider, cloud account or
+source data. Building native assets requires an installed provider and configured
+flows.
 
-`validateDocument({kind: "environment", uri: "untitled:1", content: text})`
-validates unsaved YAML/JSON with structural diagnostics, JSON pointers and UTF-16
-ranges. The `/schemas` export performs no filesystem, network or plugin execution.
-Cross-file semantic validation belongs to the runtime. `/adapter` helpers are for
-version-pinned first-party integrations.
+## Integration guides
 
-## Development
+- [Operation and editor API](docs/api.md): requests, results, permissions, errors
+  and supported document kinds.
+- [Plugin host contract](docs/plugins.md): package references, discovery,
+  deterministic hooks, command dispatch and compatibility.
+- [Security boundaries](SECURITY.md): trusted-host responsibilities and limits.
+- [Contributing and releasing](CONTRIBUTING.md): checks and package preparation.
 
-Use Node 22 and pnpm 10.15.0. Run `pnpm install --frozen-lockfile`, then
-`pnpm validate`. The archive contains built runtime/editor exports and retained
-third-party assets/notices. Tests use synthetic local fixtures and need no sibling
-repository. Passing them does not establish native cloud-provider acceptance.
-Official provider packages remain separately qualified private previews.
+Core has no terminal UI, MCP server, editor extension, marketplace catalogue,
+cloud SDK, commercial pack or telemetry. The `/adapter` export contains helpers
+for first-party applications pinned to the same exact core version. Public entry
+points are ESM; importing internal `dist/` paths is unsupported.
 
 ## Licence
 
-Apache-2.0 for original code, licensed by Otrera Limited. Upstream material retains
-its own terms; see LICENSE, NOTICE and THIRD_PARTY_NOTICES.md.
+Licensed by Otrera Limited under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and
+[third-party notices](THIRD_PARTY_NOTICES.md) for attribution and upstream terms.

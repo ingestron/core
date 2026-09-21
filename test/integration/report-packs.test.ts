@@ -9,7 +9,7 @@ import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
 import { runProviderCommand } from "../../src/core/provider-commands.js";
 import { exportProviderArtifacts } from "../../src/core/development.js";
-import { taggedVersions } from "../../src/core/provider-catalogue.js";
+import { taggedVersions } from "../../src/core/package-references.js";
 test("report pack and common model resolve from immutable installed inventories", (t) => {
   const f = fixture(t),
     repo = resolve(f.root, "report-package");

@@ -1,4 +1,4 @@
-import { friendlyReference } from "./provider-catalogue.js";
+import { friendlyReference } from "./package-references.js";
 import { providerAuthor, providerReference } from "../plugins/authoring.js";
 import {
   existsSync,

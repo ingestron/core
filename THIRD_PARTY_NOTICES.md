@@ -6,8 +6,7 @@ material retains the following licences and notices.
 ## Bundled assets
 
 - ODCS schema: see `schemas/ODCS-LICENSE` and `schemas/provenance.json`.
-- Meltano catalogue metadata: see `catalogue/MELTANO-LICENSE.txt` and
-  `catalogue/NOTICE.txt`. Individual connectors have their own licences.
+
 
 These asset files are also included under `dist/assets/` in the npm package.
 

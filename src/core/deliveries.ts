@@ -17,7 +17,14 @@ export const deliveryIndexSchema = z
             complete: z.literal(true),
             scope: z.literal("full-table"),
             rowCount: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-            path: z.string().regex(/^(abfss:\/\/|\/Volumes\/).+/),
+            path: z
+              .string()
+              .min(1)
+              .max(4096)
+              .refine(
+                (value) => !value.includes("\0"),
+                "Delivery location cannot contain NUL",
+              ),
           })
           .strict(),
       )

@@ -158,7 +158,7 @@ export function runProviderCommand(
   check(
     definition,
     "PROVIDER",
-    `Unknown provider command ${args.command}; list providers commands ${args.configuration}`,
+    `Unknown provider command ${args.command}; inspect provider_commands for ${args.configuration}`,
   );
   check(
     Buffer.byteLength(JSON.stringify(args.input)) <=
@@ -380,7 +380,7 @@ export function runPluginCommand(
   check(
     bindings.length === 1,
     "COMMAND_TARGET",
-    "Multiple configurations match; select --target explicitly",
+    "Multiple configurations match; select target explicitly",
   );
   return runProviderCommand(root, environment, {
     configuration: bindings[0]!.configuration,

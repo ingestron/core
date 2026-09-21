@@ -174,7 +174,7 @@ export async function performExecution(
   check(
     context.allowExecute && context.allowWrite,
     "PERMISSION",
-    "Execution requires explicit execution and local-write access; MCP needs --allow-execute --allow-write",
+    "Execution requires allowExecute and allowWrite in the operation context",
   );
   check(
     process.platform !== "win32",
@@ -187,7 +187,7 @@ export async function performExecution(
       "PERMISSION",
       "Runtime preparation requires dependency-network access",
     );
-  check(!(args.flow && args.provider), "SELECT", "Choose --flow or --provider");
+  check(!(args.flow && args.provider), "SELECT", "Choose flow or provider");
   check(
     !(
       args.retry &&
@@ -215,7 +215,7 @@ export async function performExecution(
   check(
     existsSync(resolve(directory, "ingestron-project.json")),
     "BUILD",
-    "Build first with ingestron build; use --from for a different output directory",
+    "Build the project first; supply from to select a different output directory",
   );
   const checked = validateOutput(directory);
   check(
@@ -257,7 +257,7 @@ export async function performExecution(
   check(
     candidates.length === 1,
     "SELECT",
-    "Select one execution target with --provider or --flow",
+    "Select one execution target with provider or flow",
   );
   const pkg = candidates[0];
   const installed = resolvePackage(root, pkg.reference);
@@ -277,7 +277,7 @@ export async function performExecution(
   check(
     capability.transport === "local-python/v1",
     "NOT_IMPLEMENTED",
-    "This execution transport is not implemented by this CLI",
+    "This execution transport is not implemented by this host",
   );
   const action = operation === "runtime_prepare" ? "prepare" : args.action;
   check(
@@ -318,7 +318,7 @@ export async function performExecution(
   check(
     previous || !existsSync(file),
     "RUN",
-    "Run identity already exists; use --retry to repeat it",
+    "Run identity already exists; supply retry to repeat it",
   );
   const guard = fence(runs, runId + ".lock");
   if (previous?.status === "indeterminate" && existsSync(guard))
@@ -429,7 +429,7 @@ export async function performExecution(
     });
     throw new Problem(
       error instanceof Problem ? error.code : "RUNTIME",
-      `${error instanceof Problem ? error.message : "Execution failed"}. Run ${runId}; use ingestron run status ${runId}`,
+      `${error instanceof Problem ? error.message : "Execution failed"}. Run ${runId}; inspect run_status for this run identity`,
     );
   } finally {
     rmSync(guard, { recursive: true, force: true });

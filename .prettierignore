@@ -1,11 +1,7 @@
-schemas/
 node_modules/
 build/
-**/.ingestron/
-examples/**/generated/
-
-# Deterministic imported upstream metadata and verbatim notices
-catalogue/
-
 dist/
+
+# Verbatim upstream schema and notices
+schemas/
 THIRD_PARTY_NOTICES.md
