@@ -1,16 +1,13 @@
 # Core release runbook
 
-Use Node 22 and the committed pnpm lock. Run `pnpm validate`, regenerate the
-production dependency inventory with `node scripts/licence-inventory.mjs`, inspect
-licence gaps and the packed archive, and verify downstream CLI/editor consumers.
-The source import is documented in extraction-provenance.json; it is not an IP
-assignment. Do not delete historical CLI releases or rewrite their grants.
+Use Node 22 and pnpm 10.15.0. Run `pnpm validate`, `pnpm licences:inventory`
+and `pnpm audit --prod`. Inspect packed files and preserve the upstream notices.
+The original-code licence is Apache-2.0; Otrera Limited is the licensor selected by
+the owner. No further company/IP evidence collection is part of this release task.
 
-Initial private consumers may pin an immutable Git commit; the prepare script
-builds this repository without sibling checkouts. Switch to an exact npm version
-only after publication exists. Never publish edited bytes over an existing version.
-
-Publication is deliberately blocked in `scripts/release-check.mjs`. Confirm Otrera
-legal identity and licensing authority, complete the recorded rights review, enact
-the Apache grant and exact release authority, and configure registry authentication
-before introducing a public publication workflow. A CI pass is not legal clearance.
+Publish from the reviewed commit with `npm publish --access public` after npm
+account authentication. Never overwrite an existing version. Record the registry
+integrity and source commit, then install the exact version in an empty directory
+without Git credentials or sibling repositories. CLI consumes that exact registry
+version; it must not require a Git-hosted prepare step. Source and package visibility
+are verified independently. Native providers have their own release scope.

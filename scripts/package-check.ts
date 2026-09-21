@@ -39,11 +39,11 @@ try {
   });
   const script = `
     import assert from "node:assert/strict";
-    import { executeAsync } from "@ingestron-io/core";
-    import { validateDocument } from "@ingestron-io/core/schemas";
+    import { executeAsync } from "@ingestron/core";
+    import { validateDocument } from "@ingestron/core/schemas";
     import { createRequire } from "node:module";
     const require = createRequire(import.meta.url);
-    assert.throws(() => require.resolve("@ingestron-io/core/dist/core/operations.js"), {code: "ERR_PACKAGE_PATH_NOT_EXPORTED"});
+    assert.throws(() => require.resolve("@ingestron/core/dist/core/operations.js"), {code: "ERR_PACKAGE_PATH_NOT_EXPORTED"});
     const result = await executeAsync({root: process.cwd(), allowWrite: false, allowNetwork: false, allowExecute: false}, "init", {id: "example"});
     assert.equal(result.ok, false, "write permissions must remain enforced");
     assert.equal(validateDocument({kind: "environment", uri: "untitled:1", content: "apiVersion: ingestron.environment/v1"}).valid, true);
@@ -65,7 +65,7 @@ try {
   );
   writeFileSync(
     resolve(temporary, "editor.mjs"),
-    `import {validateDocument} from "@ingestron-io/core/schemas"; if (!validateDocument({kind:"environment",uri:"untitled:1",content:"apiVersion: ingestron.environment/v1"}).valid) throw new Error("Invalid editor result");`,
+    `import {validateDocument} from "@ingestron/core/schemas"; if (!validateDocument({kind:"environment",uri:"untitled:1",content:"apiVersion: ingestron.environment/v1"}).valid) throw new Error("Invalid editor result");`,
   );
   execFileSync(
     process.execPath,

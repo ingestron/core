@@ -1,31 +1,38 @@
 # Ingestron core
 
-Reusable project compiler and operation library for Ingestron CLI, MCP adapters
-and editor integrations. This is the new `ingestron-io/core` repository; it is
-separate from the older `ingestron-core` API runtime.
+Shared project compiler, operation API and configuration schemas for Ingestron CLI,
+MCP adapters and editor integrations. Native generators stay in separately installed
+providers; this library contains no terminal UI or MCP transport.
 
-```ts
-import { executeAsync } from "@ingestron-io/core";
-import { validateDocument } from "@ingestron-io/core/schemas";
+```sh
+npm install @ingestron/core
 ```
 
-The Node runtime owns project loading, planning, generation, package resolution
-and explicit execution boundaries. Pass a project root and explicit write/network/
-execution permissions. It is a trusted library, not a hostile-caller sandbox.
-Native generator logic stays in installed providers. There is no CLI or MCP SDK.
+```ts
+import { executeAsync } from "@ingestron/core";
+import { validateDocument } from "@ingestron/core/schemas";
+```
+
+Use Node 22 for runtime operations. Pass the project root and explicit write,
+network and execution permissions. Core is a trusted library, not a hostile-caller
+sandbox. Installed command namespaces and their target selection share the same
+operation API used by CLI and MCP.
 
 `validateDocument({kind: "environment", uri: "untitled:1", content: text})`
-validates unsaved YAML/JSON and returns structural diagnostics with JSON pointers,
-zero-based UTF-16 ranges and one-based line/column. The `/schemas` export performs
-no filesystem, network or plugin execution. Cross-file semantic validation belongs
-to the runtime. `/adapter` helpers are for first-party version-pinned integrations.
+validates unsaved YAML/JSON with structural diagnostics, JSON pointers and UTF-16
+ranges. The `/schemas` export performs no filesystem, network or plugin execution.
+Cross-file semantic validation belongs to the runtime. `/adapter` helpers are for
+version-pinned first-party integrations.
 
-Use Node 22 and pnpm 10.15.0. Run `pnpm install --frozen-lockfile`, `pnpm validate`,
-and `pnpm pack`. Build assets and declarations are in `dist`; source is not copied
-from a sibling checkout at build time. Tests use synthetic local fixtures only.
+## Development
 
-Otrera Limited is the intended Ingestron product owner. Public Apache-2.0 and npm release
-are planned; current original code remains UNLICENSED until the legal licensor and
-rights are confirmed. See [licensing status](licensing/README.md) and
-[extraction provenance](docs/extraction-provenance.json). Private Git distribution
-is an interim dependency route, not public npm availability.
+Use Node 22 and pnpm 10.15.0. Run `pnpm install --frozen-lockfile`, then
+`pnpm validate`. The archive contains built runtime/editor exports and retained
+third-party assets/notices. Tests use synthetic local fixtures and need no sibling
+repository. Passing them does not establish native cloud-provider acceptance.
+Official provider packages remain separately qualified private previews.
+
+## Licence
+
+Apache-2.0 for original code, licensed by Otrera Limited. Upstream material retains
+its own terms; see LICENSE, NOTICE and THIRD_PARTY_NOTICES.md.

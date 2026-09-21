@@ -1,5 +1,6 @@
-Ingestron
-Intended product owner: Otrera Limited.
-Proposed formal licensor attribution is pending exact legal identity and rights verification.
-This is a private release candidate, not an enacted Apache grant.
-Third-party copyright and attribution notices remain with the relevant assets.
+Ingestron core
+Licensor: Otrera Limited.
+
+Original Ingestron material is licensed under the Apache License, Version 2.0.
+Third-party material retains its separately identified copyright, terms and notices.
+See THIRD_PARTY_NOTICES.md and the bundled licence files.
