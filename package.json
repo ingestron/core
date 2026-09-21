@@ -13,9 +13,7 @@
     "SECURITY.md",
     "LICENSE",
     "NOTICE",
-    "THIRD_PARTY_NOTICES.md",
-    "licensing/third-party",
-    "licensing/dependency-inventory.json"
+    "THIRD_PARTY_NOTICES.md"
   ],
   "exports": {
     ".": {
