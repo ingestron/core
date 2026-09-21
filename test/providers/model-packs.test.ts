@@ -158,11 +158,11 @@ test("installed model packs lock, configure without a provider and reject cache 
   writeFileSync(file, readFileSync(file, "utf8") + "\n# changed\n");
   assert.throws(() => planProject(f.root), /integrity|changed|digest|hash/i);
   assert.equal(
-    canonicalPackageReference("northwind@0.1.0"),
-    "ingestron-io/model-packs/packs/northwind/pack.yaml@0.1.0",
+    canonicalPackageReference("example/models/packs/model.yaml@v0.1.0"),
+    "example/models/packs/model.yaml@0.1.0",
   );
-  assert.equal(
-    canonicalPackageReference("xero@0.1.0"),
-    "ingestron-io/model-packs/packs/xero/pack.yaml@0.1.0",
+  assert.throws(
+    () => canonicalPackageReference("unknown@0.1.0"),
+    /explicit owner/,
   );
 });

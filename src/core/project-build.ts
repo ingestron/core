@@ -30,12 +30,12 @@ export function buildProject(root: string, environment: string, args: any) {
   check(
     !(args.provider && args.flow),
     "SELECT",
-    "Choose --provider or --flow, not both",
+    "Choose provider or flow, not both",
   );
   check(
     !args.table && !args.step,
     "SELECT",
-    "Project packages contain complete flows; select --flow, not individual tables or steps",
+    "Project packages contain complete flows; select flow, not individual tables or steps",
   );
   if (args.provider)
     check(

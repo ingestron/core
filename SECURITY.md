@@ -27,5 +27,18 @@ generation at directories concurrently modified by other programs. Runtime
 outputs, checkpoints and quarantine locations require single-writer ownership.
 No distributed transaction or cross-platform exactly-once guarantee is claimed.
 
-Report issues privately through the repository's private issue tracker; include
-synthetic reproduction steps and no credentials, data or production logs.
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/ingestron/core/security/advisories/new). Include synthetic reproduction steps and no credentials, customer data or production logs.
+
+## Explicit local execution
+
+Core is a library loaded by a trusted host, not an isolation boundary for hostile
+callers. The host must enforce authentication, workspace access and review policy.
+The allowWrite, allowNetwork and allowExecute flags express the host's decision;
+they are not an operating-system sandbox.
+
+Compiler hooks run in a bounded QuickJS process without host APIs. In contrast,
+explicit local-python/v1 execution launches generated provider code as an ordinary
+POSIX process with the operator's filesystem/network rights. Do not enable it for
+untrusted packages. Credentials are passed only through declared runtime secret
+references; this does not prevent a trusted executed process from accessing its
+permitted environment or the host network. No cloud deployment transport is built in.

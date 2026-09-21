@@ -23,12 +23,10 @@ import { parseDocument, stringify } from "yaml";
 import { z } from "zod";
 import { check, digest, canonical, Problem } from "./errors.js";
 import {
-  officialPlugins,
-  pluginForManifest,
   gitTags,
   taggedVersions,
   packageGitEnvironment,
-} from "./provider-catalogue.js";
+} from "./package-references.js";
 const platform = z.string().regex(/^[a-z][a-z0-9-]*$/);
 export const externalActivitySchema = z
   .object({
@@ -46,7 +44,7 @@ export const externalActivitySchema = z
       .object({
         kind: z.enum(["native-notebook", "native-pipeline", "native-project"]),
         artifactKind: platform.optional(),
-        execution: z.enum(["batch", "lakeflow"]).optional(),
+        execution: platform.optional(),
         persistence: z.enum(["capture", "ephemeral", "durable"]).optional(),
         runtime: z.string().optional(),
         code: z.string().optional(),
@@ -342,15 +340,11 @@ export function canonicalPackageReference(reference: string): string {
   reference = reference.replace(/@v((?:0|[1-9]\d*)\.\d+\.\d+)$/, "@$1");
   const short = /^([\w.-]+(?:\/[\w.-]+)?)@([^@]+)$/.exec(reference);
   if (!short) return reference;
-  const plugin = officialPlugins.find((p) => p.id === short[1]);
-  if (plugin) {
-    return `${plugin.repository}/${plugin.manifestPath}@${short[2]}`;
-  }
   const repository = short[1];
   check(
     repository.includes("/"),
     "PACKAGE",
-    "Unknown plugin name; use plugin browse or owner/repository@version",
+    "Unknown plugin name; use an explicit owner/repository@version",
   );
   return `${repository}/plugin/provider.yaml@${short[2]}`;
 }
@@ -358,7 +352,7 @@ const parseReference = (reference: string) => {
   check(
     !reference.endsWith("@latest"),
     "PACKAGE",
-    "@latest is not supported: packages must be pinned to an exact semantic version or commit. Use plugin install <name> in an interactive terminal to choose a version, or plugin versions <name> then plugin install <name>@<version>.",
+    "@latest is not supported: packages must be pinned to an exact semantic version or commit. Use plugin_versions with an explicit repository to inspect available versions.",
   );
   const m =
     /^([\w.-]+\/[\w.-]+)\/(.+\.ya?ml)@(v1|(?:0|[1-9]\d*)\.\d+\.\d+|[a-f0-9]{40})$/.exec(
@@ -367,7 +361,7 @@ const parseReference = (reference: string) => {
   check(
     m && !m[1].includes(".."),
     "PACKAGE",
-    "Use adf@v2.2.0 or owner/repository@v1.2.2; select an exact semantic version or commit (legacy v1 is supported)",
+    "Use owner/repository@1.2.3 or owner/repository/path/manifest.yaml@commit; legacy v1 tags are also accepted",
   );
   fence("/package", m[2]);
   return { repository: m[1], path: m[2], ref: m[3] };
@@ -404,7 +398,7 @@ export function resolvePackage(root: string, reference: string) {
       entry.repository === parsed.repository &&
       entry.path === parsed.path,
     "PACKAGE",
-    `Install locked package ${reference} with packages install`,
+    `Install locked package ${reference} using packages_install`,
   );
   if (/^[a-f0-9]{40}$/.test(parsed.ref))
     check(
@@ -434,7 +428,6 @@ export function resolvePackage(root: string, reference: string) {
 export function savePluginInformation(root: string, reference: string) {
   const source = resolvePackage(root, reference);
   const manifest = packageYaml(source.file);
-  const plugin = pluginForManifest(source.entry.repository, source.entry.path);
   const connector =
     manifest.apiVersion === "ingestron.connector/v1"
       ? connectorPackageSchema.parse(manifest)
@@ -473,11 +466,10 @@ export function savePluginInformation(root: string, reference: string) {
     reference,
     id: manifest.id,
     version: manifest.version,
-    kind: plugin?.kind ?? manifest.apiVersion,
+    kind: manifest.apiVersion,
     repository: source.entry.repository,
     commit: source.entry.commit,
     manifest: source.entry.path,
-    documentation: "https://docs.ingestron.io",
     sourceDocumentation: `https://github.com/${source.entry.repository}/tree/${source.entry.commit}`,
     ...(connector
       ? {
@@ -505,7 +497,12 @@ export function savePluginInformation(root: string, reference: string) {
 export function installPackage(
   root: string,
   reference: string,
-  options: { fromGit?: string; update?: boolean; frozen?: boolean } = {},
+  options: {
+    fromGit?: string;
+    update?: boolean;
+    frozen?: boolean;
+    tagPrefix?: string;
+  } = {},
 ) {
   root = realpathSync(root);
   reference = canonicalPackageReference(reference);
@@ -566,7 +563,7 @@ export function installPackage(
     if (/^(?:0|[1-9]\d*)\.\d+\.\d+$/.test(requested)) {
       const tag = taggedVersions(
         gitTags(parsed.repository, options.fromGit ? repo : undefined),
-        pluginForManifest(parsed.repository, parsed.path)?.tagPrefix,
+        options.tagPrefix,
       ).find((v) => v.version === requested);
       check(
         tag,

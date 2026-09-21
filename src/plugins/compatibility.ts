@@ -36,7 +36,7 @@ export function checkPluginCompatibility(
       .map((value, index) => value - required[index])
       .find((value) => value !== 0) ?? 0) >= 0,
     "COMPATIBILITY",
-    `Provider requires plugin compatibility ${minimum}; this CLI supports ${pluginCompatibilityVersion}`,
+    `Provider requires plugin compatibility ${minimum}; this host supports ${pluginCompatibilityVersion}`,
   );
 }
 

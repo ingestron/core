@@ -157,7 +157,7 @@ test("managed and team exports protect engineer edits", (t) => {
   }
 });
 
-test("provider shorthand shares canonical locks and integrity checks", (t) => {
+test("explicit repository shorthand shares canonical locks and integrity checks", (t) => {
   const { root } = fixture(t);
   const repository = resolve(root, "library");
   mkdirSync(resolve(repository, "plugin"), { recursive: true });
@@ -180,19 +180,19 @@ test("provider shorthand shares canonical locks and integrity checks", (t) => {
   git("commit", "--quiet", "-m", "fixture");
   git("tag", "1.1.0");
   const installed = execute({ root, allowWrite: true }, "packages_install", {
-    reference: "adf@1.1.0",
+    reference: "example/provider@1.1.0",
     fromGit: "library",
   });
   assert.equal(installed.ok, true, JSON.stringify(installed));
   for (const ref of [
-    "adf@1.1.0",
-    "ingestron-io/provider-adf@1.1.0",
-    "ingestron-io/provider-adf/plugin/provider.yaml@1.1.0",
+    "example/provider@1.1.0",
+    "example/provider@v1.1.0",
+    "example/provider/plugin/provider.yaml@1.1.0",
   ]) {
     assert.equal(installPackage(root, ref, { frozen: true }).cached, true);
     assert.equal(
       resolvePackage(root, ref).entry.repository,
-      "ingestron-io/provider-adf",
+      "example/provider",
     );
   }
   assert.equal(
@@ -206,12 +206,16 @@ test("provider shorthand shares canonical locks and integrity checks", (t) => {
     /Unknown plugin/,
   );
   assert.throws(
-    () => installPackage(root, "adf@latest", { fromGit: repository }),
+    () =>
+      installPackage(root, "example/provider@latest", { fromGit: repository }),
     /exact semantic version/,
   );
-  writeFileSync(resolvePackage(root, "adf@1.1.0").file, "tampered");
+  writeFileSync(
+    resolvePackage(root, "example/provider@1.1.0").file,
+    "tampered",
+  );
   assert.throws(
-    () => resolvePackage(root, "ingestron-io/provider-adf@1.1.0"),
+    () => resolvePackage(root, "example/provider@v1.1.0"),
     /integrity/,
   );
 });

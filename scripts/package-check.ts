@@ -3,6 +3,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   writeFileSync,
   rmSync,
 } from "node:fs";
@@ -22,7 +23,16 @@ try {
     encoding: "utf8",
   });
   assert.doesNotMatch(inventory, /package\/dist\/(cli|mcp)\//);
-  assert.doesNotMatch(inventory, /package\/(src|test|node_modules)\//);
+  assert.doesNotMatch(
+    inventory,
+    /package\/(src|test|scripts|docs|catalogue|licensing|node_modules)\//,
+  );
+  assert.doesNotMatch(inventory, /dist\/assets\/catalogue/);
+  for (const path of inventory.trim().split("\n"))
+    assert.match(
+      path,
+      /^package\/(?:dist\/(?:core\/|plugins\/|sdk\/|assets\/schemas\/|version\.(?:js|d\.ts)$|compiler-fingerprint\.json$)|(?:package\.json|README\.md|SECURITY\.md|LICENSE|NOTICE|THIRD_PARTY_NOTICES\.md)$)/,
+    );
   assert.match(inventory, /dist\/assets\/schemas\/ODCS-LICENSE/);
   writeFileSync(
     resolve(temporary, "package.json"),
@@ -39,13 +49,21 @@ try {
   });
   const script = `
     import assert from "node:assert/strict";
+    import { existsSync } from "node:fs";
     import { executeAsync } from "@ingestron/core";
     import { validateDocument } from "@ingestron/core/schemas";
     import { createRequire } from "node:module";
     const require = createRequire(import.meta.url);
     assert.throws(() => require.resolve("@ingestron/core/dist/core/operations.js"), {code: "ERR_PACKAGE_PATH_NOT_EXPORTED"});
-    const result = await executeAsync({root: process.cwd(), allowWrite: false, allowNetwork: false, allowExecute: false}, "init", {id: "example"});
-    assert.equal(result.ok, false, "write permissions must remain enforced");
+    const result = await executeAsync({root: process.cwd(), allowWrite: false, allowNetwork: false, allowExecute: false}, "initialise", {id: "example"});
+    assert.equal(result.ok, true, "initialise returns a proposal");
+    assert.equal(existsSync("project.yaml"), false, "proposal must not write");
+    const denied = await executeAsync({root: process.cwd(), allowWrite: false}, "apply", {proposal: result.result});
+    assert.equal(denied.diagnostics[0].code, "PERMISSION");
+    const applied = await executeAsync({root: process.cwd(), allowWrite: true}, "apply", {proposal: result.result});
+    assert.equal(applied.ok, true);
+    assert.equal((await executeAsync({root:process.cwd()}, "validate", {mode:"draft"})).ok, true);
+    assert.deepEqual((await executeAsync({root:process.cwd()}, "plugin_browse")).result, []);
     assert.equal(validateDocument({kind: "environment", uri: "untitled:1", content: "apiVersion: ingestron.environment/v1"}).valid, true);
     const catalogue = await executeAsync({root: process.cwd()}, "catalogue", {kind: "standards"});
     assert.equal(catalogue.apiVersion, "ingestron.operation/v1");
@@ -54,6 +72,16 @@ try {
   writeFileSync(resolve(temporary, "check.mjs"), script);
   process.stdout.write(
     execFileSync(process.execPath, ["check.mjs"], {
+      cwd: temporary,
+      encoding: "utf8",
+    }),
+  );
+  writeFileSync(
+    resolve(temporary, "quickstart.mjs"),
+    readFileSync("examples/quickstart.mjs", "utf8"),
+  );
+  process.stdout.write(
+    execFileSync(process.execPath, ["quickstart.mjs"], {
       cwd: temporary,
       encoding: "utf8",
     }),

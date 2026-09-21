@@ -21,16 +21,13 @@ import {
   packageYaml,
   canonicalPackageReference,
 } from "./packages.js";
-import { friendlyReference } from "./provider-catalogue.js";
+import { friendlyReference } from "./package-references.js";
 export const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/);
 const connection = z
   .object({
     binding: identifier.optional(),
     provider: identifier.optional(),
-    execution: z.enum(["manual", "local", "adf", "runner"]).optional(),
-    factory: z.string().max(512).optional(),
-    linkedService: identifier.optional(),
-    integrationRuntime: z.string().max(128).optional(),
+    execution: z.enum(["manual", "local"]).optional(),
     resultPath: z.string().max(1024).optional(),
   })
   .strict();
@@ -41,7 +38,7 @@ export const sourceSchema = z
     type: identifier,
     format: identifier.optional(),
     provider: identifier.optional(),
-    execution: z.enum(["manual", "local", "adf", "runner"]).default("manual"),
+    execution: z.enum(["manual", "local"]).default("manual"),
     binding: identifier.optional(),
     environments: z.record(identifier, connection).default({}),
   })
@@ -139,7 +136,7 @@ function providerConfiguration(root: string, selected?: string) {
   check(
     matches.length === 1,
     "PROVIDER",
-    "Select an installed provider configuration with --provider; use plugin list and config show",
+    "Select an installed provider configuration by name",
   );
   return matches[0][0];
 }
@@ -202,7 +199,7 @@ export function pluginConfigure(root: string, args: any) {
         canonical(old) === canonical(value) ||
           (args.update && old.source === value.source),
         "CONFLICT",
-        "Connector package key already exists; choose a different --name",
+        "Connector package key already exists; choose a different name",
       );
     }
     project.setIn(
@@ -226,7 +223,7 @@ export function pluginConfigure(root: string, args: any) {
         (friendlyReference(existing.source) === selected.source &&
           existing.version === selected.version),
       "CONFLICT",
-      `Provider configuration ${name} already exists; use plugin migrate or a different --name`,
+      `Provider configuration ${name} already exists; use provider_migrate or a different name`,
     );
     if (args.update) {
       check(
@@ -359,7 +356,7 @@ export function sourcePrepare(root: string, environment: string, args: any) {
   check(
     source.execution === "local" || source.execution === "manual",
     "NOT_IMPLEMENTED",
-    "ADF/Runner discovery preparation is planned. Use a provider's advanced offline preparation command until the execution contract is implemented.",
+    "Source preparation supports manual and local execution modes only.",
   );
   const input = new Configuration(root).load(args.input);
   check(
@@ -395,7 +392,7 @@ export function sourcePrepare(root: string, environment: string, args: any) {
     check(
       !existsSync(fence(root, path)),
       "OWNER",
-      `Existing reader file ${path}; choose another --out directory`,
+      `Existing reader file ${path}; choose another output directory`,
     );
     files[path] = text;
   }
@@ -473,7 +470,7 @@ export function sourceImport(root: string, environment: string, args: any) {
           inputDigest: digest(reader.text(args.metadata)),
           contracts,
           evidence:
-            "Imported metadata; source access and completeness are not verified by the CLI",
+            "Imported metadata; source access and completeness are not verified by core",
         },
         null,
         2,
@@ -483,14 +480,9 @@ export function sourceImport(root: string, environment: string, args: any) {
 export function draftContract(root: string, environment: string, args: any) {
   identifier.parse(args.id);
   check(
-    !args.assist && !args.requirements && !args.sample,
-    "NOT_IMPLEMENTED",
-    "Sample and requirements extraction and AI assistance are planned. Use source import or --metadata with reviewed metadata today.",
-  );
-  check(
     !!args.source !== !!args.metadata,
     "INPUT",
-    "Choose exactly one of --source or --metadata",
+    "Choose exactly one of source or metadata",
   );
   let contracts: any[], evidence: any;
   if (args.source) {
@@ -541,7 +533,7 @@ export function draftContract(root: string, environment: string, args: any) {
   check(
     matches.length === 1,
     "SELECT",
-    "Select exactly one discovered entity with --entity (contract ID or physical name)",
+    "Select exactly one discovered entity with entity (contract ID or physical name)",
   );
   const contract = {
     ...matches[0],

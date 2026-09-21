@@ -26,7 +26,7 @@ export function configurePack(
     check(
       !args.provider,
       "MODEL_PACK",
-      "Model packs are independent of provider configurations; omit --provider",
+      "Model packs are independent of provider configurations; omit provider",
     );
     const project = projectSchema.parse(reader.load());
     check(
@@ -48,7 +48,11 @@ export function configurePack(
     "Report packs are selected by exact reference in report build input, not attached as activities",
   );
   extensionPackSchema.parse(manifest);
-  check(args.provider, "PACK", "Activity preset packs require --provider");
+  check(
+    args.provider,
+    "PACK",
+    "Activity preset packs require a provider configuration",
+  );
   const project = projectSchema.parse(reader.load());
   const configuration = project.providers.configurations[args.provider];
   check(configuration, "PROVIDER", "Unknown provider configuration");

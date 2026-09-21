@@ -4,7 +4,6 @@ import { expandProvider } from "../plugins/provider-renderer.js";
 import { validateProviderPlan } from "../plugins/generation.js";
 import addFormats from "ajv-formats";
 import { resolve, relative, dirname } from "node:path";
-import { readFileSync } from "node:fs";
 import { Configuration } from "./config.js";
 import {
   projectSchema,
@@ -82,7 +81,7 @@ export function inspectProject(
   check(
     raw.apiVersion === "ingestron.project/v1",
     "VERSION",
-    "This CLI accepts ingestron.project/v1 only; legacy project formats are not supported",
+    "Core accepts ingestron.project/v1 only; legacy project formats are not supported",
   );
   const initial = reader.parse(projectSchema, raw);
   const profile = initial.environments[environment];
@@ -428,8 +427,8 @@ export function planProject(
     "SELECT",
     "Delivery builds require complete export groups; table/step selection is unsafe",
   );
-  check(!options.table || options.flow, "SELECT", "Use --flow with --table");
-  check(!options.step || options.flow, "SELECT", "Use --flow with --step");
+  check(!options.table || options.flow, "SELECT", "Supply flow with table");
+  check(!options.step || options.flow, "SELECT", "Supply flow with step");
   const nodes: Node[] = [],
     datasets: Plan["datasets"] = {},
     recovery: Plan["recovery"] = [],
@@ -613,7 +612,6 @@ export function planProject(
           output: string;
           effect: string;
           evidence: string;
-          required?: string[];
         };
         let implementation: Node["implementation"];
         let generation: Node["generation"];
@@ -621,7 +619,6 @@ export function planProject(
           ReturnType<typeof externalActivitySchema.parse> | undefined;
         let packageRoot: string | undefined;
         let activityFile: string | undefined;
-        let builtinActivity = false;
         if (activityUse.startsWith(".")) {
           activityFile = reader.path(activityUse);
           packageRoot = reader.root;
@@ -648,10 +645,8 @@ export function planProject(
           reader.text("packages.lock.yaml");
         }
         if (activityFile && packageRoot) {
-          // Bundled files are covered by the compiler fingerprint. All user/Git
-          // activity sources remain project-fenced and enter the source inventory.
-          const readActivity = (file: string) =>
-            builtinActivity ? readFileSync(file, "utf8") : reader.text(file);
+          // Activity sources remain project-fenced and enter the source inventory.
+          const readActivity = (file: string) => reader.text(file);
           external = externalActivitySchema.parse(packageYaml(activityFile));
           const selectedVersion = /@([1-9]\d*\.\d+\.\d+)$/.exec(step.uses)?.[1];
           check(
@@ -686,7 +681,6 @@ export function planProject(
           if (external.generator) {
             generation = {
               ...external.generator,
-              builtin: builtinActivity,
               requirements: external.requirements,
             };
             if (external.generator.code)
@@ -783,12 +777,6 @@ export function planProject(
             new Ajv().errorsText(validate.errors),
           );
         }
-        for (const required of descriptor.required ?? [])
-          check(
-            settings[required] !== undefined,
-            "ACTIVITY_INPUT",
-            `${flow.id}/${tableId}/${step.id}: ${descriptor.id} requires ${required}`,
-          );
         const explicit = refs(settings),
           needs: string[] = [];
         for (const ref of explicit) {

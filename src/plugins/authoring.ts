@@ -1,4 +1,4 @@
-import { friendlyReference } from "../core/provider-catalogue.js";
+import { friendlyReference } from "../core/package-references.js";
 import { readFileSync } from "node:fs";
 import { resolve, dirname, relative } from "node:path";
 import {

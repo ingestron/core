@@ -40,12 +40,8 @@ import { scaffoldProvider } from "./provider-starter.js";
 import * as ecosystemAuthor from "./ecosystem-authoring.js";
 import * as author from "./authoring.js";
 import * as workflows from "./workflows.js";
-import {
-  browseProviders,
-  pluginDetails,
-  providerVersions,
-  friendlyReference,
-} from "./provider-catalogue.js";
+import { providerVersions, friendlyReference } from "./package-references.js";
+import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
   ...executionSchemas,
   provider_scaffold: z
@@ -74,7 +70,7 @@ export const operationSchemas = {
   plugin_show: z.object({ id: z.string().min(1).max(200) }).strict(),
   plugin_browse: z
     .object({
-      engine: z.enum(["local", "adf-batch", "databricks"]).optional(),
+      engine: z.string().min(1).optional(),
       installable: z.boolean().optional(),
       query: z.string().max(128).optional(),
       kind: z
@@ -89,7 +85,11 @@ export const operationSchemas = {
     })
     .strict(),
   plugin_versions: z
-    .object({ provider: z.string(), fromGit: z.string().optional() })
+    .object({
+      provider: z.string(),
+      fromGit: z.string().optional(),
+      tagPrefix: z.string().optional(),
+    })
     .strict(),
   source_list: z.object({}).strict(),
   source_show: z.object({ id: workflows.identifier }).strict(),
@@ -133,9 +133,6 @@ export const operationSchemas = {
       entity: z.string().optional(),
       out: z.string().optional(),
       provider: z.string().optional(),
-      sample: z.string().optional(),
-      requirements: z.string().optional(),
-      assist: z.boolean().optional(),
     })
     .strict(),
   flow_create: z
@@ -162,28 +159,6 @@ export const operationSchemas = {
       step: z.string().optional(),
       out: z.string().default("build/generated"),
       ownership: z.enum(["managed", "team"]).default("managed"),
-    })
-    .strict(),
-  // Reserved workflows have real schemas and machine-readable failures. They
-  // must never report success or silently treat a remote action as a local build.
-  // Replace individual entries with execution adapters only after implementing
-  // scoped identity, reviewed plans, result retrieval and resumable run state.
-  unavailable: z
-    .object({
-      feature: z.enum([
-        "source_discover",
-        "source_status",
-        "deploy_plan",
-        "deploy_apply",
-        "deploy_status",
-        "flow_run",
-        "flow_status",
-        "source_remove",
-        "contract_remove",
-        "flow_remove",
-        "plugin_remove",
-      ]),
-      parameters: z.record(z.string(), z.unknown()).default({}),
     })
     .strict(),
   environments: z.object({}).strict(),
@@ -307,6 +282,7 @@ export const operationSchemas = {
       fromGit: z.string().optional(),
       update: z.boolean().optional(),
       frozen: z.boolean().optional(),
+      tagPrefix: z.string().optional(),
     })
     .strict(),
   provider_migrate: z.object({ package: z.string(), to: z.string() }).strict(),
@@ -432,20 +408,20 @@ export function execute(
         break;
       }
       case "plugin_show":
-        result = pluginDetails(args.id);
+        result = pluginDetails(root, args.id);
         break;
       case "plugin_browse":
-        result = browseProviders(args.query, args.kind, args);
+        result = browseProviders(root, args.query, args.kind, args);
         break;
       case "plugin_versions":
         check(
           context.allowNetwork || args.fromGit,
           "PERMISSION",
-          "Provider version discovery needs package-network access; MCP hosts can opt in with --allow-network",
+          "Provider version discovery requires allowNetwork in the operation context",
         );
         if (args.fromGit && !context.allowNetwork)
           args.fromGit = fence(root, args.fromGit);
-        result = providerVersions(args.provider, args.fromGit);
+        result = providerVersions(args.provider, args.fromGit, args.tagPrefix);
         break;
       case "source_list":
         result = workflows.sourceList(root, environment);
@@ -508,20 +484,6 @@ export function execute(
         result = buildProject(root, environment, args);
         break;
       }
-      case "unavailable":
-        throw new Problem(
-          "NOT_IMPLEMENTED",
-          `${args.feature.replaceAll("_", " ")} is planned and has not run`,
-          undefined,
-          undefined,
-          args.feature.startsWith("source_") && !args.feature.endsWith("remove")
-            ? "Use source prepare to export a reader, run it in an authorised environment, then source import to ingest metadata."
-            : args.feature.startsWith("deploy_") ||
-                (args.feature.startsWith("flow_") &&
-                  !args.feature.endsWith("remove"))
-              ? "Use build to generate reviewable assets. Execution adapters will add reviewed target plans, scoped credentials and run tracking."
-              : "Removal will check references and generated-file ownership. Review and edit the project files manually for now.",
-        );
       case "datasets":
         result = planProject(root, environment).datasets;
         break;
@@ -899,8 +861,8 @@ export function execute(
           platformAccess: "Not checked; compiler is offline",
           packages: Object.keys(packageLock(root).packages),
           next: state.reader.pending.length
-            ? "Use config fill or config set to supply missing values"
-            : "Use check and build for selected flow checks",
+            ? "Supply missing environment inputs or create a config_set proposal"
+            : "Use validate and build for selected flows",
         };
         break;
       }

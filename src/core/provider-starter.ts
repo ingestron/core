@@ -1,3 +1,4 @@
+import { version } from "../version.js";
 import { stringify } from "yaml";
 import { existsSync } from "node:fs";
 import { preview } from "./authoring.js";
@@ -133,8 +134,10 @@ export function render(plan) {
           type: "module",
           scripts: {
             test: "node --test test/*.test.mjs",
-            check: "ingestron --no-input plugin check --delivery",
+            check: "node scripts/check.mjs",
+            build: "node scripts/check.mjs build",
           },
+          devDependencies: { "@ingestron/core": version },
           engines: { node: ">=22 <23" },
         },
         null,
@@ -147,9 +150,13 @@ const plan=()=>({nodes:[{platform:${JSON.stringify(id)},with:{target:'example_vi
 test('deterministic SQL and identifier safety',()=>{assert.deepEqual(render(plan()),render(plan()));const p=plan();p.nodes[0].with.target='view; DROP TABLE data';assert.throws(()=>render(p),/identifier/);});
 test('unsupported inputs fail closed',()=>{const p=plan();p.nodes[0].needs=['other'];assert.throws(()=>render(p),/input adapter/);});
 `,
-    "README.md": `# ${id} provider starter\n\nThis runnable synthetic SQL generator is an authoring example. It has no platform connection or execution adapter.\n\nWith Node 22 and the candidate Ingestron CLI installed, run:\n\n\`\`\`sh\nnode --test test/*.test.mjs\ningestron --no-input plugin check --delivery\ningestron --no-input build --delivery --out out\n\`\`\`\n\nReview out/ingestron-project.json and the exported model.sql. Execution remains not-run. Change the target to an invalid identifier to verify rejection.\n\nBefore publishing: replace the example with platform-owned validation and rendering; declare only implemented capabilities; add model resource identities before sharing native resources; validate handover completion protocols and contract compatibility; declare a versioned pack contract before accepting presets; test installed Git packages, malformed inputs, determinism and edited-output protection. Record offline and native evidence separately. Read the CLI repository docs/contributing/provider-contract.md for the normative contract.\n`,
-    "AGENTS.md":
-      "Own platform semantics here. Keep compiler hooks deterministic and offline. Run node --test and ingestron plugin check --delivery. Preserve user output; do not call platforms from compiler hooks or tests.\n",
+    "scripts/check.mjs": `import {executeAsync} from '@ingestron/core';
+const build=process.argv[2]==='build';
+const result=await executeAsync({root:process.cwd(),allowWrite:build},build?'build':'provider_check',build?{out:'out'}:{delivery:true});
+console.log(JSON.stringify(result,null,2));
+if(!result.ok)process.exitCode=1;
+`,
+    "README.md": `# ${id} provider starter\n\nA synthetic SQL generator demonstrating the Ingestron plugin contract. It has no platform connection or execution adapter.\n\nUse Node 22. Run npm install, npm test, npm run check and npm run build. Review out/model.sql and out/ingestron-project.json. Change the target to an invalid identifier to verify rejection.\n\nReplace the example with your platform implementation and tests before publishing. Declare only implemented capabilities. The core plugin contract is documented at https://github.com/ingestron/core/blob/main/docs/plugins.md.\n`,
     "SECURITY.md":
       "Do not include secrets or source data in packages or fixtures. Compiler hooks are offline; credentials belong in customer execution context. Report suspected vulnerabilities privately to the repository owner.\n",
     ".gitignore": "out/\nnode_modules/\n.ingestron/\n",

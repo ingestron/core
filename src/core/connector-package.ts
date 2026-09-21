@@ -13,7 +13,7 @@ export const connectorPackageSchema = z
     documentation: z.string().url(),
     upstream: z
       .object({
-        ecosystem: z.enum(["singer", "airbyte"]),
+        ecosystem: z.string().regex(/^[a-z][a-z0-9-]*$/),
         variant: z.string().min(1),
         package: z.string().min(1),
         version: z.string().regex(/^\d+\.\d+\.\d+$/),
@@ -37,7 +37,7 @@ export const connectorPackageSchema = z
       z.string(),
       z
         .object({
-          modes: z.array(z.enum(["local", "adf-batch", "databricks"])).min(1),
+          modes: z.array(z.string().regex(/^[a-z][a-z0-9-]*$/)).min(1),
           evidence: z.string().min(1),
         })
         .strict(),

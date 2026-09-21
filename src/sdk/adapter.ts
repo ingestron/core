@@ -2,11 +2,7 @@
 export { Configuration } from "../core/config.js";
 export { fence, packageYaml, resolvePackage } from "../core/packages.js";
 export { check, Problem } from "../core/errors.js";
-export {
-  browseProviders,
-  friendlyReference,
-  pluginKindLabel,
-} from "../core/provider-catalogue.js";
+export { friendlyReference } from "../core/package-references.js";
 
 export { installPackage, installedProviders } from "../core/packages.js";
 export { digest, canonical } from "../core/errors.js";
@@ -23,9 +19,10 @@ export {
   extensionPackSchema,
 } from "../core/packages.js";
 export {
-  officialPlugins,
   taggedVersions,
   providerVersions,
-} from "../core/provider-catalogue.js";
+} from "../core/package-references.js";
 export { initialise, addFlow, addTable, apply } from "../core/authoring.js";
 export { contractColumns } from "../core/contracts.js";
+
+export { browseProviders, pluginKindLabel } from "../core/installed-plugins.js";

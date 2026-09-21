@@ -251,7 +251,7 @@ export class Configuration {
       `${issue.path.join(".")}: ${issue.message}`,
       where?.file,
       where?.pointer,
-      "Use config explain to inspect the originating value",
+      "Use config_explain to inspect the originating value",
     );
   }
   values(
