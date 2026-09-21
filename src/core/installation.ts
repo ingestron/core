@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 let directory = dirname(fileURLToPath(import.meta.url));
 while (
   !existsSync(join(directory, "package.json")) ||
-  !["@ingestron-io/core"].includes(
+  !["@ingestron/core"].includes(
     JSON.parse(readFileSync(join(directory, "package.json"), "utf8")).name,
   )
 ) {
