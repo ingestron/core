@@ -29,7 +29,12 @@ import {
   extensionPackSchema,
   fence,
 } from "./packages.js";
-import { providerCommands, runProviderCommand } from "./provider-commands.js";
+import {
+  providerCommands,
+  runProviderCommand,
+  pluginCommands,
+  runPluginCommand,
+} from "./provider-commands.js";
 import * as development from "./development.js";
 import { scaffoldProvider } from "./provider-starter.js";
 import * as ecosystemAuthor from "./ecosystem-authoring.js";
@@ -311,6 +316,15 @@ export const operationSchemas = {
       flow: z.string(),
       validateOnly: z.boolean().default(false),
       review: z.string().optional(),
+    })
+    .strict(),
+  plugin_commands: z.object({}).strict(),
+  plugin_command: z
+    .object({
+      namespace: z.string(),
+      target: z.string().optional(),
+      command: z.string(),
+      input: z.record(z.string(), z.unknown()).default({}),
     })
     .strict(),
   provider_commands: z.object({ configuration: z.string() }).strict(),
@@ -845,6 +859,12 @@ export function execute(
           args.validateOnly,
           args.review,
         );
+        break;
+      case "plugin_commands":
+        result = pluginCommands(root, environment);
+        break;
+      case "plugin_command":
+        result = runPluginCommand(root, environment, args);
         break;
       case "provider_commands":
         result = providerCommands(

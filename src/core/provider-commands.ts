@@ -236,6 +236,17 @@ export function runProviderCommand(
     false,
     "command",
   );
+  if (definition.resultSchema) {
+    validateSchemaShape(definition.resultSchema);
+    const validateResult = new Ajv2020({ strict: true }).compile(
+      definition.resultSchema,
+    );
+    check(
+      validateResult(result),
+      "PROVIDER_COMMAND",
+      "Provider result does not match its declared schema",
+    );
+  }
   return {
     apiVersion: "ingestron.provider-command-result/v1",
     ...request.context,
@@ -245,4 +256,135 @@ export function runProviderCommand(
     ...(reportLock ? { reportLock } : {}),
     result,
   };
+}
+
+/** Core names are reserved even when a compatibility command is hidden. */
+export const reservedCommandNamespaces = new Set([
+  "init",
+  "check",
+  "plan",
+  "build",
+  "generate",
+  "validate",
+  "doctor",
+  "schema",
+  "source",
+  "contract",
+  "flow",
+  "step",
+  "table",
+  "dataset",
+  "config",
+  "environment",
+  "environments",
+  "plugin",
+  "plugins",
+  "provider",
+  "providers",
+  "packages",
+  "execution",
+  "runtime",
+  "run",
+  "deploy",
+  "advanced",
+  "mcp",
+  "help",
+  "version",
+  "connection",
+  "connections",
+  "activity",
+  "activities",
+  "standards",
+  "resolve",
+  "diff",
+  "validate-output",
+]);
+
+/** Data-only discovery; resolvePackage verifies locked bytes but never runs the guest. */
+export function pluginCommands(root: string, environment: string) {
+  const reader = new Configuration(root);
+  const project = reader.parse(projectSchema, reader.load());
+  check(
+    project.environments[environment],
+    "ENVIRONMENT",
+    `Unknown environment ${environment}`,
+  );
+  const bindings = [];
+  const owners = new Map<string, string>();
+  for (const [configuration, binding] of Object.entries(
+    project.providers.configurations,
+  )) {
+    const pkg = project.providers.packages[binding.package];
+    if (!pkg || pkg.source.startsWith("builtin:") || pkg.source.startsWith("."))
+      continue;
+    const reference = canonicalPackageReference(`${pkg.source}@${pkg.version}`);
+    const source = resolvePackage(reader.root, reference);
+    const manifest = providerPackageSchema.parse(packageYaml(source.file));
+    if (!manifest.commands) continue;
+    const catalogue = providerCommands(root, environment, configuration);
+    const namespace = manifest.commands.namespace ?? manifest.id;
+    check(
+      /^[a-z][a-z0-9-]*$/.test(namespace) &&
+        !reservedCommandNamespaces.has(namespace),
+      "COMMAND_NAMESPACE",
+      `Invalid or reserved plugin namespace ${namespace}`,
+    );
+    check(
+      !owners.has(namespace) || owners.get(namespace) === reference,
+      "COMMAND_NAMESPACE",
+      `Multiple packages claim namespace ${namespace}`,
+    );
+    owners.set(namespace, reference);
+    const names = catalogue.commands.map((c) => c.name);
+    check(
+      !names.some((name) =>
+        names.some((other) => other.startsWith(name + " ")),
+      ),
+      "COMMAND_NAMESPACE",
+      `Command path cannot also be a command group in ${namespace}`,
+    );
+    for (const command of catalogue.commands) {
+      validateSchemaShape(command.inputSchema);
+      if (command.resultSchema) validateSchemaShape(command.resultSchema);
+    }
+    bindings.push({
+      ...catalogue,
+      namespace,
+      effects: "offline-json" as const,
+      availability: "implemented" as const,
+    });
+  }
+  return { apiVersion: "ingestron.plugin-commands/v1", bindings };
+}
+
+export function runPluginCommand(
+  root: string,
+  environment: string,
+  args: {
+    namespace: string;
+    target?: string;
+    command: string;
+    input: Record<string, unknown>;
+  },
+) {
+  const bindings = pluginCommands(root, environment).bindings.filter(
+    (binding) =>
+      binding.namespace === args.namespace &&
+      (!args.target || binding.configuration === args.target),
+  );
+  check(
+    bindings.length > 0,
+    "COMMAND_NAMESPACE",
+    "No installed plugin binding matches namespace and target",
+  );
+  check(
+    bindings.length === 1,
+    "COMMAND_TARGET",
+    "Multiple configurations match; select --target explicitly",
+  );
+  return runProviderCommand(root, environment, {
+    configuration: bindings[0]!.configuration,
+    command: args.command,
+    input: args.input,
+  });
 }

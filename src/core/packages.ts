@@ -188,6 +188,10 @@ export const providerPackageSchema = z
     commands: z
       .object({
         apiVersion: z.literal("ingestron.provider-commands/v1"),
+        namespace: z
+          .string()
+          .regex(/^[a-z][a-z0-9-]*$/)
+          .optional(),
         execution: z.literal("offline-json"),
         module: z.string(),
         definitions: z
@@ -197,6 +201,8 @@ export const providerPackageSchema = z
                 name: z.string().regex(/^[a-z][a-z0-9-]*( [a-z][a-z0-9-]*)*$/),
                 description: z.string().min(1).max(500),
                 reportPack: z.boolean().optional(),
+                examples: z.array(z.string().max(500)).max(10).optional(),
+                resultSchema: z.record(z.string(), z.unknown()).optional(),
                 inputSchema: z.record(z.string(), z.unknown()),
               })
               .strict(),

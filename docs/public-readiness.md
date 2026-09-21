@@ -2,10 +2,10 @@
 
 Status: technically qualified candidate; public-source and npm release held.
 
-The compiler candidate at `3cea7fa` passes Node 22 validation: 43 tests,
+The compiler and namespace candidate passes Node 22 validation: 46 tests,
 independent packed installation, permission boundaries and the Node-free editor
-export. Main contains only the bootstrap commit; the implementation remains in
-PR #1. A repository visibility change alone would not publish a usable main branch.
+export. The implementation is reviewed through PR #1; the extraction and namespace work
+are validated together before merging.
 
 Gitleaks 8.30.1, downloaded from its official release and SHA-256 checked, scanned
 all fetched refs and tags (6 reachable commits, 5 with scanned changes). The one
@@ -18,7 +18,7 @@ Before public source release:
 
 - Confirm the current rights holder's authority and enact the intended licence;
   Otrera incorporation/IP evidence is still pending from the owner.
-- Review and merge the extraction candidate so main is usable.
+- Confirm the exact merged candidate and default branch during cutover.
 - Reconcile repository metadata to `ingestron/core` after the authorised transfer.
 - Recheck clean installation without private credentials at the new location.
 - Clearly label provider catalogue entries as private previews. Publishing core
@@ -38,3 +38,9 @@ gitleaks git . --config .gitleaks.toml --log-opts="--all --full-history" --redac
 Production dependency audit (`pnpm audit --prod`) reports zero known
 vulnerabilities at inspection time. This is not a guarantee of vulnerability-free
 code or complete third-party rights clearance.
+
+The shared namespace registry is implemented; see [command contract](plugin-command-namespaces.md).
+Tests cover compatibility, data-only discovery, ambiguous targets and namespace collisions.
+CLI CI has a read-only deploy key on this core repository (key ID 163929887);
+its private half is stored only in the CLI Actions secret `CORE_SSH_KEY`.
+Delete that key and the consumer secret when the dependency becomes public or is retired.
