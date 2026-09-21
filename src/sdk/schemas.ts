@@ -7,7 +7,12 @@ import {
   stepSchema,
 } from "../core/schema.js";
 export { projectSchema, flowSchema, environmentSchema, stepSchema };
-export const documentSchemas = {
+export const documentSchemas: {
+  readonly project: typeof projectSchema;
+  readonly flow: typeof flowSchema;
+  readonly environment: typeof environmentSchema;
+  readonly step: typeof stepSchema;
+} = {
   project: projectSchema,
   flow: flowSchema,
   environment: environmentSchema,
