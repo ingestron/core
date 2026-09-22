@@ -138,7 +138,7 @@ export function render(plan) {
             build: "node scripts/check.mjs build",
           },
           devDependencies: { "@ingestron/core": version },
-          engines: { node: ">=22 <23" },
+          engines: { node: ">=22.12.0" },
         },
         null,
         2,
@@ -156,7 +156,7 @@ const result=await executeAsync({root:process.cwd(),allowWrite:build},build?'bui
 console.log(JSON.stringify(result,null,2));
 if(!result.ok)process.exitCode=1;
 `,
-    "README.md": `# ${id} provider starter\n\nA synthetic SQL generator demonstrating the Ingestron plugin contract. It has no platform connection or execution adapter.\n\nUse Node 22. Run npm install, npm test, npm run check and npm run build. Review out/model.sql and out/ingestron-project.json. Change the target to an invalid identifier to verify rejection.\n\nReplace the example with your platform implementation and tests before publishing. Declare only implemented capabilities. The core plugin contract is documented at https://github.com/ingestron/core/blob/main/docs/plugins.md.\n`,
+    "README.md": `# ${id} provider starter\n\nA synthetic SQL generator demonstrating the Ingestron plugin contract. It has no platform connection or execution adapter.\n\nUse Node 22.12 or newer. Run npm install, npm test, npm run check and npm run build. Review out/model.sql and out/ingestron-project.json. Change the target to an invalid identifier to verify rejection.\n\nReplace the example with your platform implementation and tests before publishing. Declare only implemented capabilities. The core plugin contract is documented at https://github.com/ingestron/core/blob/main/docs/plugins.md.\n`,
     "SECURITY.md":
       "Do not include secrets or source data in packages or fixtures. Compiler hooks are offline; credentials belong in customer execution context. Report suspected vulnerabilities privately to the repository owner.\n",
     ".gitignore": "out/\nnode_modules/\n.ingestron/\n",

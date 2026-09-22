@@ -1,6 +1,6 @@
 # Integrating core
 
-Use `@ingestron/core` in a trusted Node 22 host such as a CLI, service worker or
+Use `@ingestron/core` in a trusted Node 22.12 or newer host such as a CLI, service worker or
 editor backend. Use `@ingestron/core/schemas` for structural validation of unsaved
 editor buffers; it does not load the filesystem or runtime plugin host.
 

@@ -3,7 +3,7 @@
 This independent repository owns the provider-neutral project compiler, configuration
 schemas, diagnostics, operation API, plugin host and package/runtime safety.
 It does not own terminal UI, MCP transport, editor UI or native provider generators.
-Use Node 22 and pnpm 10.15.0, scoped codex/ branches, synthetic fixtures and no
+Use Node 22.12 or newer and pnpm 10.15.0, scoped codex/ branches, synthetic fixtures and no
 cloud execution. Run pnpm validate. Check installed tarballs, not sibling source.
 Preserve required upstream schema notices. Otrera Limited is the licensor
 for original code under Apache-2.0.
