@@ -1,6 +1,6 @@
 # Releasing core
 
-Use Node 22 and pnpm 10.15.0.
+Use Node 22.12 or newer and pnpm 10.15.0.
 
 1. Install dependencies with `pnpm install --frozen-lockfile`.
 2. After dependency changes, run `pnpm licences:inventory` and review the updated

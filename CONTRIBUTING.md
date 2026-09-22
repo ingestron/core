@@ -4,7 +4,7 @@ Core owns shared project semantics, schemas, diagnostics, package integrity and
 plugin hosting. Keep terminal/MCP/editor UI, product catalogues, provider
 implementations and commercial material in their owning repositories.
 
-Use Node 22 and pnpm 10.15.0. Install with `pnpm install --frozen-lockfile` and run
+Use Node 22.12 or newer and pnpm 10.15.0. Install with `pnpm install --frozen-lockfile` and run
 `pnpm validate`. The gate formats, builds, tests, scans for recognised secret
 patterns, verifies release metadata/notices and exercises the installed archive.
 Tests use synthetic local packages and require Git; they need no cloud credentials.
