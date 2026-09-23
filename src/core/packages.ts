@@ -502,6 +502,7 @@ export function installPackage(
     update?: boolean;
     frozen?: boolean;
     tagPrefix?: string;
+    kind?: "provider" | "connector";
   } = {},
 ) {
   root = realpathSync(root);
@@ -528,13 +529,23 @@ export function installPackage(
         `.ingestron/packages/${digest(previous.repository)}/${previous.commit}`,
       ),
     )
-  )
+  ) {
+    if (options.kind) {
+      const installed = resolvePackage(root, reference);
+      const manifest = packageYaml(installed.file);
+      check(
+        manifest.apiVersion === `ingestron.${options.kind}/v1`,
+        "PACKAGE",
+        `Expected a ${options.kind} package at ${reference}`,
+      );
+    }
     return {
       reference,
       ...resolvePackage(root, reference).entry,
       cached: true,
       informationFile: savePluginInformation(root, reference),
     };
+  }
   const control = fence(root, ".ingestron");
   mkdirSync(control, { recursive: true });
   const guard = resolve(control, "package-install.lock");
@@ -642,6 +653,12 @@ export function installPackage(
       files[m[5]] = digest(text);
     }
     const manifest = packageYaml(fence(staged, parsed.path));
+    if (options.kind)
+      check(
+        manifest.apiVersion === `ingestron.${options.kind}/v1`,
+        "PACKAGE",
+        `Expected a ${options.kind} package at ${reference}`,
+      );
     if (manifest.apiVersion === "ingestron.connector/v1") {
       const connector = connectorPackageSchema.parse(manifest);
       check(

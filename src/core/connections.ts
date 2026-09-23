@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fence } from "./packages.js";
 import { connectorPackageSchema } from "./connector-package.js";
 import { contractColumns } from "./contracts.js";
+import { resolveModelContracts } from "./model-packs.js";
 /** Project-owned configuration; schemas and runtime assets remain plugin-owned. */
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
@@ -45,6 +46,7 @@ export function prepareConnection(
     "Environment name differs from selected profile",
   );
   const flows = project.flows.map((f) => reader.parse(flowSchema, f));
+  resolveModelContracts(reader, project, flows);
   check(
     new Set(flows.map((f) => f.id)).size === flows.length,
     "FLOW",

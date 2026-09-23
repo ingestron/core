@@ -193,7 +193,7 @@ function setup(t: any) {
       { flow: "sales" },
     );
   };
-  return { ...f, run };
+  return { ...f, origin, run };
 }
 test("project connection resolves bindings through locked schema and offline operation", (t) => {
   const f = setup(t);
@@ -211,6 +211,61 @@ test("project connection resolves bindings through locked schema and offline ope
   assert.equal(f.run().result.result.echo.specificationSha256, before);
   f.project.environments.dev.bindings.sales.host = "another";
   assert.notEqual(f.run().result.result.echo.specificationSha256, before);
+});
+test("connection preparation reuses a selected model contract", (t) => {
+  const f = setup(t);
+  const contract = structuredClone(f.project.flows[0].tables.orders.contract);
+  const pack = {
+    apiVersion: "ingestron.extension-pack/v2",
+    kind: "model",
+    id: "sample",
+    version: "1.0.0",
+    description: "Synthetic source model",
+    contracts: { orders: contract },
+    relationships: [],
+    provenance: {
+      sources: ["synthetic fixture"],
+      retrieved: "2026-09-23",
+      status: "recorded-schema",
+      notes: "Synthetic test only",
+    },
+  };
+  f.put("models/sample.yaml", pack);
+  f.project.modelPacks = {
+    sample: { source: "./models/sample.yaml", version: "1.0.0" },
+  };
+  f.project.flows[0].tables.orders.contract = { $model: "sample:orders" };
+  const prepared = f.run();
+  assert.equal(prepared.ok, true, JSON.stringify(prepared));
+  assert.deepEqual(
+    prepared.result.result.echo.tables.orders.contract,
+    contract,
+  );
+  f.project.flows[0].tables.orders.contract = { $model: "sample:missing" };
+  const rejected = f.run();
+  assert.equal(rejected.ok, false);
+  assert.match(JSON.stringify(rejected.diagnostics), /Unknown model/);
+});
+test("typed installation rejects the wrong package before changing its lock", (t) => {
+  const f = setup(t);
+  const reference = "example/source/connector.yaml@1.0.0";
+  const lock = readFileSync(resolve(f.root, "packages.lock.yaml"), "utf8");
+  for (const options of [
+    { kind: "provider" as const },
+    { kind: "provider" as const, update: true, fromGit: f.origin },
+  ])
+    assert.throws(
+      () => installPackage(f.root, reference, options),
+      /Expected a provider package/,
+    );
+  assert.equal(
+    readFileSync(resolve(f.root, "packages.lock.yaml"), "utf8"),
+    lock,
+  );
+  assert.equal(
+    installPackage(f.root, reference, { kind: "connector" }).cached,
+    true,
+  );
 });
 test("rejects plain credentials, $env interpolation, unknown settings and modes", (t) => {
   const f = setup(t);
