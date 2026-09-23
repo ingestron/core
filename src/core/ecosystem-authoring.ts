@@ -4,6 +4,7 @@ import { Configuration } from "./config.js";
 import { preview } from "./authoring.js";
 import { check } from "./errors.js";
 import { projectSchema } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 import {
   extensionPackSchema,
   packageYaml,
@@ -61,7 +62,7 @@ export function configurePack(
     "PACK",
     "Pack name already exists",
   );
-  const pkg = project.providers.packages[configuration.package];
+  const pkg = projectPackages(project)[configuration.package];
   const file = pkg.source.startsWith(".")
     ? reader.path(pkg.source)
     : resolvePackage(root, `${pkg.source}@${pkg.version}`).file;

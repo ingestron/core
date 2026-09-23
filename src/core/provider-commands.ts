@@ -6,9 +6,10 @@ import { dirname, relative, resolve } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
 import { projectSchema } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 import { canonical, check, digest } from "./errors.js";
 import {
-  canonicalPackageReference,
+  configuredPackageReference,
   fence,
   packageYaml,
   providerPackageSchema,
@@ -100,13 +101,13 @@ function selected(root: string, environment: string, configuration: string) {
     "PROVIDER",
     `Unknown provider configuration ${configuration}`,
   );
-  const pkg = project.providers.packages[configured.package];
+  const pkg = projectPackages(project)[configured.package];
   check(
     pkg && !pkg.source.startsWith("builtin:") && !pkg.source.startsWith("."),
     "PACKAGE",
     "Provider commands require an installed locked provider",
   );
-  const reference = canonicalPackageReference(`${pkg.source}@${pkg.version}`);
+  const reference = configuredPackageReference(pkg);
   const source = resolvePackage(reader.root, reference);
   const manifest = providerPackageSchema.parse(packageYaml(source.file));
   checkProviderCompatibility(manifest);
@@ -314,10 +315,10 @@ export function pluginCommands(root: string, environment: string) {
   for (const [configuration, binding] of Object.entries(
     project.providers.configurations,
   )) {
-    const pkg = project.providers.packages[binding.package];
+    const pkg = projectPackages(project)[binding.package];
     if (!pkg || pkg.source.startsWith("builtin:") || pkg.source.startsWith("."))
       continue;
-    const reference = canonicalPackageReference(`${pkg.source}@${pkg.version}`);
+    const reference = configuredPackageReference(pkg);
     const source = resolvePackage(reader.root, reference);
     const manifest = providerPackageSchema.parse(packageYaml(source.file));
     if (!manifest.commands) continue;

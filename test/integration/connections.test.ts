@@ -8,7 +8,8 @@ import { stringify, parse } from "yaml";
 import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
 import { execute } from "../../src/core/operations.js";
-function setup(t: any) {
+import { pluginConfigure } from "../../src/core/workflows.js";
+function setup(t: any, perTableSource = false) {
   const f = fixture(t),
     origin = resolve(f.root, "connection-plugin");
   mkdirSync(resolve(origin, "plugin"), { recursive: true });
@@ -91,6 +92,11 @@ function setup(t: any) {
         password: object({ $secret: object({ env: text }) }),
       }),
       selectionSchema: { type: "object", additionalProperties: true },
+      ...(perTableSource
+        ? {
+            tableSourceSchema: object({ schema: text, table: text }),
+          }
+        : {}),
     },
     execution: { test: { modes: ["local"], evidence: "synthetic" } },
   };
@@ -148,7 +154,9 @@ function setup(t: any) {
       provider: "engineering",
       tables: {
         orders: {
-          source: { stream: "orders" },
+          source: perTableSource
+            ? { schema: "dbo", table: "Orders" }
+            : { stream: "orders" },
           contract: {
             apiVersion: "v3.1.0",
             kind: "DataContract",
@@ -195,6 +203,53 @@ function setup(t: any) {
   };
   return { ...f, origin, run };
 }
+test("one connection selects multiple physical tables with contract-derived columns and short package refs", (t) => {
+  const f = setup(t, true);
+  f.project.packages = {
+    dbx: "example/connections@1.0.0",
+    source: "synthetic@1.0.0",
+  };
+  f.project.providers.packages = {};
+  f.project.flows[0].tables.customers = {
+    source: { schema: "sales", table: "Customers" },
+    contract: structuredClone(f.project.flows[0].tables.orders.contract),
+  };
+  const prepared = f.run();
+  assert.equal(prepared.ok, true, JSON.stringify(prepared));
+  const tables = prepared.result.result.echo.tables;
+  assert.deepEqual(tables.orders.source, {
+    schema: "dbo",
+    table: "Orders",
+    stream: "orders",
+  });
+  assert.deepEqual(tables.customers.source, {
+    schema: "sales",
+    table: "Customers",
+    stream: "customers",
+  });
+  assert.deepEqual(tables.orders.columns, tables.customers.columns);
+  f.project.flows[0].tables.customers.source.columns = ["id"];
+  const rejected = f.run();
+  assert.equal(rejected.ok, false);
+  assert.match(
+    JSON.stringify(rejected.diagnostics),
+    /source|additional properties/i,
+  );
+});
+test("connector registration writes a short package name in a top-level package map", (t) => {
+  const f = setup(t, true);
+  f.project.packages = {};
+  f.run();
+  const proposal = pluginConfigure(f.root, {
+    reference: "example/source/connector.yaml@1.0.0",
+    name: "synthetic",
+  });
+  const project = parse(
+    proposal.changes.find((change) => change.path === "project.yaml")!.after,
+  );
+  assert.equal(project.packages.synthetic, "synthetic@1.0.0");
+  assert.equal(project.providers.packages.synthetic, undefined);
+});
 test("project connection resolves bindings through locked schema and offline operation", (t) => {
   const f = setup(t);
   const result = f.run();

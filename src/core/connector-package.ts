@@ -31,7 +31,11 @@ export const connectorPackageSchema = z
       })
       .strict(),
     definition: z
-      .object({ settingsSchema: schema, selectionSchema: schema })
+      .object({
+        settingsSchema: schema,
+        selectionSchema: schema,
+        tableSourceSchema: schema.optional(),
+      })
       .strict(),
     execution: z.record(
       z.string(),

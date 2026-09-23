@@ -13,6 +13,8 @@ import { resolve, dirname, relative } from "node:path";
 import { parseDocument, stringify } from "yaml";
 import { check, digest, canonical, merge, Problem } from "./errors.js";
 import { Configuration } from "./config.js";
+import { projectSchema } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 import { contractColumns } from "./contracts.js";
 import {
   fence,
@@ -312,7 +314,7 @@ export function addFlow(
   const configuration = options.provider ?? resolved.defaults.provider;
   const config = resolved.providers.configurations[configuration];
   check(config, "PROVIDER", "Select a provider configuration for this flow");
-  const pkg = resolved.providers.packages[config.package];
+  const pkg = projectPackages(projectSchema.parse(resolved))[config.package];
   const environments = Object.values(raw.environments).map((ref: any) => {
     check(
       ref.$resolve,

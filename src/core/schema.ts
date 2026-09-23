@@ -32,9 +32,10 @@ export const projectSchema = z
     apiVersion: z.literal("ingestron.project/v1"),
     id,
     description: z.string().optional(),
+    packages: z.record(id, packageReferenceSchema).default({}),
     providers: z
       .object({
-        packages: z.record(id, packageReferenceSchema),
+        packages: z.record(id, packageReferenceSchema).default({}),
         configurations: z.record(id, providerSchema),
         packs: z.record(id, packageReferenceSchema).default({}),
       })

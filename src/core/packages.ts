@@ -348,6 +348,17 @@ export function canonicalPackageReference(reference: string): string {
   );
   return `${repository}/plugin/provider.yaml@${short[2]}`;
 }
+export function configuredPackageReference(pkg: {
+  source: string;
+  version: string;
+}) {
+  const reference = `${pkg.source}@${pkg.version}`;
+  return /^[a-z][a-z0-9-]*@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(
+    reference,
+  )
+    ? reference
+    : canonicalPackageReference(reference);
+}
 const parseReference = (reference: string) => {
   check(
     !reference.endsWith("@latest"),
@@ -390,6 +401,28 @@ export function packageLock(root: string) {
       };
 }
 export function resolvePackage(root: string, reference: string) {
+  if (
+    /^[a-z][a-z0-9-]*@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(
+      reference,
+    )
+  ) {
+    const [name, version] = reference.split("@");
+    const matches = Object.keys(packageLock(root).packages).filter(
+      (lockedReference) => {
+        const installed = resolvePackage(root, lockedReference);
+        const manifest = packageYaml(installed.file);
+        return manifest.id === name && manifest.version === version;
+      },
+    );
+    check(
+      matches.length === 1,
+      "PACKAGE",
+      matches.length
+        ? `Ambiguous installed package ${reference}; use an explicit reference`
+        : `Install ${reference} before building this project`,
+    );
+    return resolvePackage(root, matches[0]);
+  }
   reference = canonicalPackageReference(reference);
   const parsed = parseReference(reference),
     entry = packageLock(root).packages[reference];

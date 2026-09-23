@@ -9,8 +9,8 @@ connector runtime assets and standards through explicit package references.
 
 ## Use the library
 
-Requires Node 22.12 or newer for runtime operations. The npm package name is `@ingestron/core`;
-initial registry publication is pending. To build the public source checkout:
+Requires Node 22.12 or newer for runtime operations. The npm package name is
+`@ingestron/core`. To build the public source checkout:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -35,6 +35,14 @@ console.log(result.valid); // true
 project through a reviewed change proposal. It needs no provider, cloud account or
 source data. Building native assets requires an installed provider and configured
 flows.
+
+In a project, `packages` maps short names to exact installed releases. The
+`packages.lock.yaml` file retains each full repository reference, commit and
+file hashes. An ingestion connection holds endpoint and authentication settings;
+each `flow.tables` entry selects one physical source object and its ODCS contract
+selects the output columns. Connector packages define the allowed table source
+shape, so the same project layout works across source types. Older stream-based
+connector releases remain supported.
 
 ## Integration guides
 
