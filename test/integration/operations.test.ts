@@ -34,6 +34,9 @@ test("authoring previews are read-only, stale proposals fail, and init protects 
     false,
   );
   assert.equal(execute(ctx, "apply", { proposal: proposal.result }).ok, true);
+  const created = parse(readFileSync(resolve(root, "project.yaml"), "utf8"));
+  assert.deepEqual(created.packages, { native: "fixture@1.0.0" });
+  assert.equal(created.providers.packages, undefined);
   assert.equal(execute(ctx, "validate", { mode: "draft" }).ok, true);
   const flow = execute(ctx, "flow_add", {
     id: "erp",
@@ -42,7 +45,7 @@ test("authoring previews are read-only, stale proposals fail, and init protects 
     provider: "default",
     sourceKind: "azure-sql",
   });
-  assert.equal(flow.ok, true);
+  assert.equal(flow.ok, true, JSON.stringify(flow.diagnostics));
   const config = execute(ctx, "config_set", {
     path: "values.team",
     value: "engineering",

@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { fixture } from "../support/project.js";
 import { migrateProvider, apply } from "../../src/core/authoring.js";
 import { planProject } from "../../src/core/planner.js";
+import { parse } from "yaml";
 test("bundled projects get a migration error and an explicit reviewable source change", (t) => {
   const f = fixture(t);
   f.project.providers.packages.dbx = {
@@ -30,4 +31,19 @@ test("bundled projects get a migration error and an explicit reviewable source c
   writeFileSync(lock, original);
   apply(f.root, proposal);
   assert.equal(planProject(f.root).nodes.length, 2);
+});
+test("provider migration preserves the top-level short package layout", (t) => {
+  const f = fixture(t);
+  f.project.packages = { dbx: "fixture@1.0.0" };
+  f.project.providers.packages = {};
+  f.put("project.yaml", f.project);
+  const proposal = migrateProvider(f.root, {
+    package: "dbx",
+    to: "example/fixture@1.0.0",
+  });
+  apply(f.root, proposal);
+  const updated = parse(readFileSync(resolve(f.root, "project.yaml"), "utf8"));
+  assert.equal(updated.packages.dbx, "fixture@1.0.0");
+  assert.equal(planProject(f.root).nodes.length, 2);
+  assert.deepEqual(updated.providers.packages, {});
 });
