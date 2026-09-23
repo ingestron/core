@@ -279,6 +279,7 @@ export const operationSchemas = {
   packages_install: z
     .object({
       reference: z.string(),
+      kind: z.enum(["provider", "connector"]).optional(),
       fromGit: z.string().optional(),
       update: z.boolean().optional(),
       frozen: z.boolean().optional(),
