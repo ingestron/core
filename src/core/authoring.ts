@@ -13,14 +13,36 @@ import { resolve, dirname, relative } from "node:path";
 import { parseDocument, stringify } from "yaml";
 import { check, digest, canonical, merge, Problem } from "./errors.js";
 import { Configuration } from "./config.js";
-import { projectSchema } from "./schema.js";
+import { packageReferenceSchema, projectSchema } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
 import { contractColumns } from "./contracts.js";
 import {
   fence,
   installedProviders,
   canonicalPackageReference,
+  configuredPackageReference,
+  resolvePackage,
+  packageYaml,
 } from "./packages.js";
+function concisePackageReference(root: string, value: unknown) {
+  const pkg = packageReferenceSchema.parse(value);
+  const reference = configuredPackageReference(pkg);
+  const installed = resolvePackage(root, reference);
+  const manifest = packageYaml(installed.file);
+  const short = `${manifest.id}@${manifest.version}`;
+  try {
+    const selected = resolvePackage(root, short);
+    if (
+      selected.entry.repository === installed.entry.repository &&
+      selected.entry.path === installed.entry.path &&
+      selected.entry.commit === installed.entry.commit
+    )
+      return short;
+  } catch {
+    // Keep an explicit reference if multiple installed packages share the ID.
+  }
+  return `${pkg.source}@${pkg.version}`;
+}
 export interface Change {
   path: string;
   before: string | null;
@@ -183,7 +205,8 @@ export function initialise(
       "project.yaml": stringify({
         apiVersion: "ingestron.project/v1",
         id: options.id,
-        providers: { packages: {}, configurations: {} },
+        packages: {},
+        providers: { configurations: {} },
         defaults: {},
         environments: Object.fromEntries(
           environments.map((name) => [
@@ -241,6 +264,19 @@ export function initialise(
       /^environments\/[\w-]+\.yaml$/.test(name),
   );
   check(files["project.yaml"], "PROVIDER", "Provider must author a project");
+  const authored = yaml(files["project.yaml"], "project.yaml").toJS();
+  const providerPackages = authored.providers?.packages ?? {};
+  authored.packages ??= {};
+  for (const [name, value] of Object.entries(providerPackages)) {
+    check(
+      !Object.hasOwn(authored.packages, name),
+      "PACKAGE",
+      `Duplicate package alias ${name}`,
+    );
+    authored.packages[name] = concisePackageReference(root, value);
+  }
+  if (authored.providers) delete authored.providers.packages;
+  files["project.yaml"] = stringify(authored);
   // Providers may return JSON (valid YAML); editable scaffolds use block YAML.
   for (const [name, text] of Object.entries(files)) {
     if (name.endsWith(".yaml"))
@@ -260,16 +296,17 @@ export function migrateProvider(
 ) {
   const reader = new Configuration(root),
     doc = yaml(reader.text("project.yaml"), "project.yaml");
-  check(
-    doc.hasIn(["providers", "packages", options.package]),
-    "PACKAGE",
-    "Unknown project package",
-  );
+  const location = doc.hasIn(["packages", options.package])
+    ? ["packages", options.package]
+    : ["providers", "packages", options.package];
+  check(doc.hasIn(location), "PACKAGE", "Unknown project package");
   const selected = providerReference(root, options.to);
-  doc.setIn(["providers", "packages", options.package], {
-    source: selected.source,
-    version: selected.version,
-  });
+  doc.setIn(
+    location,
+    location[0] === "packages"
+      ? concisePackageReference(root, `${selected.source}@${selected.version}`)
+      : { source: selected.source, version: selected.version },
+  );
   return preview(root, { "project.yaml": doc.toString() });
 }
 function flowFile(root: string, id: string) {
@@ -330,7 +367,7 @@ export function addFlow(
   });
   const files = providerAuthor(
     root,
-    `${pkg.source}@${pkg.version}`,
+    resolvePackage(root, configuredPackageReference(pkg)).reference,
     {
       operation: "flow",
       options,

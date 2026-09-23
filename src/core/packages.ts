@@ -455,7 +455,7 @@ export function resolvePackage(root: string, reference: string) {
       "PACKAGE",
       `Package integrity failed: ${file}`,
     );
-  return { file: fence(cache, entry.path), root: cache, entry };
+  return { reference, file: fence(cache, entry.path), root: cache, entry };
 }
 /** Derived information lives outside the integrity-checked source cache. */
 export function savePluginInformation(root: string, reference: string) {

@@ -1,6 +1,6 @@
 {
   "name": "@ingestron/core",
-  "version": "0.12.3",
+  "version": "0.12.4",
   "type": "module",
   "description": "Shared Ingestron project compiler, operations and editor schemas",
   "license": "Apache-2.0",
