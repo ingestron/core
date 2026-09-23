@@ -5,7 +5,7 @@ import { validateProviderFiles } from "../plugins/generation.js";
 import { inspectProject, planProject } from "./planner.js";
 import { canonical, check, digest, isMap } from "./errors.js";
 import {
-  canonicalPackageReference,
+  configuredPackageReference,
   fence,
   packageYaml,
   providerPackageSchema,
@@ -24,6 +24,7 @@ import {
 import { compilerFingerprint } from "./fingerprint.js";
 import { version } from "../version.js";
 import type { Plan } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 
 export function buildProject(root: string, environment: string, args: any) {
   const { project, flows, reader, profile } = inspectProject(root, environment);
@@ -193,9 +194,9 @@ export function buildProject(root: string, environment: string, args: any) {
       "PROVIDER",
       `Unknown provider configuration ${configuration}`,
     );
-    const pkg = project.providers.packages[config.package];
+    const pkg = projectPackages(project)[config.package];
     check(pkg, "PACKAGE", `Missing execution package ${config.package}`);
-    const reference = canonicalPackageReference(`${pkg.source}@${pkg.version}`);
+    const reference = configuredPackageReference(pkg);
     const locked = pkg.source.startsWith(".")
       ? { file: reader.path(pkg.source), root, entry: undefined }
       : resolvePackage(root, reference);

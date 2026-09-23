@@ -177,6 +177,40 @@ function packageEditor(root: string) {
   };
   return { reader, project, finish };
 }
+function packageValue(raw: any, name: string) {
+  return raw.packages?.[name] ?? raw.providers?.packages?.[name];
+}
+function packagePath(raw: any, name: string) {
+  return raw.packages?.[name] ||
+    (raw.packages && !raw.providers?.packages?.[name])
+    ? ["packages", name]
+    : ["providers", "packages", name];
+}
+function sameInstalledPackage(root: string, left: string, right: string) {
+  try {
+    const a = resolvePackage(root, left).entry;
+    const b = resolvePackage(root, right).entry;
+    return (
+      a.repository === b.repository &&
+      a.path === b.path &&
+      a.commit === b.commit
+    );
+  } catch {
+    return false;
+  }
+}
+function preferredReference(
+  root: string,
+  raw: any,
+  full: string,
+  id: string,
+  version: string,
+) {
+  const short = `${id}@${version}`;
+  return raw.packages && sameInstalledPackage(root, short, full)
+    ? short
+    : friendlyReference(full);
+}
 export function pluginConfigure(root: string, args: any) {
   const reference = canonicalPackageReference(args.reference);
   const sourceManifest = packageYaml(resolvePackage(root, reference).file);
@@ -185,69 +219,88 @@ export function pluginConfigure(root: string, args: any) {
     const { project, finish } = packageEditor(root);
     const name = identifier.parse(args.name ?? connector.id);
     const at = reference.lastIndexOf("@");
-    const friendly = friendlyReference(reference);
+    const raw = project.toJS();
+    const friendly = preferredReference(
+      root,
+      raw,
+      reference,
+      connector.id,
+      connector.version,
+    );
     const value = {
       source: friendly.slice(0, friendly.lastIndexOf("@")),
       version: reference.slice(at + 1),
     };
-    const previous = project.getIn(["providers", "packages", name]);
+    const previous = packageValue(raw, name);
     if (previous) {
-      const old = packageReferenceSchema.parse(
-        project.toJS().providers.packages[name],
-      );
+      const old = packageReferenceSchema.parse(previous);
       check(
-        canonical(old) === canonical(value) ||
-          (args.update && old.source === value.source),
+        sameInstalledPackage(root, `${old.source}@${old.version}`, reference) ||
+          (args.update &&
+            (old.source === value.source ||
+              old.source ===
+                friendlyReference(reference).slice(
+                  0,
+                  -value.version.length - 1,
+                ))),
         "CONFLICT",
         "Connector package key already exists; choose a different name",
       );
     }
-    project.setIn(
-      ["providers", "packages", name],
-      `${value.source}@${value.version}`,
-    );
+    project.setIn(packagePath(raw, name), `${value.source}@${value.version}`);
     return finish({ "project.yaml": project.toString() });
   }
 
   const { reader, project, finish } = packageEditor(root);
   const raw = project.toJS(),
     selected = providerReference(root, args.reference);
+  const preferred = preferredReference(
+    root,
+    raw,
+    canonicalPackageReference(args.reference),
+    selected.manifest.id,
+    selected.manifest.version,
+  );
   const name = identifier.parse(args.name ?? selected.manifest.platform);
   const configurations = raw.providers.configurations;
   if (configurations[name]) {
     const existing = packageReferenceSchema.parse(
-      raw.providers.packages[configurations[name].package],
+      packageValue(raw, configurations[name].package),
     );
     check(
       args.update ||
-        (friendlyReference(existing.source) === selected.source &&
-          existing.version === selected.version),
+        sameInstalledPackage(
+          root,
+          `${existing.source}@${existing.version}`,
+          args.reference,
+        ),
       "CONFLICT",
       `Provider configuration ${name} already exists; use provider_migrate or a different name`,
     );
     if (args.update) {
       check(
-        friendlyReference(existing.source) === selected.source,
+        existing.source === preferred.slice(0, preferred.lastIndexOf("@")) ||
+          friendlyReference(existing.source) === selected.source,
         "CONFLICT",
         "Use plugin migrate to change provider identity",
       );
-      project.setIn(
-        ["providers", "packages", configurations[name].package],
-        `${selected.source}@${selected.version}`,
-      );
+      project.setIn(packagePath(raw, configurations[name].package), preferred);
       return finish({ "project.yaml": project.toString() });
     }
-    if (existing.source !== selected.source) {
-      project.setIn(
-        ["providers", "packages", configurations[name].package],
-        `${selected.source}@${selected.version}`,
-      );
+    if (
+      !sameInstalledPackage(
+        root,
+        `${existing.source}@${existing.version}`,
+        args.reference,
+      )
+    ) {
+      project.setIn(packagePath(raw, configurations[name].package), preferred);
       return finish({ "project.yaml": project.toString() });
     }
     return finish({});
   }
   check(
-    !raw.providers.packages[name],
+    !packageValue(raw, name),
     "CONFLICT",
     `Package key ${name} already exists`,
   );
@@ -275,10 +328,7 @@ export function pluginConfigure(root: string, args: any) {
     "PROVIDER",
     "Provider did not supply its default configuration",
   );
-  project.setIn(
-    ["providers", "packages", name],
-    `${selected.source}@${selected.version}`,
-  );
+  project.setIn(packagePath(raw, name), preferred);
   const bindingName = `${name}_${defaults.binding}`;
   project.setIn(["providers", "configurations", name], {
     ...defaults,

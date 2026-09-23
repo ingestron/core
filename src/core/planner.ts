@@ -14,6 +14,7 @@ import {
   type Node,
   type Platform,
 } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 import { check, canonical, digest, isMap, merge, Problem } from "./errors.js";
 import { executeProvider } from "../plugins/provider-renderer.js";
 import { contractColumns } from "./contracts.js";
@@ -211,7 +212,7 @@ function provider(
   check(name, "PROVIDER", "Select a provider or set defaults.provider");
   const configured = project.providers.configurations[name];
   check(configured, "PROVIDER", `Unknown provider configuration ${name}`);
-  const pkg = project.providers.packages[configured.package];
+  const pkg = projectPackages(project)[configured.package];
   check(pkg, "PROVIDER", `Unknown provider package ${configured.package}`);
   let rendererCode: string | undefined;
   let plannerCode: string | undefined;
@@ -507,7 +508,7 @@ export function planProject(
         flow.provider,
       );
       const providerSource =
-        project.providers.packages[configuration.package]?.source;
+        projectPackages(project)[configuration.package]?.source;
       check(
         selectedProvider.plannerCode,
         "PROVIDER",

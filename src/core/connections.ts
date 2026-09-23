@@ -7,9 +7,10 @@ import { resolveModelContracts } from "./model-packs.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
 import { projectSchema, flowSchema } from "./schema.js";
+import { projectPackages } from "./project-packages.js";
 import { canonical, check, digest, isMap } from "./errors.js";
 import {
-  canonicalPackageReference,
+  configuredPackageReference,
   resolvePackage,
   packageYaml,
   providerPackageSchema,
@@ -79,19 +80,18 @@ export function prepareConnection(
       flow.provider ?? project.defaults.provider ?? ""
     ];
   check(configured, "PROVIDER", "Select the execution provider configuration");
-  const owner = project.providers.packages[connection.package];
-  const executor = project.providers.packages[configured.package];
+  const packages = projectPackages(project);
+  const owner = packages[connection.package];
+  const executor = packages[configured.package];
   check(owner && executor, "PACKAGE", "Unknown connection/execution package");
   const load = (pkg: typeof owner) => {
-    const ref = canonicalPackageReference(`${pkg.source}@${pkg.version}`);
+    const ref = configuredPackageReference(pkg);
     const locked = resolvePackage(root, ref);
     const manifest = providerPackageSchema.parse(packageYaml(locked.file));
     checkProviderCompatibility(manifest);
     return { ref, locked, manifest };
   };
-  const sourceRef = canonicalPackageReference(
-    `${owner.source}@${owner.version}`,
-  );
+  const sourceRef = configuredPackageReference(owner);
   const sourceLock = resolvePackage(root, sourceRef);
   const sourceRaw = packageYaml(sourceLock.file);
   check(
@@ -155,18 +155,29 @@ export function prepareConnection(
   const streams = new Set<string>();
   const tables = Object.fromEntries(
     Object.entries(flow.tables).map(([name, table]) => {
+      const source = descriptor.tableSourceSchema
+        ? { ...table.source, stream: name }
+        : table.source;
+      if (descriptor.tableSourceSchema)
+        validate(descriptor.tableSourceSchema, table.source, `${name} source`);
+      else
+        check(
+          Object.keys(table.source).length === 1 &&
+            typeof table.source.stream === "string",
+          "CONNECTION",
+          `${name}: source must identify one connector stream`,
+        );
       check(
-        Object.keys(table.source).length === 1 &&
-          typeof table.source.stream === "string",
+        typeof source.stream === "string",
         "CONNECTION",
-        `${name}: source must identify one connector stream`,
+        `${name}: invalid source stream`,
       );
       check(
-        !streams.has(table.source.stream),
+        !streams.has(source.stream),
         "CONNECTION",
         "Duplicate source stream",
       );
-      streams.add(table.source.stream);
+      streams.add(source.stream);
       check(
         !table.ingestion && !Object.keys(table.steps).length,
         "CONNECTION",
@@ -175,7 +186,7 @@ export function prepareConnection(
       return [
         name,
         {
-          source: table.source,
+          source,
           contract: table.contract,
           columns: contractColumns(table.contract),
         },
