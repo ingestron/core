@@ -7,7 +7,7 @@ import { deliveryIndexSchema } from "./deliveries.js";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
-import { check, Problem, canonical } from "./errors.js";
+import { check, Problem, canonical, digest } from "./errors.js";
 import { Configuration } from "./config.js";
 import {
   projectSchema,
@@ -427,13 +427,37 @@ export function execute(
           environment,
           args.flow,
           true,
-        ) as { specificationSha256: string };
-        check(
-          JSON.parse(new Configuration(root).text(args.discovery)).identity
-            ?.projectSpecSha256 === prepared.specificationSha256,
-          "DISCOVERY",
-          "Discovery is stale; rebuild and rediscover before mapping fields",
-        );
+        ) as {
+          specificationSha256: string;
+          sourceBoundarySha256: string;
+        };
+        const reader = new Configuration(root);
+        const discovery = JSON.parse(reader.text(args.discovery));
+        const discoveredSpec = discovery.identity?.projectSpecSha256;
+        if (discoveredSpec !== prepared.specificationSha256) {
+          const saved = JSON.parse(
+            reader.text(
+              `build/generated/flows/${args.flow}/project-connection.lock.json`,
+            ),
+          );
+          const { specificationSha256: savedDigest, ...savedSpec } = saved;
+          const sourceBoundary = {
+            ...savedSpec,
+            tables: Object.fromEntries(
+              Object.entries(savedSpec.tables ?? {}).map(
+                ([name, table]: [string, any]) => [name, table.source],
+              ),
+            ),
+          };
+          check(
+            savedDigest === discoveredSpec &&
+              savedDigest === digest(canonical(savedSpec)) &&
+              digest(canonical(sourceBoundary)) ===
+                prepared.sourceBoundarySha256,
+            "DISCOVERY",
+            "Source configuration changed since discovery; rebuild and rediscover before mapping fields",
+          );
+        }
         result = author.mapContractFields(root, args);
         break;
       }

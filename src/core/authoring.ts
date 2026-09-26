@@ -556,6 +556,12 @@ export function mapContractFields(
       property,
     ]),
   );
+  const previousTargets = new Map(
+    contract.schema[0].properties.map((property: any) => [
+      property.name,
+      property,
+    ]),
+  );
   const sources = new Set<string>(),
     targets = new Set<string>();
   const properties = options.fields.map(({ source, target }) => {
@@ -567,7 +573,7 @@ export function mapContractFields(
     check(!targets.has(target), "MAPPING", `Duplicate target field ${target}`);
     sources.add(source);
     targets.add(target);
-    const old = previous.get(source) as any;
+    const old = (previous.get(source) ?? previousTargets.get(target)) as any;
     if (old) {
       const next = { ...old, name: target };
       if (source !== target) next.physicalName = source;
