@@ -44,6 +44,48 @@ import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
   ...executionSchemas,
+  connection_add: z
+    .object({
+      id: workflows.identifier,
+      package: workflows.identifier,
+      sourceId: workflows.identifier,
+      tenantId: workflows.identifier,
+      binding: workflows.identifier.optional(),
+      settings: z.record(z.string(), z.unknown()).default({}),
+    })
+    .strict(),
+  connection_flow_add: z
+    .object({
+      id: workflows.identifier,
+      provider: workflows.identifier,
+      connection: workflows.identifier,
+      table: workflows.identifier,
+      contract: z.string().min(1),
+      source: z.record(z.string(), z.unknown()).default({}),
+    })
+    .strict(),
+  contract_map_fields: z
+    .object({
+      apiVersion: z.literal("ingestron.field-mapping/v1"),
+      flow: workflows.identifier,
+      environment: workflows.identifier,
+      contract: z.string().min(1),
+      discovery: z.string().min(1),
+      stream: z.string().min(1),
+      table: workflows.identifier,
+      fields: z
+        .array(
+          z
+            .object({
+              source: workflows.identifier,
+              target: workflows.identifier,
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(500),
+    })
+    .strict(),
   provider_scaffold: z
     .object({ id: workflows.identifier, out: z.string() })
     .strict(),
@@ -368,6 +410,33 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "connection_add":
+        result = author.addConnection(root, args);
+        break;
+      case "connection_flow_add":
+        result = author.addConnectionFlow(root, args);
+        break;
+      case "contract_map_fields": {
+        check(
+          args.environment === environment,
+          "ENVIRONMENT",
+          "Mapping draft is for another environment",
+        );
+        const prepared = prepareConnection(
+          root,
+          environment,
+          args.flow,
+          true,
+        ) as { specificationSha256: string };
+        check(
+          JSON.parse(new Configuration(root).text(args.discovery)).identity
+            ?.projectSpecSha256 === prepared.specificationSha256,
+          "DISCOVERY",
+          "Discovery is stale; rebuild and rediscover before mapping fields",
+        );
+        result = author.mapContractFields(root, args);
+        break;
+      }
       case "runtime_prepare":
       case "run":
       case "run_status":
