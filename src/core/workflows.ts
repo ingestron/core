@@ -218,7 +218,6 @@ export function pluginConfigure(root: string, args: any) {
     const connector = connectorPackageSchema.parse(sourceManifest);
     const { project, finish } = packageEditor(root);
     const name = identifier.parse(args.name ?? connector.id);
-    const at = reference.lastIndexOf("@");
     const raw = project.toJS();
     const friendly = preferredReference(
       root,
@@ -229,7 +228,7 @@ export function pluginConfigure(root: string, args: any) {
     );
     const value = {
       source: friendly.slice(0, friendly.lastIndexOf("@")),
-      version: reference.slice(at + 1),
+      version: friendly.slice(friendly.lastIndexOf("@") + 1),
     };
     const previous = packageValue(raw, name);
     if (previous) {

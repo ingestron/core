@@ -337,6 +337,17 @@ export function prepareConnection(
     ? {
         valid: true,
         specificationSha256: input.specificationSha256,
+        sourceBoundarySha256: digest(
+          canonical({
+            ...specification,
+            tables: Object.fromEntries(
+              Object.entries(tables).map(([name, table]: [string, any]) => [
+                name,
+                table.source,
+              ]),
+            ),
+          }),
+        ),
         connection: input.connection,
         flow: flowId,
       }

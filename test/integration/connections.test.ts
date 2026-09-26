@@ -203,6 +203,95 @@ function setup(t: any, perTableSource = false) {
   };
   return { ...f, origin, run };
 }
+test("connection and workflow authoring use reviewable project proposals", (t) => {
+  const f = setup(t);
+  const contract = f.project.flows[0].tables.orders.contract;
+  f.project.connections = {};
+  f.project.flows = [];
+  mkdirSync(resolve(f.root, "contracts"), { recursive: true });
+  writeFileSync(
+    resolve(f.root, "contracts/orders.odcs.yaml"),
+    stringify(contract),
+  );
+  writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
+  const context = {
+    root: f.root,
+    environment: "dev",
+    allowWrite: true,
+    allowNetwork: false,
+  };
+  const connection = execute(context, "connection_add", {
+    id: "sales",
+    package: "source",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: { host: "default" },
+    binding: "sales",
+  });
+  assert.equal(connection.ok, true, JSON.stringify(connection));
+  assert.equal(
+    execute(context, "apply", { proposal: connection.result }).ok,
+    true,
+  );
+  const flow = execute(context, "connection_flow_add", {
+    id: "sales",
+    provider: "engineering",
+    connection: "sales",
+    table: "orders",
+    contract: "contracts/orders.odcs.yaml",
+    source: { stream: "orders" },
+  });
+  assert.equal(flow.ok, true, JSON.stringify(flow));
+  assert.equal(execute(context, "apply", { proposal: flow.result }).ok, true);
+  const prepared = execute(context, "connection_prepare", {
+    flow: "sales",
+    validateOnly: true,
+  });
+  assert.equal(prepared.ok, true, JSON.stringify(prepared));
+  const discovery = "build/generated/flows/sales/discovery.json";
+  mkdirSync(resolve(f.root, "build/generated/flows/sales"), {
+    recursive: true,
+  });
+  writeFileSync(
+    resolve(f.root, discovery),
+    JSON.stringify({
+      apiVersion: "ingestron.singer-discovery/v1",
+      identity: { projectSpecSha256: prepared.result.specificationSha256 },
+      catalog: {
+        streams: [
+          {
+            stream: "orders",
+            tap_stream_id: "orders",
+            schema: {
+              type: "object",
+              properties: { id: { type: "integer" } },
+            },
+          },
+        ],
+      },
+    }),
+  );
+  const mapping = execute(context, "contract_map_fields", {
+    apiVersion: "ingestron.field-mapping/v1",
+    flow: "sales",
+    environment: "dev",
+    contract: "contracts/orders.odcs.yaml",
+    discovery,
+    stream: "orders",
+    table: "orders",
+    fields: [{ source: "id", target: "customer_id" }],
+  });
+  assert.equal(mapping.ok, true, JSON.stringify(mapping));
+  assert.equal(
+    execute(context, "apply", { proposal: mapping.result }).ok,
+    true,
+  );
+  const changed = parse(
+    readFileSync(resolve(f.root, "contracts/orders.odcs.yaml"), "utf8"),
+  );
+  assert.equal(changed.schema[0].properties[0].name, "customer_id");
+  assert.equal(changed.schema[0].properties[0].physicalName, "id");
+});
 test("one connection selects multiple physical tables with contract-derived columns and short package refs", (t) => {
   const f = setup(t, true);
   f.project.packages = {

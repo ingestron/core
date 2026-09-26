@@ -44,6 +44,11 @@ selects the output columns. Connector packages define the allowed table source
 shape, so the same project layout works across source types. Older stream-based
 connector releases remain supported.
 
+The `contract_scaffold` operation creates a minimal draft ODCS contract from a
+user-supplied first field. `connection_flow_add` accepts an optional provider
+execution mapping; when omitted it authors local execution. Providers and the
+compiler still validate the selected execution mode during project checks.
+
 ## Integration guides
 
 - [Operation and editor API](docs/api.md): requests, results, permissions, errors

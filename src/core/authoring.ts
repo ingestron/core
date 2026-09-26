@@ -390,6 +390,282 @@ export function addFlow(
   files["project.yaml"] = project.toString();
   return preview(root, files);
 }
+/** Author a connector instance without requiring the editor to edit project YAML. */
+export function addConnection(
+  root: string,
+  options: {
+    id: string;
+    package: string;
+    sourceId: string;
+    tenantId: string;
+    binding?: string;
+    settings: Record<string, unknown>;
+  },
+) {
+  const reader = new Configuration(root);
+  const project = yaml(reader.text("project.yaml"), "project.yaml");
+  const parsed = projectSchema.parse(reader.load());
+  check(
+    !Object.hasOwn(parsed.connections, options.id),
+    "OWNER",
+    `Connection ${options.id} already exists`,
+  );
+  const pkg = projectPackages(parsed)[options.package];
+  check(pkg, "PACKAGE", `Unknown connector package ${options.package}`);
+  const locked = resolvePackage(root, configuredPackageReference(pkg));
+  const manifest = packageYaml(locked.file);
+  check(
+    manifest.apiVersion === "ingestron.connector/v1",
+    "PACKAGE",
+    "Select an installed connector package",
+  );
+  project.setIn(["connections", options.id], {
+    package: options.package,
+    sourceId: options.sourceId,
+    tenantId: options.tenantId,
+    ...(options.binding ? { binding: options.binding } : {}),
+    settings: options.settings,
+  });
+  return preview(root, { "project.yaml": project.toString() });
+}
+
+/** Create a minimal reviewed-by-human starting point without reading source data. */
+export function scaffoldContract(
+  root: string,
+  options: {
+    id: string;
+    table: string;
+    field: string;
+    type: "string" | "integer" | "number" | "boolean";
+  },
+) {
+  const path = `contracts/${options.id}.odcs.yaml`;
+  check(
+    !existsSync(fence(root, path)),
+    "OWNER",
+    `Contract ${path} already exists`,
+  );
+  const physicalTypes = {
+    string: "STRING",
+    integer: "BIGINT",
+    number: "DOUBLE",
+    boolean: "BOOLEAN",
+  };
+  const contract = {
+    apiVersion: "v3.1.0",
+    kind: "DataContract",
+    id: options.id,
+    name: options.id.replaceAll("-", " "),
+    version: "0.1.0",
+    status: "draft",
+    description: {
+      purpose: "Review this draft against source metadata before approval.",
+    },
+    schema: [
+      {
+        name: options.table,
+        logicalType: "object",
+        physicalType: "table",
+        properties: [
+          {
+            name: options.field,
+            logicalType: options.type,
+            physicalType: physicalTypes[options.type],
+            required: false,
+          },
+        ],
+      },
+    ],
+  };
+  contractColumns(contract, path);
+  return preview(root, { [path]: stringify(contract) });
+}
+
+/** Add a connection-backed ingestion flow with one selected ODCS table. */
+export function addConnectionFlow(
+  root: string,
+  options: {
+    id: string;
+    provider: string;
+    connection: string;
+    table: string;
+    contract: string;
+    source: Record<string, unknown>;
+    execution?: Record<string, unknown>;
+  },
+) {
+  const reader = new Configuration(root);
+  const project = yaml(reader.text("project.yaml"), "project.yaml");
+  const raw = project.toJS();
+  const parsed = projectSchema.parse(reader.load());
+  check(
+    !parsed.flows.some((flow: any) => flow?.id === options.id),
+    "OWNER",
+    `Flow ${options.id} already exists`,
+  );
+  check(
+    parsed.connections[options.connection],
+    "CONNECTION",
+    "Select a configured connection",
+  );
+  check(
+    parsed.providers.configurations[options.provider],
+    "PROVIDER",
+    "Select a configured provider",
+  );
+  check(
+    !resolve(root, options.contract).startsWith(
+      resolve(root, "flows", options.id) + "/",
+    ),
+    "PATH",
+    "Contract must be outside the new flow directory",
+  );
+  const contractFile = fence(root, options.contract);
+  check(existsSync(contractFile), "ODCS", "Contract file is missing");
+  contractColumns(reader.load(options.contract), options.contract);
+  const path = `flows/${options.id}/flow.yaml`;
+  check(
+    !existsSync(fence(root, path)),
+    "OWNER",
+    `Flow ${options.id} already exists`,
+  );
+  const contractRef = relative(
+    dirname(resolve(root, path)),
+    contractFile,
+  ).replaceAll("\\", "/");
+  const flow = {
+    apiVersion: "ingestron.flow/v1",
+    kind: "ingestion",
+    id: options.id,
+    provider: options.provider,
+    ingestion: {
+      connection: options.connection,
+      execution: options.execution ?? { mode: "local" },
+    },
+    tables: {
+      [options.table]: {
+        source: options.source,
+        contract: {
+          $resolve: contractRef.startsWith(".")
+            ? contractRef
+            : `./${contractRef}`,
+        },
+      },
+    },
+  };
+  project.set("flows", [...raw.flows, { $resolve: `./${path}` }]);
+  return preview(root, {
+    "project.yaml": project.toString(),
+    [path]: stringify(flow),
+  });
+}
+/** Apply a reviewed source-field selection to one ODCS table. Approval remains separate. */
+export function mapContractFields(
+  root: string,
+  options: {
+    apiVersion: "ingestron.field-mapping/v1";
+    flow: string;
+    environment: string;
+    contract: string;
+    discovery: string;
+    stream: string;
+    table: string;
+    fields: { source: string; target: string }[];
+  },
+) {
+  const reader = new Configuration(root);
+  const discovered = JSON.parse(reader.text(options.discovery));
+  check(
+    discovered.apiVersion === "ingestron.singer-discovery/v1",
+    "DISCOVERY",
+    "Select saved Singer discovery evidence",
+  );
+  const stream = discovered.catalog?.streams?.find(
+    (entry: any) =>
+      entry?.stream === options.stream ||
+      entry?.tap_stream_id === options.stream,
+  );
+  check(
+    stream,
+    "DISCOVERY",
+    "Selected source dataset is absent from discovery",
+  );
+  const sourceFields = stream.schema?.properties;
+  check(
+    sourceFields &&
+      typeof sourceFields === "object" &&
+      !Array.isArray(sourceFields),
+    "DISCOVERY",
+    "Discovery has no field schema",
+  );
+  const doc = yaml(reader.text(options.contract), options.contract);
+  const contract = doc.toJS();
+  contractColumns(contract, options.contract);
+  check(
+    contract.schema[0].name === options.table,
+    "ODCS",
+    "Selected contract table differs from the workflow table",
+  );
+  const previous = new Map(
+    contract.schema[0].properties.map((property: any) => [
+      property.physicalName ?? property.name,
+      property,
+    ]),
+  );
+  const previousTargets = new Map(
+    contract.schema[0].properties.map((property: any) => [
+      property.name,
+      property,
+    ]),
+  );
+  const sources = new Set<string>(),
+    targets = new Set<string>();
+  const properties = options.fields.map(({ source, target }) => {
+    check(
+      Object.hasOwn(sourceFields, source) && !sources.has(source),
+      "MAPPING",
+      `Unknown or duplicate source field ${source}`,
+    );
+    check(!targets.has(target), "MAPPING", `Duplicate target field ${target}`);
+    sources.add(source);
+    targets.add(target);
+    const old = (previous.get(source) ?? previousTargets.get(target)) as any;
+    if (old) {
+      const next = { ...old, name: target };
+      if (source !== target) next.physicalName = source;
+      else delete next.physicalName;
+      return next;
+    }
+    const shape = sourceFields[source],
+      types = Array.isArray(shape?.type) ? shape.type : [shape?.type];
+    const type = types.find((value: unknown) => value !== "null");
+    const physicalType = (
+      {
+        string: "STRING",
+        integer: "BIGINT",
+        number: "DOUBLE",
+        boolean: "BOOLEAN",
+      } as Record<string, string>
+    )[String(type)];
+    check(
+      physicalType,
+      "MAPPING",
+      `Source field ${source} needs an explicitly authored ODCS type`,
+    );
+    return {
+      name: target,
+      ...(source !== target ? { physicalName: source } : {}),
+      logicalType: type,
+      physicalType,
+      required: !types.includes("null"),
+    };
+  });
+  check(properties.length > 0, "MAPPING", "Select at least one source field");
+  doc.setIn(["schema", 0, "properties"], properties);
+  doc.set("status", "draft");
+  contractColumns(doc.toJS(), options.contract);
+  return preview(root, { [options.contract]: doc.toString() });
+}
 export function addTable(
   root: string,
   options: { flow: string; id: string; contract: string },

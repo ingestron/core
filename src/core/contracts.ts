@@ -27,6 +27,7 @@ export function validateContract(
 }
 export interface Column {
   name: string;
+  target?: string;
   type: string;
   required: boolean;
   key: boolean;
@@ -43,6 +44,7 @@ export function contractColumns(
     file,
   );
   const names = new Set<string>();
+  const targets = new Set<string>();
   return contract.schema[0].properties.map((p: any) => {
     const name = p.physicalName ?? p.name;
     check(
@@ -54,6 +56,15 @@ export function contractColumns(
       file,
     );
     names.add(name);
+    check(
+      typeof p.name === "string" &&
+        /^[A-Za-z_][A-Za-z0-9_]*$/.test(p.name) &&
+        !targets.has(p.name),
+      "ODCS",
+      `Invalid or duplicate target column ${p.name}`,
+      file,
+    );
+    targets.add(p.name);
     const type = (
       p.physicalType ??
       (
@@ -86,6 +97,7 @@ export function contractColumns(
     }
     return {
       name,
+      ...(p.name !== name ? { target: p.name } : {}),
       type,
       required: p.required === true,
       key: p.primaryKey === true,
