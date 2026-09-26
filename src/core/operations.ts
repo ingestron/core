@@ -62,6 +62,15 @@ export const operationSchemas = {
       table: workflows.identifier,
       contract: z.string().min(1),
       source: z.record(z.string(), z.unknown()).default({}),
+      execution: z.record(z.string(), z.unknown()).optional(),
+    })
+    .strict(),
+  contract_scaffold: z
+    .object({
+      id: workflows.identifier,
+      table: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+      field: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+      type: z.enum(["string", "integer", "number", "boolean"]),
     })
     .strict(),
   contract_map_fields: z
@@ -563,6 +572,9 @@ export function execute(
       }
       case "contract_create":
         result = workflows.draftContract(root, environment, args);
+        break;
+      case "contract_scaffold":
+        result = author.scaffoldContract(root, args);
         break;
       case "flow_create":
         result = workflows.flowCreate(root, environment, args);

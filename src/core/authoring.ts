@@ -429,6 +429,58 @@ export function addConnection(
   return preview(root, { "project.yaml": project.toString() });
 }
 
+/** Create a minimal reviewed-by-human starting point without reading source data. */
+export function scaffoldContract(
+  root: string,
+  options: {
+    id: string;
+    table: string;
+    field: string;
+    type: "string" | "integer" | "number" | "boolean";
+  },
+) {
+  const path = `contracts/${options.id}.odcs.yaml`;
+  check(
+    !existsSync(fence(root, path)),
+    "OWNER",
+    `Contract ${path} already exists`,
+  );
+  const physicalTypes = {
+    string: "STRING",
+    integer: "BIGINT",
+    number: "DOUBLE",
+    boolean: "BOOLEAN",
+  };
+  const contract = {
+    apiVersion: "v3.1.0",
+    kind: "DataContract",
+    id: options.id,
+    name: options.id.replaceAll("-", " "),
+    version: "0.1.0",
+    status: "draft",
+    description: {
+      purpose: "Review this draft against source metadata before approval.",
+    },
+    schema: [
+      {
+        name: options.table,
+        logicalType: "object",
+        physicalType: "table",
+        properties: [
+          {
+            name: options.field,
+            logicalType: options.type,
+            physicalType: physicalTypes[options.type],
+            required: false,
+          },
+        ],
+      },
+    ],
+  };
+  contractColumns(contract, path);
+  return preview(root, { [path]: stringify(contract) });
+}
+
 /** Add a connection-backed ingestion flow with one selected ODCS table. */
 export function addConnectionFlow(
   root: string,
@@ -439,6 +491,7 @@ export function addConnectionFlow(
     table: string;
     contract: string;
     source: Record<string, unknown>;
+    execution?: Record<string, unknown>;
   },
 ) {
   const reader = new Configuration(root);
@@ -485,7 +538,10 @@ export function addConnectionFlow(
     kind: "ingestion",
     id: options.id,
     provider: options.provider,
-    ingestion: { connection: options.connection, execution: { mode: "local" } },
+    ingestion: {
+      connection: options.connection,
+      execution: options.execution ?? { mode: "local" },
+    },
     tables: {
       [options.table]: {
         source: options.source,
