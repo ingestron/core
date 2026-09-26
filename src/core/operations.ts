@@ -763,8 +763,11 @@ export function execute(
             const checks = connected.map((f) =>
               prepareConnection(root, environment, f.id, true),
             );
-            for (const flow of selected.filter((f) => !f.ingestion?.connection))
-              planProject(root, environment, { ...args, flow: flow.id });
+            // Validate native flows as one complete target. Selecting each flow
+            // separately makes providers that own shared resources reject an
+            // otherwise valid full project as an unsafe partial deployment.
+            if (selected.some((f) => !f.ingestion?.connection))
+              planProject(root, environment, { nativeOnly: true });
             result = {
               mode: "strict",
               evidence: "offline",
