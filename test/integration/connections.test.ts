@@ -686,3 +686,58 @@ test("retired selection and provider-owned connector formats are rejected", (t) 
   f.project.connections.sales.package = "dbx";
   assert.equal(f.run().ok, false);
 });
+
+test("whole-project check validates mixed connector and native flows without a partial native selection", (t) => {
+  const f = setup(t);
+  const nativeOrigin = resolve(f.root, "fixture-origin");
+  const renderer = resolve(nativeOrigin, "plugin/index.mjs");
+  writeFileSync(
+    renderer,
+    readFileSync(renderer, "utf8").replace(
+      "export function render(p){",
+      "export function render(p){if(p.selection.flow)throw new Error('partial native selection');",
+    ),
+  );
+  const manifest = resolve(nativeOrigin, "plugin/provider.yaml");
+  writeFileSync(
+    manifest,
+    readFileSync(manifest, "utf8").replace("version: 1.0.0", "version: 1.0.1"),
+  );
+  execFileSync("git", ["add", "plugin/index.mjs", "plugin/provider.yaml"], {
+    cwd: nativeOrigin,
+  });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.invalid",
+      "commit",
+      "-qm",
+      "selection guard",
+    ],
+    { cwd: nativeOrigin },
+  );
+  execFileSync("git", ["tag", "1.0.1"], { cwd: nativeOrigin });
+  installPackage(f.root, "example/fixture@1.0.1", { fromGit: nativeOrigin });
+  f.project.providers.packages.native = {
+    source: "example/fixture",
+    version: "1.0.1",
+  };
+  f.project.providers.configurations.native = {
+    package: "native",
+    binding: "lakehouse",
+  };
+  f.flow.provider = "native";
+  f.put("flows/source/flow.yaml", f.flow);
+  f.project.flows.push({ $resolve: "./flows/source/flow.yaml" });
+  f.put("project.yaml", f.project);
+  const checked = execute(
+    { root: f.root, environment: "dev", allowWrite: false },
+    "validate",
+    { mode: "strict" },
+  );
+  assert.equal(checked.ok, true, JSON.stringify(checked.diagnostics));
+  assert.equal(checked.result.connections.length, 1);
+});
