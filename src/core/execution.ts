@@ -25,6 +25,7 @@ import type { Context } from "./operations.js";
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/);
 const selection = {
   from: z.string().optional(),
+  profile: id.optional(),
   provider: id.optional(),
   flow: id.optional(),
 };
@@ -232,6 +233,11 @@ export async function performExecution(
     "BUILD",
     "Build environment differs; rebuild for this environment",
   );
+  check(
+    (args.profile ?? "") === (build.selection?.profile ?? ""),
+    "PROFILE",
+    "Build execution profile differs; select the matching profile and build directory",
+  );
   for (const [file, hash] of Object.entries(build.sourceFiles ?? {}))
     check(
       existsSync(fence(root, file)) &&
@@ -335,6 +341,7 @@ export async function performExecution(
     status: "running",
     pid: process.pid,
     environment,
+    profile: args.profile,
     project: build.project,
     provider: pkg.reference,
     providerCommit: pkg.commit,

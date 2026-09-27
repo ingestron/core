@@ -27,7 +27,11 @@ import type { Plan } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
 
 export function buildProject(root: string, environment: string, args: any) {
-  const { project, flows, reader, profile } = inspectProject(root, environment);
+  const { project, flows, reader, profile } = inspectProject(
+    root,
+    environment,
+    args,
+  );
   check(
     !(args.provider && args.flow),
     "SELECT",
@@ -106,6 +110,8 @@ export function buildProject(root: string, environment: string, args: any) {
   };
   [...candidates].forEach((id) => addNativeParents(id));
   const nativePlan = planProject(root, environment, {
+    flow: args.profile ? args.flow : undefined,
+    profile: args.profile,
     nativeOnly: true,
     flowIds: [...candidates],
     delivery: true,
@@ -251,6 +257,7 @@ export function buildProject(root: string, environment: string, args: any) {
             );
             return configured.result.execution;
           },
+          args.profile,
         ) as any;
         return {
           flow: f.id,
@@ -348,6 +355,7 @@ export function buildProject(root: string, environment: string, args: any) {
   const selection = {
     projectBuild: true,
     ...(args.flow ? { flow: args.flow } : {}),
+    ...(args.profile ? { profile: args.profile } : {}),
     ...(args.provider ? { provider: args.provider } : {}),
   };
   const metadata = {

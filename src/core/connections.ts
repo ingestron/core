@@ -6,6 +6,7 @@ import { resolveModelContracts } from "./model-packs.js";
 /** Project-owned configuration; schemas and runtime assets remain plugin-owned. */
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
+import { bindExecutionProfile } from "./execution-profiles.js";
 import { projectSchema, flowSchema } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
 import { canonical, check, digest, isMap } from "./errors.js";
@@ -35,6 +36,7 @@ export function prepareConnection(
   validateOnly = false,
   reviewFile?: string,
   configureExecution?: (execution: Record<string, any>) => Record<string, any>,
+  executionProfile?: string,
 ) {
   // Do not interpolate $env here: connection credentials must never enter compiler memory/output.
   const reader = new Configuration(root, {});
@@ -46,7 +48,13 @@ export function prepareConnection(
     "ENVIRONMENT",
     "Environment name differs from selected profile",
   );
-  const flows = project.flows.map((f) => reader.parse(flowSchema, f));
+  const flows = project.flows.map((f) => {
+    const flow = reader.parse(flowSchema, f);
+    return bindExecutionProfile(
+      flow,
+      flow.id === flowId ? executionProfile : undefined,
+    );
+  });
   resolveModelContracts(reader, project, flows);
   check(
     new Set(flows.map((f) => f.id)).size === flows.length,
@@ -155,15 +163,16 @@ export function prepareConnection(
   const streams = new Set<string>();
   const tables = Object.fromEntries(
     Object.entries(flow.tables).map(([name, table]) => {
+      const tableSource = { ...flow.defaults.source, ...table.source };
       const source = descriptor.tableSourceSchema
-        ? { ...table.source, stream: name }
-        : table.source;
+        ? { ...tableSource, stream: name }
+        : tableSource;
       if (descriptor.tableSourceSchema)
-        validate(descriptor.tableSourceSchema, table.source, `${name} source`);
+        validate(descriptor.tableSourceSchema, tableSource, `${name} source`);
       else
         check(
-          Object.keys(table.source).length === 1 &&
-            typeof table.source.stream === "string",
+          Object.keys(tableSource).length === 1 &&
+            typeof tableSource.stream === "string",
           "CONNECTION",
           `${name}: source must identify one connector stream`,
         );

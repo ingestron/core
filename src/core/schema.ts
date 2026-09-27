@@ -103,6 +103,18 @@ export const flowSchema = z
     export: id.optional(),
     product: id.optional(),
     provider: id.optional(),
+    executionProfiles: z
+      .record(
+        id,
+        z
+          .object({
+            provider: id,
+            ingestion: map,
+            source: map.default({}),
+          })
+          .strict(),
+      )
+      .default({}),
     defaults: z
       .object({ source: map.default({}), with: map.default({}) })
       .strict()
@@ -229,6 +241,7 @@ export interface Plan {
     delivery?: boolean;
     projectBuild?: boolean;
     provider?: string;
+    profile?: string;
   };
   project: string;
   environment: string;
