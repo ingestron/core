@@ -206,6 +206,7 @@ export const operationSchemas = {
       provider: z.string().optional(),
       delivery: z.boolean().default(false),
       flow: z.string().optional(),
+      profile: workflows.identifier.optional(),
       table: z.string().optional(),
       step: z.string().optional(),
       out: z.string().default("build/generated"),
@@ -239,14 +240,21 @@ export const operationSchemas = {
     .object({
       mode: z.enum(["draft", "strict"]).default("strict"),
       flow: z.string().optional(),
+      profile: workflows.identifier.optional(),
       table: z.string().optional(),
       step: z.string().optional(),
     })
     .strict(),
-  resolve: z.object({}).strict(),
+  resolve: z
+    .object({
+      flow: workflows.identifier.optional(),
+      profile: workflows.identifier.optional(),
+    })
+    .strict(),
   plan: z
     .object({
       flow: z.string().optional(),
+      profile: workflows.identifier.optional(),
       table: z.string().optional(),
       step: z.string().optional(),
     })
@@ -737,18 +745,24 @@ export function execute(
       case "validate": {
         if (args.mode === "draft") {
           check(
-            !args.flow && !args.table && !args.step,
+            !args.flow && !args.table && !args.step && !args.profile,
             "OPTION",
             "Draft validation checks the whole project; use strict mode for flow/table/step selection",
           );
-          const state = inspectProject(root, environment, { draft: true });
+          const state = inspectProject(root, environment, {
+            ...args,
+            draft: true,
+          });
           result = {
             mode: "draft",
             pending: state.reader.pending,
             flows: state.flows.length,
           };
         } else {
-          const state = inspectProject(root, environment, { draft: true });
+          const state = inspectProject(root, environment, {
+            ...args,
+            draft: true,
+          });
           const selected = state.flows.filter(
             (f) => !args.flow || f.id === args.flow,
           );
@@ -761,13 +775,21 @@ export function execute(
               "Validate connector flows as a whole",
             );
             const checks = connected.map((f) =>
-              prepareConnection(root, environment, f.id, true),
+              prepareConnection(
+                root,
+                environment,
+                f.id,
+                true,
+                undefined,
+                undefined,
+                args.profile,
+              ),
             );
             // Validate native flows as one complete target. Selecting each flow
             // separately makes providers that own shared resources reject an
             // otherwise valid full project as an unsafe partial deployment.
             if (selected.some((f) => !f.ingestion?.connection))
-              planProject(root, environment, { nativeOnly: true });
+              planProject(root, environment, { ...args, nativeOnly: true });
             result = {
               mode: "strict",
               evidence: "offline",
@@ -786,7 +808,10 @@ export function execute(
         break;
       }
       case "resolve": {
-        const state = inspectProject(root, environment, { draft: true });
+        const state = inspectProject(root, environment, {
+          ...args,
+          draft: true,
+        });
         result = {
           project: state.project,
           flows: state.flows,

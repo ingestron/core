@@ -1,3 +1,4 @@
+import { bindExecutionProfile } from "./execution-profiles.js";
 import { resolveModelContracts } from "./model-packs.js";
 import { extensionActivities } from "./extension-packs.js";
 import { expandProvider } from "../plugins/provider-renderer.js";
@@ -62,6 +63,7 @@ const auditSecrets = (value: any, path: string) => {
 };
 
 export interface Select {
+  profile?: string;
   nativeOnly?: boolean;
   flowIds?: string[];
   projectBuild?: boolean;
@@ -77,6 +79,11 @@ export function inspectProject(
   environment = "dev",
   options: Select = {},
 ) {
+  check(
+    !options.profile || options.flow,
+    "PROFILE",
+    "Select one flow when choosing an execution profile",
+  );
   const reader = new Configuration(root, options.environmentVariables);
   const raw = reader.load();
   check(
@@ -140,6 +147,11 @@ export function inspectProject(
       ),
     ),
   );
+  if (options.profile) {
+    const index = flows.findIndex((f) => f.id === options.flow);
+    check(index >= 0, "PROFILE", `Unknown flow ${options.flow}`);
+    flows[index] = bindExecutionProfile(flows[index], options.profile);
+  }
   resolveModelContracts(reader, project, flows);
   const ids = new Set<string>();
   for (const flow of flows) {
@@ -1277,6 +1289,7 @@ export function planProject(
     inputDigests: reader.inputs,
     selection: {
       ...(options.flow ? { flow: options.flow } : {}),
+      ...(options.profile ? { profile: options.profile } : {}),
       ...(options.table ? { table: options.table } : {}),
       ...(options.step ? { step: options.step } : {}),
       ...(options.delivery ? { delivery: true } : {}),

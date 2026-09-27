@@ -67,3 +67,14 @@ points are ESM; importing internal `dist/` paths is unsupported.
 
 Licensed by Otrera Limited under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and
 [third-party notices](THIRD_PARTY_NOTICES.md) for attribution and upstream terms.
+
+### Execution profiles
+
+An ingestion flow may declare `executionProfiles` keyed by profile name. Each
+binding specifies `provider`, a complete `ingestion` implementation, and `source`
+defaults for that runtime. Tables and contracts remain shared. Source binding
+defaults replace the flow defaults for the selected profile; table settings win.
+Profiles cannot replace dataset schema/table identities. Select one flow with a
+profile in build, validate, plan or resolve operations. Environment is independent.
+The build records the selection; execution rejects a different profile. Use a
+separate output directory per profile. Local evidence does not qualify a cloud target.
