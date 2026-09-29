@@ -1,4 +1,5 @@
 import { executionSchemas, performExecution } from "./execution.js";
+import { dataProducts } from "./governance.js";
 import { buildProject } from "./project-build.js";
 import { prepareConnection } from "./connections.js";
 import { reportPackSchema } from "./report-pack-schema.js";
@@ -794,6 +795,7 @@ export function execute(
               mode: "strict",
               evidence: "offline",
               connections: checks,
+              dataProducts: dataProducts(selected as any),
             };
             break;
           }
@@ -803,6 +805,7 @@ export function execute(
             nodes: plan.nodes.length,
             digest: plan.digest,
             evidence: "offline",
+            dataProducts: dataProducts(selected as any),
           };
         }
         break;
