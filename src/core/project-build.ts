@@ -1,6 +1,13 @@
 /** One build path: native compilation and connector preparation feed provider assembly. */
 import { existsSync, readFileSync } from "node:fs";
 import { dataProducts } from "./governance.js";
+import {
+  checkCoverage,
+  coverageSummary,
+  flowCoverage,
+  type CoverageEntry,
+  type ProviderQuality,
+} from "./quality.js";
 import { dirname, relative, resolve } from "node:path";
 import { validateProviderFiles } from "../plugins/generation.js";
 import { inspectProject, planProject } from "./planner.js";
@@ -26,6 +33,51 @@ import { compilerFingerprint } from "./fingerprint.js";
 import { version } from "../version.js";
 import type { Plan } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
+
+/** Resolve a provider configuration to its installed, validated manifest. */
+export function configurationManifest(
+  root: string,
+  reader: { path: (p: string) => string },
+  project: any,
+  configuration: string,
+) {
+  const config = project.providers.configurations[configuration];
+  check(config, "PROVIDER", `Unknown provider configuration ${configuration}`);
+  const pkg = projectPackages(project)[config.package];
+  check(pkg, "PACKAGE", `Missing execution package ${config.package}`);
+  const reference = configuredPackageReference(pkg);
+  const locked = pkg.source.startsWith(".")
+    ? { file: reader.path(pkg.source), root, entry: undefined }
+    : resolvePackage(root, reference);
+  const manifest = providerPackageSchema.parse(packageYaml(locked.file));
+  checkProviderCompatibility(manifest);
+  return { config, reference, locked, manifest };
+}
+
+/** Quality rule coverage for flows on their configured targets. */
+export function qualityCoverage(
+  root: string,
+  state: { project: any; reader: { path: (p: string) => string } },
+  flows: { id: string; provider?: string; tables?: Record<string, any> }[],
+): CoverageEntry[] {
+  const manifests = new Map<string, any>();
+  return flows.flatMap((f) => {
+    const configuration = f.provider ?? state.project.defaults.provider;
+    if (!configuration) return [];
+    if (!manifests.has(configuration))
+      manifests.set(
+        configuration,
+        configurationManifest(root, state.reader, state.project, configuration)
+          .manifest,
+      );
+    const manifest = manifests.get(configuration);
+    return flowCoverage(f, {
+      configuration,
+      platform: manifest.platform,
+      quality: manifest.quality as ProviderQuality | undefined,
+    });
+  });
+}
 
 export function buildProject(root: string, environment: string, args: any) {
   const { project, flows, reader, profile } = inspectProject(
@@ -191,24 +243,26 @@ export function buildProject(root: string, environment: string, args: any) {
     );
     files[path] = content;
   };
+  const qualityEntries: CoverageEntry[] = [];
   for (const configuration of configurations) {
     const selected = flows.filter(
       (f) => wanted.has(f.id) && owner(f) === configuration,
     );
-    const config = project.providers.configurations[configuration];
-    check(
-      config,
-      "PROVIDER",
-      `Unknown provider configuration ${configuration}`,
+    const { config, reference, locked, manifest } = configurationManifest(
+      root,
+      reader,
+      project,
+      configuration,
     );
-    const pkg = projectPackages(project)[config.package];
-    check(pkg, "PACKAGE", `Missing execution package ${config.package}`);
-    const reference = configuredPackageReference(pkg);
-    const locked = pkg.source.startsWith(".")
-      ? { file: reader.path(pkg.source), root, entry: undefined }
-      : resolvePackage(root, reference);
-    const manifest = providerPackageSchema.parse(packageYaml(locked.file));
-    checkProviderCompatibility(manifest);
+    qualityEntries.push(
+      ...selected.flatMap((f) =>
+        flowCoverage(f, {
+          configuration,
+          platform: manifest.platform,
+          quality: manifest.quality as ProviderQuality | undefined,
+        }),
+      ),
+    );
     const partial =
       !!args.flow ||
       selected.length !==
@@ -353,6 +407,18 @@ export function buildProject(root: string, environment: string, args: any) {
     "LIMIT",
     "Project output exceeds 10000 files or 10 MiB",
   );
+  checkCoverage(qualityEntries, project.defaults.quality?.unsupported);
+  const products = dataProducts(flows.filter((f: any) => wanted.has(f.id))).map(
+    (p) => ({
+      ...p,
+      enforcedQualityRules: qualityEntries.filter(
+        (e) =>
+          e.contract === p.contract &&
+          e.source === "contract" &&
+          (e.mode === "at-load" || e.mode === "after-load"),
+      ).length,
+    }),
+  );
   const selection = {
     projectBuild: true,
     ...(args.flow ? { flow: args.flow } : {}),
@@ -369,7 +435,11 @@ export function buildProject(root: string, environment: string, args: any) {
     complete: !args.flow && !args.provider,
     requestedFlows: args.flow ? [args.flow] : undefined,
     includedFlows: [...wanted].sort(),
-    dataProducts: dataProducts(flows.filter((f: any) => wanted.has(f.id))),
+    dataProducts: products,
+    quality: {
+      summary: coverageSummary(qualityEntries),
+      rules: qualityEntries,
+    },
     packages,
     deployment: { executed: false, omissionMeansDeletion: false },
     files: Object.fromEntries(

@@ -51,6 +51,10 @@ export const projectSchema = z
           .strict()
           .default({}),
         with: map.default({}),
+        quality: z
+          .object({ unsupported: z.enum(["block", "report"]).default("block") })
+          .strict()
+          .optional(),
       })
       .strict()
       .default({ naming: {}, with: {} }),
