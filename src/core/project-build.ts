@@ -4,6 +4,7 @@ import { dataProducts } from "./governance.js";
 import {
   checkCoverage,
   coverageSummary,
+  combineQuality,
   flowCoverage,
   type CoverageEntry,
   type ProviderQuality,
@@ -33,6 +34,7 @@ import { compilerFingerprint } from "./fingerprint.js";
 import { version } from "../version.js";
 import type { Plan } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
+import { connectorPackageSchema } from "./connector-package.js";
 
 /** Resolve a provider configuration to its installed, validated manifest. */
 export function configurationManifest(
@@ -54,11 +56,35 @@ export function configurationManifest(
   return { config, reference, locked, manifest };
 }
 
+/** Connector runtime quality declaration for a connection flow. */
+function connectorQuality(
+  root: string,
+  project: any,
+  flow: { ingestion?: { connection?: unknown } },
+): ProviderQuality | undefined {
+  const connection = flow.ingestion?.connection
+    ? project.connections?.[String(flow.ingestion.connection)]
+    : undefined;
+  const pkg = connection && projectPackages(project)[connection.package];
+  if (!pkg) return undefined;
+  const raw = packageYaml(
+    resolvePackage(root, configuredPackageReference(pkg)).file,
+  );
+  return raw.apiVersion === "ingestron.connector/v1"
+    ? (connectorPackageSchema.parse(raw).quality as ProviderQuality | undefined)
+    : undefined;
+}
+
 /** Quality rule coverage for flows on their configured targets. */
 export function qualityCoverage(
   root: string,
   state: { project: any; reader: { path: (p: string) => string } },
-  flows: { id: string; provider?: string; tables?: Record<string, any> }[],
+  flows: {
+    id: string;
+    provider?: string;
+    tables?: Record<string, any>;
+    ingestion?: { connection?: unknown };
+  }[],
 ): CoverageEntry[] {
   const manifests = new Map<string, any>();
   return flows.flatMap((f) => {
@@ -74,7 +100,10 @@ export function qualityCoverage(
     return flowCoverage(f, {
       configuration,
       platform: manifest.platform,
-      quality: manifest.quality as ProviderQuality | undefined,
+      quality: combineQuality(
+        connectorQuality(root, state.project, f),
+        manifest.quality as ProviderQuality | undefined,
+      ),
     });
   });
 }
@@ -259,7 +288,10 @@ export function buildProject(root: string, environment: string, args: any) {
         flowCoverage(f, {
           configuration,
           platform: manifest.platform,
-          quality: manifest.quality as ProviderQuality | undefined,
+          quality: combineQuality(
+            connectorQuality(root, project, f),
+            manifest.quality as ProviderQuality | undefined,
+          ),
         }),
       ),
     );

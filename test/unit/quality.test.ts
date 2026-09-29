@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { contractColumns } from "../../src/core/contracts.js";
 import { checkProviderCompatibility } from "../../src/plugins/compatibility.js";
+import { connectorPackageSchema } from "../../src/core/connector-package.js";
 import {
   checkCoverage,
+  combineQuality,
   contractRules,
   coverageSummary,
   flowCoverage,
@@ -145,6 +147,82 @@ test("providers declaring quality must require the host feature", () => {
         requiredFeatures: ["quality-capabilities"],
       },
       quality: { library: {} },
+    }),
+  );
+});
+
+test("connector runtime checks combine with the target, earliest mode first", () => {
+  const connector = {
+    library: { duplicateValues: "at-load", nullValues: "at-load" },
+    sql: "unsupported",
+    engines: [],
+  } as const;
+  const target = {
+    library: { nullValues: "after-load", rowCount: "after-load" },
+    sql: "after-load",
+    engines: ["dqx"],
+  } as const;
+  assert.deepEqual(combineQuality(connector, target), {
+    library: {
+      nullValues: "at-load",
+      duplicateValues: "at-load",
+      rowCount: "after-load",
+    },
+    sql: "after-load",
+    engines: ["dqx"],
+  });
+  assert.equal(combineQuality(undefined, target), target);
+  assert.equal(combineQuality(), undefined);
+  const flow = {
+    id: "ingest",
+    tables: { orders: { contract: contract([id, status]) } },
+  };
+  const entries = flowCoverage(flow, {
+    configuration: "local",
+    platform: "local",
+    quality: combineQuality({
+      ...connector,
+      library: { invalidValues: "at-load" },
+    }),
+  });
+  assert.doesNotThrow(() => checkCoverage(entries));
+});
+
+test("connector manifests may declare runtime quality support", () => {
+  const manifest = {
+    apiVersion: "ingestron.connector/v1",
+    id: "files",
+    version: "1.3.0",
+    description: "Files",
+    connector: "singer:files@23.0.1",
+    documentation: "https://example.com/files",
+    upstream: {
+      ecosystem: "singer",
+      variant: "ingestron",
+      package: "pyarrow",
+      version: "23.0.1",
+      repository: "https://example.com/arrow",
+      licence: "Apache-2.0",
+      licenceFile: "LICENSE",
+      licenceStatus: "evidenced",
+    },
+    runtime: { contract: "c", path: "runtime.json", sha256: "a".repeat(64) },
+    definition: { settingsSchema: {}, selectionSchema: {} },
+    execution: { local: { modes: ["local"], evidence: "synthetic" } },
+  };
+  const parsed = connectorPackageSchema.parse({
+    ...manifest,
+    quality: { library: { rowCount: "at-load" } },
+  });
+  assert.deepEqual(parsed.quality, {
+    library: { rowCount: "at-load" },
+    sql: "unsupported",
+    engines: [],
+  });
+  assert.throws(() =>
+    connectorPackageSchema.parse({
+      ...manifest,
+      quality: { library: { freshness: "at-load" } },
     }),
   );
 });

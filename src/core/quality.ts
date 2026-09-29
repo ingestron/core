@@ -1,4 +1,5 @@
 /** ODCS v3.1.0 quality rules and provider enforcement coverage (PB-063). */
+import { z } from "zod";
 import { check } from "./errors.js";
 
 export const libraryMetrics = [
@@ -45,6 +46,44 @@ export interface ProviderQuality {
   library: Partial<Record<(typeof libraryMetrics)[number], EnforcementMode>>;
   sql: EnforcementMode;
   engines: string[];
+}
+
+/** Declared by providers (native mechanisms) and connectors (runtime checks before commit). */
+export const qualityDeclarationSchema = z
+  .object({
+    library: z
+      .partialRecord(z.enum(libraryMetrics), z.enum(enforcementModes))
+      .default({}),
+    sql: z.enum(enforcementModes).default("unsupported"),
+    engines: z.array(z.string().min(1)).default([]),
+  })
+  .strict();
+
+const strength = (mode?: EnforcementMode) =>
+  mode ? enforcementModes.length - enforcementModes.indexOf(mode) : 0;
+const stronger = (a?: EnforcementMode, b?: EnforcementMode) =>
+  strength(a) >= strength(b) ? a : b;
+
+/** A connection flow is enforced by its connector runtime or its target, whichever is earlier. */
+export function combineQuality(
+  ...declarations: (ProviderQuality | undefined)[]
+): ProviderQuality | undefined {
+  const present = declarations.filter((d): d is ProviderQuality => !!d);
+  if (present.length < 2) return present[0];
+  const library: ProviderQuality["library"] = {};
+  for (const metric of libraryMetrics) {
+    const mode = present
+      .map((d) => d.library[metric])
+      .reduce((a, b) => stronger(a, b), undefined);
+    if (mode) library[metric] = mode;
+  }
+  return {
+    library,
+    sql: present
+      .map((d) => d.sql)
+      .reduce((a, b) => stronger(a, b) ?? "unsupported"),
+    engines: [...new Set(present.flatMap((d) => d.engines))],
+  };
 }
 
 function parseRule(
