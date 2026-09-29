@@ -9,6 +9,8 @@ import {
   contractRules,
   coverageSummary,
   flowCoverage,
+  qualityDeclarationSchema,
+  standardQuality,
 } from "../../src/core/quality.js";
 
 const contract = (properties: any[], quality?: any[]) => ({
@@ -224,5 +226,36 @@ test("connector manifests may declare runtime quality support", () => {
       ...manifest,
       quality: { library: { freshness: "at-load" } },
     }),
+  );
+});
+
+test("a provider may declare quality per ingestion standard", () => {
+  const declared = qualityDeclarationSchema.parse({
+    library: { nullValues: "at-load" },
+    standards: {
+      "snapshot-with-history@v1": {
+        library: { nullValues: "at-load", rowCount: "at-load" },
+      },
+      "immutable-file-copy@v1": {},
+    },
+  });
+  assert.deepEqual(standardQuality(declared, "snapshot-with-history@v1"), {
+    library: { nullValues: "at-load", rowCount: "at-load" },
+    sql: "unsupported",
+    engines: [],
+  });
+  assert.deepEqual(
+    standardQuality(declared, "immutable-file-copy@v1")!.library,
+    {},
+  );
+  assert.deepEqual(standardQuality(declared, "append-only@v1")!.library, {
+    nullValues: "at-load",
+  });
+  assert.deepEqual(standardQuality(declared, undefined)!.library, {
+    nullValues: "at-load",
+  });
+  assert.equal(standardQuality(undefined, "append-only@v1"), undefined);
+  assert.throws(() =>
+    qualityDeclarationSchema.parse({ standards: { "Bad Standard": {} } }),
   );
 });

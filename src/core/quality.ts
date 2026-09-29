@@ -48,8 +48,7 @@ export interface ProviderQuality {
   engines: string[];
 }
 
-/** Declared by providers (native mechanisms) and connectors (runtime checks before commit). */
-export const qualityDeclarationSchema = z
+const baseDeclaration = z
   .object({
     library: z
       .partialRecord(z.enum(libraryMetrics), z.enum(enforcementModes))
@@ -58,6 +57,30 @@ export const qualityDeclarationSchema = z
     engines: z.array(z.string().min(1)).default([]),
   })
   .strict();
+
+/** Declared by providers (native mechanisms) and connectors (runtime checks before commit).
+ * `standards` replaces the declaration for flows using that ingestion standard. */
+export const qualityDeclarationSchema = baseDeclaration.extend({
+  standards: z
+    .record(z.string().regex(/^[a-z0-9-]+@v\d+$/), baseDeclaration)
+    .optional(),
+});
+
+/** The declaration that applies to a flow's selected ingestion standard. */
+export function standardQuality(
+  declaration:
+    | (ProviderQuality & { standards?: Record<string, ProviderQuality> })
+    | undefined,
+  standard: unknown,
+): ProviderQuality | undefined {
+  if (!declaration) return undefined;
+  const selected =
+    typeof standard === "string"
+      ? declaration.standards?.[standard]
+      : undefined;
+  const { library, sql, engines } = selected ?? declaration;
+  return { library, sql, engines };
+}
 
 const strength = (mode?: EnforcementMode) =>
   mode ? enforcementModes.length - enforcementModes.indexOf(mode) : 0;

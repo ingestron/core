@@ -6,6 +6,7 @@ import {
   coverageSummary,
   combineQuality,
   flowCoverage,
+  standardQuality,
   type CoverageEntry,
   type ProviderQuality,
 } from "./quality.js";
@@ -83,7 +84,7 @@ export function qualityCoverage(
     id: string;
     provider?: string;
     tables?: Record<string, any>;
-    ingestion?: { connection?: unknown };
+    ingestion?: { connection?: unknown; standard?: unknown };
   }[],
 ): CoverageEntry[] {
   const manifests = new Map<string, any>();
@@ -102,7 +103,7 @@ export function qualityCoverage(
       platform: manifest.platform,
       quality: combineQuality(
         connectorQuality(root, state.project, f),
-        manifest.quality as ProviderQuality | undefined,
+        standardQuality(manifest.quality as any, f.ingestion?.standard),
       ),
     });
   });
@@ -290,7 +291,7 @@ export function buildProject(root: string, environment: string, args: any) {
           platform: manifest.platform,
           quality: combineQuality(
             connectorQuality(root, project, f),
-            manifest.quality as ProviderQuality | undefined,
+            standardQuality(manifest.quality as any, f.ingestion?.standard),
           ),
         }),
       ),
