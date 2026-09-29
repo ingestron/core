@@ -1,6 +1,7 @@
 import { executionSchemas, performExecution } from "./execution.js";
 import { dataProducts } from "./governance.js";
-import { buildProject } from "./project-build.js";
+import { buildProject, qualityCoverage } from "./project-build.js";
+import { checkCoverage, coverageSummary } from "./quality.js";
 import { prepareConnection } from "./connections.js";
 import { reportPackSchema } from "./report-pack-schema.js";
 import { modelPackSchema } from "./model-pack-schema.js";
@@ -791,21 +792,30 @@ export function execute(
             // otherwise valid full project as an unsafe partial deployment.
             if (selected.some((f) => !f.ingestion?.connection))
               planProject(root, environment, { ...args, nativeOnly: true });
+            const coverage = qualityCoverage(root, state, selected as any);
+            checkCoverage(
+              coverage,
+              state.project.defaults.quality?.unsupported,
+            );
             result = {
               mode: "strict",
               evidence: "offline",
               connections: checks,
               dataProducts: dataProducts(selected as any),
+              quality: { summary: coverageSummary(coverage), rules: coverage },
             };
             break;
           }
           const plan = planProject(root, environment, args);
+          const coverage = qualityCoverage(root, state, selected as any);
+          checkCoverage(coverage, state.project.defaults.quality?.unsupported);
           result = {
             mode: "strict",
             nodes: plan.nodes.length,
             digest: plan.digest,
             evidence: "offline",
             dataProducts: dataProducts(selected as any),
+            quality: { summary: coverageSummary(coverage), rules: coverage },
           };
         }
         break;

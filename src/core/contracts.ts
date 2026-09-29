@@ -4,6 +4,7 @@ import { Ajv2019 } from "ajv/dist/2019.js";
 import addFormats from "ajv-formats";
 import { check } from "./errors.js";
 import { checkContractGovernance } from "./governance.js";
+import { contractRules } from "./quality.js";
 const ajv = new Ajv2019({ allErrors: true, strict: false });
 (addFormats as any)(ajv);
 const validator = ajv.compile(
@@ -39,6 +40,7 @@ export function contractColumns(
 ): Column[] {
   validateContract(contract, file);
   checkContractGovernance(contract, file);
+  contractRules(contract, file);
   check(
     contract.schema?.length === 1 && contract.schema[0].properties?.length,
     "ODCS",

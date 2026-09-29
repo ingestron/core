@@ -17,6 +17,7 @@ export const hostFeatures = [
   "export-groups",
   "model-inputs",
   "ingestion-presets",
+  "quality-capabilities",
 ];
 export function checkPluginCompatibility(
   minimum?: string,
@@ -45,6 +46,7 @@ export function checkProviderCompatibility(manifest: {
   compatibility?: { minimumCli: string; requiredFeatures?: string[] };
   projectAssembly?: unknown;
   execution?: unknown;
+  quality?: unknown;
   connectorRuntimes?: Record<string, unknown>;
   capabilities?: {
     artifactKinds: string[];
@@ -68,6 +70,12 @@ export function checkProviderCompatibility(manifest: {
       required.includes("connector-runtime-capabilities"),
       "COMPATIBILITY",
       "Provider must declare requiredFeatures: connector-runtime-capabilities",
+    );
+  if (manifest.quality)
+    check(
+      required.includes("quality-capabilities"),
+      "COMPATIBILITY",
+      "Provider must declare requiredFeatures: quality-capabilities",
     );
   if (manifest.projectAssembly)
     check(

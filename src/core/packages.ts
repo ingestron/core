@@ -160,6 +160,27 @@ export const providerPackageSchema = z
           .strict(),
       )
       .optional(),
+    quality: z
+      .object({
+        library: z
+          .partialRecord(
+            z.enum([
+              "nullValues",
+              "missingValues",
+              "invalidValues",
+              "duplicateValues",
+              "rowCount",
+            ]),
+            z.enum(["at-load", "after-load", "unsupported"]),
+          )
+          .default({}),
+        sql: z
+          .enum(["at-load", "after-load", "unsupported"])
+          .default("unsupported"),
+        engines: z.array(z.string().min(1)).default([]),
+      })
+      .strict()
+      .optional(),
     compatibility: z
       .object({
         plan: z.literal("ingestron.plan/v1"),
