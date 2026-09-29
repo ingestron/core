@@ -1,5 +1,6 @@
 /** One build path: native compilation and connector preparation feed provider assembly. */
 import { existsSync, readFileSync } from "node:fs";
+import { dataProducts } from "./governance.js";
 import { dirname, relative, resolve } from "node:path";
 import { validateProviderFiles } from "../plugins/generation.js";
 import { inspectProject, planProject } from "./planner.js";
@@ -368,6 +369,7 @@ export function buildProject(root: string, environment: string, args: any) {
     complete: !args.flow && !args.provider,
     requestedFlows: args.flow ? [args.flow] : undefined,
     includedFlows: [...wanted].sort(),
+    dataProducts: dataProducts(flows.filter((f: any) => wanted.has(f.id))),
     packages,
     deployment: { executed: false, omissionMeansDeletion: false },
     files: Object.fromEntries(

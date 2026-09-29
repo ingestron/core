@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2019 } from "ajv/dist/2019.js";
 import addFormats from "ajv-formats";
 import { check } from "./errors.js";
+import { checkContractGovernance } from "./governance.js";
 const ajv = new Ajv2019({ allErrors: true, strict: false });
 (addFormats as any)(ajv);
 const validator = ajv.compile(
@@ -37,6 +38,7 @@ export function contractColumns(
   file?: string,
 ): Column[] {
   validateContract(contract, file);
+  checkContractGovernance(contract, file);
   check(
     contract.schema?.length === 1 && contract.schema[0].properties?.length,
     "ODCS",
