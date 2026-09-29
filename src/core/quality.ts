@@ -45,7 +45,8 @@ export interface QualityRule {
 export interface ProviderQuality {
   library: Partial<Record<(typeof libraryMetrics)[number], EnforcementMode>>;
   sql: EnforcementMode;
-  engines: string[];
+  /** Engine names (enforced after load) or engine → mode. */
+  engines: string[] | Partial<Record<string, EnforcementMode>>;
 }
 
 const baseDeclaration = z
@@ -54,7 +55,12 @@ const baseDeclaration = z
       .partialRecord(z.enum(libraryMetrics), z.enum(enforcementModes))
       .default({}),
     sql: z.enum(enforcementModes).default("unsupported"),
-    engines: z.array(z.string().min(1)).default([]),
+    engines: z
+      .union([
+        z.array(z.string().min(1)),
+        z.record(z.string().min(1), z.enum(enforcementModes)),
+      ])
+      .default([]),
   })
   .strict();
 
@@ -82,6 +88,13 @@ export function standardQuality(
   return { library, sql, engines };
 }
 
+const engineModes = (
+  quality: ProviderQuality,
+): Partial<Record<string, EnforcementMode>> =>
+  Array.isArray(quality.engines)
+    ? Object.fromEntries(quality.engines.map((e) => [e, "after-load" as const]))
+    : quality.engines;
+
 const strength = (mode?: EnforcementMode) =>
   mode ? enforcementModes.length - enforcementModes.indexOf(mode) : 0;
 const stronger = (a?: EnforcementMode, b?: EnforcementMode) =>
@@ -105,7 +118,16 @@ export function combineQuality(
     sql: present
       .map((d) => d.sql)
       .reduce((a, b) => stronger(a, b) ?? "unsupported"),
-    engines: [...new Set(present.flatMap((d) => d.engines))],
+    engines: Object.fromEntries(
+      [...new Set(present.flatMap((d) => Object.keys(engineModes(d))))].map(
+        (engine) => [
+          engine,
+          present
+            .map((d) => engineModes(d)[engine])
+            .reduce((a, b) => stronger(a, b), undefined),
+        ],
+      ),
+    ),
   };
 }
 
@@ -152,13 +174,22 @@ function parseRule(
       `${where}: a ${type} rule needs exactly one comparison (${operators.join(", ")})`,
       file,
     );
-  if (type === "sql")
+  if (type === "sql") {
     check(
       typeof rule.query === "string" && rule.query.trim().length > 0,
       "QUALITY",
       `${where}: a sql rule needs a query`,
       file,
     );
+    // ODCS placeholders; providers substitute their own relation and column names.
+    for (const [, name] of rule.query.matchAll(/\$\{([^}]*)\}/g))
+      check(
+        name === "table" || (name === "column" && !!base.column),
+        "QUALITY",
+        `${where}: sql rules may use \${table}${base.column ? " and \${column}" : ""}, not \${${name}}`,
+        file,
+      );
+  }
   if (type === "custom")
     check(
       typeof rule.engine === "string" && rule.engine.length > 0,
@@ -257,7 +288,7 @@ export function enforcementMode(
       "unsupported"
     );
   if (rule.type === "sql") return quality.sql;
-  return quality.engines.includes(rule.engine!) ? "after-load" : "unsupported";
+  return engineModes(quality)[rule.engine!] ?? "unsupported";
 }
 
 export interface CoverageEntry extends QualityRule {

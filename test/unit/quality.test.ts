@@ -82,11 +82,12 @@ test("malformed rules are rejected when the contract loads", () => {
     { metric: "nullValues" },
     { metric: "nullValues", mustBe: 0, mustBeLessThan: 1 },
     { type: "sql", mustBe: 0 },
+    { type: "sql", query: "SELECT COUNT(*) FROM ${object}", mustBe: 0 },
     { type: "custom" },
   ])
     assert.throws(
       () => contractColumns(contract([{ ...status, quality: [rule] }])),
-      /QUALITY|quality|metric|comparison|query|engine|validValues/i,
+      /QUALITY|quality|metric|comparison|query|engine|validValues|sql rules may use/i,
     );
 });
 
@@ -171,7 +172,7 @@ test("connector runtime checks combine with the target, earliest mode first", ()
       rowCount: "after-load",
     },
     sql: "after-load",
-    engines: ["dqx"],
+    engines: { dqx: "after-load" },
   });
   assert.equal(combineQuality(undefined, target), target);
   assert.equal(combineQuality(), undefined);
@@ -257,5 +258,75 @@ test("a provider may declare quality per ingestion standard", () => {
   assert.equal(standardQuality(undefined, "append-only@v1"), undefined);
   assert.throws(() =>
     qualityDeclarationSchema.parse({ standards: { "Bad Standard": {} } }),
+  );
+});
+
+test("engine rules use the declared mode per engine; others are not enforced", () => {
+  const rule = (engine: string) =>
+    contract([
+      {
+        ...id,
+        quality: [
+          {
+            id: `${engine}-rule`,
+            type: "custom",
+            engine,
+            implementation: "x > 0",
+            severity: "error",
+          },
+        ],
+      },
+    ]);
+  const coverage = (engine: string, quality: any) =>
+    flowCoverage(
+      { id: "f", tables: { orders: { contract: rule(engine) } } },
+      { configuration: "c", platform: "p", quality },
+    ).find((e) => e.type === "custom")!.mode;
+  const declared = qualityDeclarationSchema.parse({
+    engines: { databricks: "at-load" },
+  });
+  assert.equal(coverage("databricks", declared), "at-load");
+  assert.equal(coverage("soda", declared), "unsupported");
+  assert.equal(
+    coverage("soda", qualityDeclarationSchema.parse({ engines: ["soda"] })),
+    "after-load",
+  );
+  assert.equal(
+    coverage("databricks", qualityDeclarationSchema.parse({})),
+    "unsupported",
+  );
+  assert.deepEqual(
+    combineQuality(
+      { library: {}, sql: "unsupported", engines: ["soda"] },
+      {
+        library: {},
+        sql: "unsupported",
+        engines: { soda: "at-load", dbt: "after-load" },
+      },
+    )!.engines,
+    { soda: "at-load", dbt: "after-load" },
+  );
+});
+
+test("sql rules accept ODCS table and column placeholders only where they apply", () => {
+  const sql = (query: string, onColumn = true) =>
+    contractColumns(
+      contract(
+        [
+          {
+            ...status,
+            quality: onColumn ? [{ type: "sql", query, mustBe: 0 }] : [],
+          },
+        ],
+        onColumn ? undefined : [{ type: "sql", query, mustBe: 0 }],
+      ),
+    );
+  assert.doesNotThrow(() =>
+    sql("SELECT COUNT(*) FROM ${table} WHERE ${column} IS NULL"),
+  );
+  assert.doesNotThrow(() => sql("SELECT COUNT(*) FROM ${table}", false));
+  assert.throws(
+    () => sql("SELECT COUNT(*) FROM ${table} WHERE ${column} IS NULL", false),
+    /not \$\{column\}/,
   );
 });
