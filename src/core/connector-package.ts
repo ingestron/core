@@ -1,5 +1,6 @@
 /** Source definitions are data-only; execution remains with a selected provider. */
 import { z } from "zod";
+import { qualityDeclarationSchema } from "./quality.js";
 const schema = z.record(z.string(), z.unknown());
 export const connectorPackageSchema = z
   .object({
@@ -37,6 +38,8 @@ export const connectorPackageSchema = z
         tableSourceSchema: schema.optional(),
       })
       .strict(),
+    // Library rules the connector runtime evaluates on staged output before commit.
+    quality: qualityDeclarationSchema.optional(),
     execution: z.record(
       z.string(),
       z

@@ -9,7 +9,7 @@ import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
 import { execute } from "../../src/core/operations.js";
 import { pluginConfigure } from "../../src/core/workflows.js";
-function setup(t: any, perTableSource = false) {
+function setup(t: any, perTableSource = false, connector: any = {}) {
   const f = fixture(t),
     origin = resolve(f.root, "connection-plugin");
   mkdirSync(resolve(origin, "plugin"), { recursive: true });
@@ -99,6 +99,7 @@ function setup(t: any, perTableSource = false) {
         : {}),
     },
     execution: { test: { modes: ["local"], evidence: "synthetic" } },
+    ...connector,
   };
   writeFileSync(resolve(origin, "connector.yaml"), stringify(sourceManifest));
   writeFileSync(resolve(origin, "runtime.json"), asset);
@@ -740,4 +741,39 @@ test("whole-project check validates mixed connector and native flows without a p
   );
   assert.equal(checked.ok, true, JSON.stringify(checked.diagnostics));
   assert.equal(checked.result.connections.length, 1);
+});
+
+test("connection flows use the connector's pre-commit quality checks for coverage", (t) => {
+  const rule = {
+    id: "id-valid",
+    metric: "invalidValues",
+    arguments: { validValues: [1, 2] },
+    mustBe: 0,
+    severity: "error",
+  };
+  const validate = (connector: any) => {
+    const f = setup(t, false, connector);
+    f.project.flows[0].tables.orders.contract.schema[0].properties[0].quality =
+      [rule];
+    writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
+    return execute(
+      { root: f.root, environment: "dev", allowWrite: false },
+      "validate",
+      { mode: "strict" },
+    );
+  };
+  const blocked = validate({});
+  assert.equal(blocked.ok, false);
+  assert.match(JSON.stringify(blocked.diagnostics), /id-valid/);
+  const checked = validate({
+    quality: { library: { invalidValues: "at-load" } },
+  });
+  assert.equal(checked.ok, true, JSON.stringify(checked.diagnostics));
+  assert.deepEqual(checked.result.quality.summary, {
+    rules: 1,
+    atLoad: 1,
+    afterLoad: 0,
+    unsupported: 0,
+    documentation: 0,
+  });
 });
