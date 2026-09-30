@@ -22,6 +22,7 @@ import {
 import { validateOutput } from "./generate.js";
 import { checkProviderCompatibility } from "../plugins/compatibility.js";
 import type { Context } from "./operations.js";
+import { performDiscovery } from "./discovery.js";
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/);
 const selection = {
   from: z.string().optional(),
@@ -36,13 +37,27 @@ export const executionSchemas = {
   run: z
     .object({
       ...selection,
-      action: z.enum(["discover", "review", "approve", "run"]).default("run"),
+      action: z
+        .enum(["catalogue", "discover", "review", "approve", "run"])
+        .default("run"),
       runId: id.optional(),
       retry: id.optional(),
       envFile: z.string().optional(),
     })
     .strict(),
   run_status: z.object({ id }).strict(),
+  // Discovery per route (PB-064 phase 6): draft contracts from the source.
+  discover: z
+    .object({
+      flow: id,
+      from: z.string().optional(),
+      out: z.string().default("contracts"),
+      local: id.optional(),
+      acceptKeys: z.boolean().default(false),
+      python: z.string().optional(),
+      envFile: z.string().optional(),
+    })
+    .strict(),
 };
 const now = () => new Date().toISOString();
 function store(file: string, value: any) {
@@ -168,10 +183,17 @@ export async function performExecution(
   context: Context,
   operation: keyof typeof executionSchemas,
   args: any,
-) {
+): Promise<any> {
   const root = resolve(context.root),
     environment = context.environment ?? "dev";
   if (operation === "run_status") return receipt(root, args.id);
+  if (operation === "discover")
+    return performDiscovery(
+      { ...context, root },
+      args,
+      (op, request): Promise<any> =>
+        performExecution(context, op, executionSchemas[op].parse(request)),
+    );
   check(
     context.allowExecute && context.allowWrite,
     "PERMISSION",

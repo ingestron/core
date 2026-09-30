@@ -35,9 +35,14 @@ export interface Column {
   key: boolean;
 }
 export function contractColumns(
-  contract: Record<string, any>,
+  contract: Record<string, any> | undefined,
   file?: string,
 ): Column[] {
+  check(
+    contract !== undefined,
+    "CONTRACT",
+    "A table has no reviewed contract; run ingestron discover to draft one, then review it",
+  );
   validateContract(contract, file);
   checkContractGovernance(contract, file);
   contractRules(contract, file);

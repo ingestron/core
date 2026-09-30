@@ -129,7 +129,9 @@ export const stepSchema = z
 export const tableSchema = z
   .object({
     source: map.default({}),
-    contract: map,
+    // Optional only until discovery drafts it (PB-064 phase 6); planning,
+    // building and running require a reviewed contract.
+    contract: map.optional(),
     ingestion: map.optional(),
     steps: z
       .record(id, z.object({ with: map.default({}) }).strict())

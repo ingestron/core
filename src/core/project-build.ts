@@ -296,11 +296,24 @@ export function qualityCoverage(
 }
 
 export function buildProject(root: string, environment: string, args: any) {
-  const { project, flows, reader, profile } = inspectProject(
-    root,
-    environment,
-    args,
-  );
+  const inspected = inspectProject(root, environment, args);
+  const { project, reader, profile } = inspected;
+  let flows = inspected.flows;
+  if (args.catalogue) {
+    // Discovery (PB-064 phase 6): one flow, read through its portable
+    // connector on the given local configuration, before contracts exist.
+    const flow = flows.find((f) => f.id === args.flow);
+    check(flow, "SELECT", `Unknown flow ${args.flow}`);
+    const name = String(flow.ingestion?.connection ?? "");
+    const connection = project.connections[name];
+    check(
+      connection?.package,
+      "CONNECTION",
+      `${flow.id}: discovery reads through a portable connector; name its package and settings on connection ${name || "(none)"}`,
+    );
+    project.connections[name] = { ...connection, route: "portable" };
+    flows = [{ ...flow, provider: args.catalogue }];
+  }
   check(
     !(args.provider && args.flow),
     "SELECT",
@@ -472,18 +485,19 @@ export function buildProject(root: string, environment: string, args: any) {
       project,
       configuration,
     );
-    qualityEntries.push(
-      ...selected.flatMap((f) =>
-        flowCoverage(f, {
-          configuration,
-          platform: manifest.platform,
-          quality: combineQuality(
-            connectorQuality(root, project, f),
-            standardQuality(manifest.quality as any, f.ingestion?.standard),
-          ),
-        }),
-      ),
-    );
+    if (!args.catalogue)
+      qualityEntries.push(
+        ...selected.flatMap((f) =>
+          flowCoverage(f, {
+            configuration,
+            platform: manifest.platform,
+            quality: combineQuality(
+              connectorQuality(root, project, f),
+              standardQuality(manifest.quality as any, f.ingestion?.standard),
+            ),
+          }),
+        ),
+      );
     const partial =
       !!args.flow ||
       selected.length !==
@@ -534,6 +548,7 @@ export function buildProject(root: string, environment: string, args: any) {
             return configured.result.execution;
           },
           args.profile,
+          args.catalogue ? { provider: configuration } : undefined,
         ) as any;
         return {
           flow: f.id,
@@ -629,17 +644,19 @@ export function buildProject(root: string, environment: string, args: any) {
     "Project output exceeds 10000 files or 10 MiB",
   );
   checkCoverage(qualityEntries, project.defaults.quality?.unsupported);
-  const products = dataProducts(flows.filter((f: any) => wanted.has(f.id))).map(
-    (p) => ({
-      ...p,
-      enforcedQualityRules: qualityEntries.filter(
-        (e) =>
-          e.contract === p.contract &&
-          e.source === "contract" &&
-          (e.mode === "at-load" || e.mode === "after-load"),
-      ).length,
-    }),
-  );
+  const products = (
+    args.catalogue
+      ? []
+      : dataProducts(flows.filter((f: any) => wanted.has(f.id)))
+  ).map((p) => ({
+    ...p,
+    enforcedQualityRules: qualityEntries.filter(
+      (e) =>
+        e.contract === p.contract &&
+        e.source === "contract" &&
+        (e.mode === "at-load" || e.mode === "after-load"),
+    ).length,
+  }));
   const selection = {
     projectBuild: true,
     ...(args.flow ? { flow: args.flow } : {}),
