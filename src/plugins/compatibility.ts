@@ -18,6 +18,7 @@ export const hostFeatures = [
   "model-inputs",
   "ingestion-presets",
   "quality-capabilities",
+  "source-coverage",
 ];
 export function checkPluginCompatibility(
   minimum?: string,
@@ -47,6 +48,7 @@ export function checkProviderCompatibility(manifest: {
   projectAssembly?: unknown;
   execution?: unknown;
   quality?: unknown;
+  sources?: unknown;
   connectorRuntimes?: Record<string, unknown>;
   capabilities?: {
     artifactKinds: string[];
@@ -76,6 +78,12 @@ export function checkProviderCompatibility(manifest: {
       required.includes("quality-capabilities"),
       "COMPATIBILITY",
       "Provider must declare requiredFeatures: quality-capabilities",
+    );
+  if (manifest.sources)
+    check(
+      required.includes("source-coverage"),
+      "COMPATIBILITY",
+      "Provider must declare requiredFeatures: source-coverage",
     );
   if (manifest.projectAssembly)
     check(

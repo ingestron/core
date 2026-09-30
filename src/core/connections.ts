@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fence } from "./packages.js";
 import { connectorPackageSchema } from "./connector-package.js";
+import { sourceCapabilities } from "./sources.js";
 import { contractColumns } from "./contracts.js";
 import { resolveModelContracts } from "./model-packs.js";
 /** Project-owned configuration; schemas and runtime assets remain plugin-owned. */
@@ -71,10 +72,19 @@ export function prepareConnection(
   check(
     isMap(ingestion) &&
       Object.keys(ingestion).every((k) =>
-        ["connection", "execution", "timeoutSeconds"].includes(k),
+        ["connection", "execution", "timeoutSeconds", "requires"].includes(k),
       ),
     "CONNECTION",
-    "Connection ingestion accepts connection, execution and timeoutSeconds only",
+    "Connection ingestion accepts connection, execution, timeoutSeconds and requires only",
+  );
+  check(
+    ingestion.requires === undefined ||
+      (Array.isArray(ingestion.requires) &&
+        ingestion.requires.every((c: unknown) =>
+          (sourceCapabilities as readonly unknown[]).includes(c),
+        )),
+    "CONNECTION",
+    `ingestion.requires lists source capabilities: ${sourceCapabilities.join(", ")}`,
   );
   check(
     !Object.keys(flow.requires).length && !Object.keys(flow.publishes).length,
@@ -83,6 +93,11 @@ export function prepareConnection(
   );
   const connection = project.connections[String(ingestion.connection)];
   check(connection, "CONNECTION", "Unknown ingestion connection");
+  check(
+    connection.route !== "native",
+    "CONNECTION",
+    "Native connection routes are not available yet; use the provider's ingestion standard for a native read, or route: portable",
+  );
   const configured =
     project.providers.configurations[
       flow.provider ?? project.defaults.provider ?? ""

@@ -71,6 +71,8 @@ export const projectSchema = z
             tenantId: id,
             binding: id.optional(),
             settings: map.default({}),
+            // Recorded route (PB-064). Native connection routes follow in phase 2.
+            route: z.enum(["portable", "native"]).optional(),
           })
           .strict(),
       )

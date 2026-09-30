@@ -9,7 +9,12 @@ import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
 import { execute } from "../../src/core/operations.js";
 import { pluginConfigure } from "../../src/core/workflows.js";
-function setup(t: any, perTableSource = false, connector: any = {}) {
+function setup(
+  t: any,
+  perTableSource = false,
+  connector: any = {},
+  provider: any = {},
+) {
   const f = fixture(t),
     origin = resolve(f.root, "connection-plugin");
   mkdirSync(resolve(origin, "plugin"), { recursive: true });
@@ -31,8 +36,12 @@ function setup(t: any, perTableSource = false, connector: any = {}) {
       compatibility: {
         plan: "ingestron.plan/v1",
         minimumCli: "4.2.0",
-        requiredFeatures: ["connector-runtime-capabilities"],
+        requiredFeatures: [
+          "connector-runtime-capabilities",
+          ...(provider.sources ? ["source-coverage"] : []),
+        ],
       },
+      ...provider,
       connectorRuntimes: {
         "ingestron.snapshot/python/v1": {
           selectionSchema: { type: "object", additionalProperties: true },
@@ -776,4 +785,79 @@ test("connection flows use the connector's pre-commit quality checks for coverag
     unsupported: 0,
     documentation: 0,
   });
+});
+
+const record = (extra: any = {}) => ({
+  docs: "https://example.invalid/docs",
+  vendorStatus: "ga",
+  licence: "LicenseRef-Synthetic",
+  cost: { model: "included" },
+  access: { model: "platform" },
+  network: ["public"],
+  maturity: "preview",
+  verified: "2026-09-30",
+  ...extra,
+});
+
+test("check lists source routes with reference records and blocks missing capabilities", (t) => {
+  const run = (
+    connector: any,
+    provider: any,
+    edit: (f: any) => void = () => {},
+  ) => {
+    const f = setup(t, false, connector, provider);
+    edit(f);
+    writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
+    return execute(
+      { root: f.root, environment: "dev", allowWrite: false },
+      "validate",
+      { mode: "strict" },
+    );
+  };
+  const source = {
+    source: {
+      kind: "example-db",
+      capabilities: ["snapshot", "discovery"],
+      reference: record({ cost: { model: "none" }, access: { model: "free" } }),
+    },
+  };
+  const sources = {
+    sources: {
+      "example-db": {
+        route: "native",
+        standards: ["snapshot-land@v1"],
+        capabilities: ["snapshot", "incremental"],
+        reference: record(),
+      },
+    },
+  };
+  const checked = run(source, sources);
+  assert.equal(checked.ok, true, JSON.stringify(checked.diagnostics));
+  const [entry] = checked.result.sources;
+  assert.equal(entry.kind, "example-db");
+  assert.equal(entry.selected.route, "portable");
+  assert.equal(entry.selected.package, "synthetic@1.0.0");
+  assert.equal(entry.selected.reference.maturity, "preview");
+  assert.equal(entry.alternative.route, "native");
+  assert.deepEqual(entry.alternative.standards, ["snapshot-land@v1"]);
+
+  const blocked = run(source, sources, (f) => {
+    f.project.flows[0].ingestion.requires = ["incremental"];
+  });
+  assert.equal(blocked.ok, false);
+  assert.match(
+    JSON.stringify(blocked.diagnostics),
+    /cannot supply incremental through portable synthetic@1.0.0/,
+  );
+
+  const legacy = run({}, {});
+  assert.equal(legacy.ok, true, JSON.stringify(legacy.diagnostics));
+  assert.equal(legacy.result.sources[0].kind, "synthetic");
+  assert.equal(legacy.result.sources[0].selected.reference, undefined);
+
+  const native = run(source, sources, (f) => {
+    f.project.connections.sales.route = "native";
+  });
+  assert.equal(native.ok, false);
+  assert.match(JSON.stringify(native.diagnostics), /Native connection routes/);
 });

@@ -1,5 +1,6 @@
 import { connectorPackageSchema } from "./connector-package.js";
 import { qualityDeclarationSchema } from "./quality.js";
+import { providerSourcesSchema } from "./sources.js";
 import { reportPackSchema } from "./report-pack-schema.js";
 import { validateModelPack } from "./model-pack-schema.js";
 /** Explicit Git installation. Generation only reads integrity-checked cached text. */
@@ -162,6 +163,7 @@ export const providerPackageSchema = z
       )
       .optional(),
     quality: qualityDeclarationSchema.optional(),
+    sources: providerSourcesSchema.optional(),
     compatibility: z
       .object({
         plan: z.literal("ingestron.plan/v1"),
