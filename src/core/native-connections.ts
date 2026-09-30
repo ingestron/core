@@ -122,6 +122,8 @@ export function nativeConnectionFlow<F extends Record<string, any>>(
       connection: {
         sourceId: connection.sourceId,
         tenantId: connection.tenantId,
+        // The environment binding name, for providers that reference bindings.
+        ...(connection.binding ? { binding: connection.binding } : {}),
         ...(connection.settings ?? {}),
       },
     },

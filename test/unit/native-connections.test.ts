@@ -25,6 +25,7 @@ const sources = {
       linkedService: "{{binding.linkedService}}",
       consistency: "frozen-extract",
       label: "{{connection.sourceId}}-{{connection.database}}",
+      via: "{{connection.binding}}",
     },
   },
 };
@@ -69,6 +70,7 @@ test("a native connection flow becomes the provider's standard with its source",
     linkedService: "erp_sql",
     consistency: "frozen-extract",
     label: "erp-sales",
+    via: "erp",
   });
   assert.deepEqual(rewritten.tables, flow().tables);
 });
