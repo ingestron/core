@@ -129,6 +129,36 @@ export function sourceRouting(
     state.project.providers?.configurations ?? {},
   );
   return flows.flatMap((f) => {
+    const bridge = (f as any).bridge;
+    if (bridge) {
+      // One route for the whole bridge, reported on the ingesting flow with
+      // the landing provider's native reference record.
+      const declared = manifest(bridge.provider)?.sources?.[bridge.kind];
+      const configuration = f.provider ?? state.project.defaults.provider;
+      return [
+        connectionRoutes({
+          flow: f.id,
+          connection: bridge.connection,
+          kind: bridge.kind,
+          selected: {
+            route: "bridge",
+            via: bridge.provider,
+            configuration,
+            platform: configuration && manifest(configuration)?.platform,
+            standards: [
+              bridge.standard,
+              "snapshot-publication@v1",
+              String((f.ingestion as any)?.standard),
+            ],
+            capabilities: declared?.capabilities ?? [],
+            ...(declared?.reference ? { reference: declared.reference } : {}),
+          },
+          natives: [],
+        }),
+      ];
+    }
+    // Landing legs are reported with their bridge.
+    if ((f as any).bridgeLeg) return [];
     if (!f.ingestion?.connection) return [];
     const configuration = f.provider ?? state.project.defaults.provider;
     const selectedManifest = configuration && manifest(configuration);

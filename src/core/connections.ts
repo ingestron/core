@@ -94,7 +94,9 @@ export function prepareConnection(
   const connection = project.connections[String(ingestion.connection)];
   check(connection, "CONNECTION", "Unknown ingestion connection");
   check(
-    connection.route !== "native" && !!connection.package,
+    connection.route !== "native" &&
+      connection.route !== "bridge" &&
+      !!connection.package,
     "CONNECTION",
     "This connection uses a native route; ingestron build generates it, so there is nothing to prepare",
   );

@@ -3,6 +3,7 @@ import {
   isPortableConnection,
   nativeConnectionFlow,
 } from "./native-connections.js";
+import { expandBridgeFlows } from "./bridge-connections.js";
 import { bindExecutionProfile } from "./execution-profiles.js";
 import { resolveModelContracts } from "./model-packs.js";
 import { extensionActivities } from "./extension-packs.js";
@@ -138,7 +139,7 @@ export function inspectProject(
     },
     environments: { [environment]: resolvedProfile },
   };
-  const flows = initial.flows.map((rawFlow) =>
+  let flows = initial.flows.map((rawFlow) =>
     reader.parse(
       flowSchema,
       reader.values(
@@ -158,6 +159,8 @@ export function inspectProject(
     flows[index] = bindExecutionProfile(flows[index], options.profile);
   }
   resolveModelContracts(reader, project, flows);
+  // A bridge connection becomes the landing, publication and ingestion legs.
+  flows = expandBridgeFlows(project.id, project.connections, flows);
   const ids = new Set<string>();
   for (const flow of flows) {
     check(!ids.has(flow.id), "OWNER", `Duplicate flow ${flow.id}`);
@@ -415,7 +418,9 @@ export function planProject(
     : inspected.flows;
   // Native connection routes plan as the provider's ingestion standard.
   flows = flows.map((f) => {
-    if (connectionRoute(project, f) !== "native") return f;
+    // A bridge's landing leg is read natively by its landing provider.
+    const route = connectionRoute(project, f);
+    if (route !== "native" && route !== "bridge") return f;
     const name = String(f.ingestion!.connection);
     const connection = project.connections[name];
     const configuration = f.provider ?? project.defaults.provider ?? "";
