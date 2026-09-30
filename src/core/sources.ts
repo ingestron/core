@@ -92,7 +92,9 @@ export const providerSourcesSchema = z.record(
 );
 
 export interface Route {
-  route: "portable" | "native";
+  route: "portable" | "native" | "bridge";
+  /** For a bridge: the provider configuration that lands the source. */
+  via?: string;
   configuration: string;
   platform: string;
   package?: string;

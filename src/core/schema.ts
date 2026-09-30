@@ -77,15 +77,40 @@ export const projectSchema = z
             tenantId: id,
             binding: id.optional(),
             settings: map.default({}),
-            // Recorded route (PB-064): portable connector or native platform connector.
-            route: z.enum(["portable", "native"]).optional(),
+            // Recorded route (PB-064): portable connector, native platform
+            // connector, or a bridge where one provider lands data for another.
+            route: z.enum(["portable", "native", "bridge"]).optional(),
+            // Bridge (PB-064 phase 5): the landing provider reads the source
+            // natively, the publisher verifies and publishes each delivery, and
+            // the flow's own provider ingests the published snapshots.
+            bridge: z
+              .object({
+                provider: id,
+                publisher: id,
+                standard: z.string().min(1).default("snapshot-land@v1"),
+                landing: map,
+                handover: id,
+                publication: map.default({}),
+              })
+              .strict()
+              .optional(),
           })
           .strict()
-          .refine((c) => c.route === "native" || !!c.package, {
-            message: "A portable connection needs a package",
-          })
-          .refine((c) => c.route !== "native" || !!c.kind, {
-            message: "A native connection needs a kind",
+          .refine(
+            (c) => c.route === "native" || c.route === "bridge" || !!c.package,
+            {
+              message: "A portable connection needs a package",
+            },
+          )
+          .refine(
+            (c) => (c.route !== "native" && c.route !== "bridge") || !!c.kind,
+            {
+              message: "A native or bridge connection needs a kind",
+            },
+          )
+          .refine((c) => (c.route === "bridge") === !!c.bridge, {
+            message:
+              "A bridge connection needs a bridge block, and only a bridge connection has one",
           }),
       )
       .default({}),

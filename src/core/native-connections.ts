@@ -10,7 +10,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { check, isMap } from "./errors.js";
 import { validateSchemaShape } from "./provider-commands.js";
 
-export type ConnectionRoute = "portable" | "native";
+export type ConnectionRoute = "portable" | "native" | "bridge";
 
 /** The route a flow's connection uses, or undefined for other flows. */
 export function connectionRoute(
@@ -19,7 +19,9 @@ export function connectionRoute(
 ): ConnectionRoute | undefined {
   if (!flow.ingestion?.connection) return undefined;
   const connection = project.connections?.[String(flow.ingestion.connection)];
-  return connection?.route === "native" ? "native" : "portable";
+  return connection?.route === "native" || connection?.route === "bridge"
+    ? connection.route
+    : "portable";
 }
 
 /** Flows whose connection uses the portable connector runtime. */

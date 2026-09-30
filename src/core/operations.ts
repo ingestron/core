@@ -775,6 +775,17 @@ export function execute(
             (f) => !args.flow || f.id === args.flow,
           );
           check(selected.length > 0, "FLOW", "Unknown flow");
+          // Native flows on several provider configurations (for example a
+          // bridge, or ADF and Databricks together) plan as build does: a
+          // coordinated delivery with one export per configuration.
+          const delivery =
+            !args.table &&
+            !args.step &&
+            new Set(
+              state.flows
+                .filter((f) => !isPortableConnection(state.project, f))
+                .map((f) => f.provider ?? state.project.defaults.provider),
+            ).size > 1;
           const connected = selected.filter((f) =>
             isPortableConnection(state.project, f),
           );
@@ -799,7 +810,12 @@ export function execute(
             // separately makes providers that own shared resources reject an
             // otherwise valid full project as an unsafe partial deployment.
             if (selected.some((f) => !isPortableConnection(state.project, f)))
-              planProject(root, environment, { ...args, nativeOnly: true });
+              planProject(root, environment, {
+                ...args,
+                nativeOnly: true,
+                // One export per configuration, as build groups them.
+                ...(delivery ? { delivery, projectBuild: true } : {}),
+              });
             const coverage = qualityCoverage(root, state, selected as any);
             checkCoverage(
               coverage,
@@ -817,7 +833,11 @@ export function execute(
             };
             break;
           }
-          const plan = planProject(root, environment, args);
+          const plan = planProject(root, environment, {
+            ...args,
+            // One export per configuration, as build groups them.
+            ...(delivery ? { delivery, projectBuild: true } : {}),
+          });
           const coverage = qualityCoverage(root, state, selected as any);
           checkCoverage(coverage, state.project.defaults.quality?.unsupported);
           const sources = sourceRouting(root, state, selected as any);

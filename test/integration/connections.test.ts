@@ -861,7 +861,7 @@ test("check lists source routes with reference records and blocks missing capabi
   assert.equal(noKind.ok, false);
   assert.match(
     JSON.stringify(noKind.diagnostics),
-    /native connection needs a kind/,
+    /native or bridge connection needs a kind/,
   );
   // This fixture provider cannot plan native flows at all; the native route
   // itself is covered by unit tests and the ADF end-to-end build.
