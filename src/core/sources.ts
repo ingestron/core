@@ -79,8 +79,16 @@ export const providerSourcesSchema = z.record(
       standards: z.array(z.string().regex(/^[a-z0-9-]+@v\d+$/)).min(1),
       capabilities: capabilitiesSchema,
       reference: referenceRecordSchema,
+      /** JSON Schema for the environment binding a native connection uses. */
+      bindingSchema: z.record(z.string(), z.unknown()).optional(),
+      /** The standard's source settings, with {{binding.*}} and {{connection.*}}
+       * placeholders; table source settings are merged over it. */
+      source: z.record(z.string(), z.unknown()).optional(),
     })
-    .strict(),
+    .strict()
+    .refine((r) => !r.source === !r.bindingSchema, {
+      message: "Declare source and bindingSchema together",
+    }),
 );
 
 export interface Route {

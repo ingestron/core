@@ -1,3 +1,8 @@
+import {
+  connectionRoute,
+  isPortableConnection,
+  nativeConnectionFlow,
+} from "./native-connections.js";
 import { bindExecutionProfile } from "./execution-profiles.js";
 import { resolveModelContracts } from "./model-packs.js";
 import { extensionActivities } from "./extension-packs.js";
@@ -237,6 +242,7 @@ function provider(
   let packageOptions: Record<string, unknown> | undefined;
   let capabilities: NonNullable<Node["runtime"]>["capabilities"];
   let packs: ReturnType<typeof extensionActivities> = {};
+  let sources: Record<string, any> | undefined;
   check(
     !pkg.source.startsWith("builtin:"),
     "MIGRATION",
@@ -327,6 +333,7 @@ function provider(
     }
     platform = descriptor.platform;
     capabilities = descriptor.capabilities;
+    sources = descriptor.sources;
     packs = extensionActivities(reader, project, configured.packs, descriptor);
     if (descriptor.renderer) {
       check(
@@ -368,6 +375,7 @@ function provider(
   return {
     platform,
     plannerCode,
+    sources,
     binding: configured.binding,
     packageSource,
 
@@ -403,8 +411,24 @@ export function planProject(
   });
   const { reader, project, profile, context } = inspected;
   let flows = options.nativeOnly
-    ? inspected.flows.filter((f) => !f.ingestion?.connection)
+    ? inspected.flows.filter((f) => !isPortableConnection(project, f))
     : inspected.flows;
+  // Native connection routes plan as the provider's ingestion standard.
+  flows = flows.map((f) => {
+    if (connectionRoute(project, f) !== "native") return f;
+    const name = String(f.ingestion!.connection);
+    const connection = project.connections[name];
+    const configuration = f.provider ?? project.defaults.provider ?? "";
+    return nativeConnectionFlow(f, {
+      connectionName: name,
+      connection,
+      binding: connection.binding
+        ? profile.bindings[connection.binding]
+        : undefined,
+      configuration,
+      sources: provider(project, profile.bindings, reader, f.provider).sources,
+    });
+  });
   if (options.flowIds)
     flows = flows.filter((f) => options.flowIds!.includes(f.id));
   if (options.flow) {
@@ -486,7 +510,7 @@ export function planProject(
   flows = sorted;
   for (const flow of flows) {
     check(
-      !flow.ingestion?.connection,
+      !isPortableConnection(project, flow),
       "CONNECTION",
       `${flow.id}: prepare reviewed connector assets with connections prepare ${flow.id}; native build does not execute source discovery`,
     );

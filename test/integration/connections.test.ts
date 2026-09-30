@@ -855,9 +855,22 @@ test("check lists source routes with reference records and blocks missing capabi
   assert.equal(legacy.result.sources[0].kind, "synthetic");
   assert.equal(legacy.result.sources[0].selected.reference, undefined);
 
-  const native = run(source, sources, (f) => {
+  const noKind = run(source, sources, (f) => {
     f.project.connections.sales.route = "native";
   });
-  assert.equal(native.ok, false);
-  assert.match(JSON.stringify(native.diagnostics), /Native connection routes/);
+  assert.equal(noKind.ok, false);
+  assert.match(
+    JSON.stringify(noKind.diagnostics),
+    /native connection needs a kind/,
+  );
+  // This fixture provider cannot plan native flows at all; the native route
+  // itself is covered by unit tests and the ADF end-to-end build.
+  const listingOnly = run(source, sources, (f) => {
+    Object.assign(f.project.connections.sales, {
+      route: "native",
+      kind: "example-db",
+    });
+    f.project.flows[0].ingestion.standard = "snapshot-land@v1";
+  });
+  assert.equal(listingOnly.ok, false);
 });

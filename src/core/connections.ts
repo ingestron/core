@@ -94,9 +94,9 @@ export function prepareConnection(
   const connection = project.connections[String(ingestion.connection)];
   check(connection, "CONNECTION", "Unknown ingestion connection");
   check(
-    connection.route !== "native",
+    connection.route !== "native" && !!connection.package,
     "CONNECTION",
-    "Native connection routes are not available yet; use the provider's ingestion standard for a native read, or route: portable",
+    "This connection uses a native route; ingestron build generates it, so there is nothing to prepare",
   );
   const configured =
     project.providers.configurations[
@@ -104,7 +104,7 @@ export function prepareConnection(
     ];
   check(configured, "PROVIDER", "Select the execution provider configuration");
   const packages = projectPackages(project);
-  const owner = packages[connection.package];
+  const owner = packages[connection.package!];
   const executor = packages[configured.package];
   check(owner && executor, "PACKAGE", "Unknown connection/execution package");
   const load = (pkg: typeof owner) => {

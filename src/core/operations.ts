@@ -6,6 +6,7 @@ import {
   sourceRouting,
 } from "./project-build.js";
 import { checkRoutes } from "./sources.js";
+import { isPortableConnection } from "./native-connections.js";
 import { checkCoverage, coverageSummary } from "./quality.js";
 import { prepareConnection } from "./connections.js";
 import { reportPackSchema } from "./report-pack-schema.js";
@@ -774,7 +775,9 @@ export function execute(
             (f) => !args.flow || f.id === args.flow,
           );
           check(selected.length > 0, "FLOW", "Unknown flow");
-          const connected = selected.filter((f) => f.ingestion?.connection);
+          const connected = selected.filter((f) =>
+            isPortableConnection(state.project, f),
+          );
           if (connected.length) {
             check(
               !args.table && !args.step,
@@ -795,7 +798,7 @@ export function execute(
             // Validate native flows as one complete target. Selecting each flow
             // separately makes providers that own shared resources reject an
             // otherwise valid full project as an unsafe partial deployment.
-            if (selected.some((f) => !f.ingestion?.connection))
+            if (selected.some((f) => !isPortableConnection(state.project, f)))
               planProject(root, environment, { ...args, nativeOnly: true });
             const coverage = qualityCoverage(root, state, selected as any);
             checkCoverage(
@@ -817,6 +820,7 @@ export function execute(
           const plan = planProject(root, environment, args);
           const coverage = qualityCoverage(root, state, selected as any);
           checkCoverage(coverage, state.project.defaults.quality?.unsupported);
+          const sources = sourceRouting(root, state, selected as any);
           result = {
             mode: "strict",
             nodes: plan.nodes.length,
@@ -824,6 +828,7 @@ export function execute(
             evidence: "offline",
             dataProducts: dataProducts(selected as any),
             quality: { summary: coverageSummary(coverage), rules: coverage },
+            ...(sources.length ? { sources } : {}),
           };
         }
         break;
