@@ -62,7 +62,7 @@
   "devDependencies": {
     "@types/node": "22.20.1",
     "prettier": "3.9.8",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "7.0.2"
   },
   "homepage": "https://ingestron.io",
