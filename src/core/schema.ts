@@ -65,16 +65,28 @@ export const projectSchema = z
         id,
         z
           .object({
-            package: id,
+            // A portable connector package; optional for native-only routes.
+            package: id.optional(),
+            // Source kind; required when the route is native.
+            kind: z
+              .string()
+              .regex(/^[a-z][a-z0-9-]*$/)
+              .optional(),
             connector: z.string().min(1).optional(),
             sourceId: id,
             tenantId: id,
             binding: id.optional(),
             settings: map.default({}),
-            // Recorded route (PB-064). Native connection routes follow in phase 2.
+            // Recorded route (PB-064): portable connector or native platform connector.
             route: z.enum(["portable", "native"]).optional(),
           })
-          .strict(),
+          .strict()
+          .refine((c) => c.route === "native" || !!c.package, {
+            message: "A portable connection needs a package",
+          })
+          .refine((c) => c.route !== "native" || !!c.kind, {
+            message: "A native connection needs a kind",
+          }),
       )
       .default({}),
     flows: z.array(z.unknown()),

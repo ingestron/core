@@ -36,6 +36,7 @@ import { version } from "../version.js";
 import type { Plan } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
 import { connectorPackageSchema } from "./connector-package.js";
+import { connectionRoute, isPortableConnection } from "./native-connections.js";
 import {
   connectionRoutes,
   type ConnectionRoutes,
@@ -88,6 +89,7 @@ function connectorQuality(
   project: any,
   flow: { ingestion?: { connection?: unknown } },
 ): ProviderQuality | undefined {
+  if (connectionRoute(project, flow) !== "portable") return undefined;
   return connectorManifest(root, project, flow)?.quality as
     ProviderQuality | undefined;
 }
@@ -128,9 +130,35 @@ export function sourceRouting(
   );
   return flows.flatMap((f) => {
     if (!f.ingestion?.connection) return [];
-    const connector = connectorManifest(root, state.project, f);
     const configuration = f.provider ?? state.project.defaults.provider;
     const selectedManifest = configuration && manifest(configuration);
+    const name = String(f.ingestion.connection);
+    const connectionConfig = state.project.connections?.[name];
+    if (connectionRoute(state.project, f) === "native") {
+      const kind = String(connectionConfig.kind);
+      const declared = selectedManifest?.sources?.[kind];
+      if (!declared) return [];
+      return [
+        connectionRoutes({
+          flow: f.id,
+          connection: name,
+          kind,
+          selected: {
+            route: "native",
+            configuration,
+            platform: selectedManifest.platform,
+            standards: [String((f.ingestion as any).standard)],
+            capabilities: declared.capabilities,
+            reference: declared.reference,
+          },
+          natives: [],
+          requires: Array.isArray(f.ingestion.requires)
+            ? (f.ingestion.requires as SourceCapability[])
+            : undefined,
+        }),
+      ];
+    }
+    const connector = connectorManifest(root, state.project, f);
     if (!connector || !selectedManifest) return [];
     const kind = connector.source?.kind ?? connector.id;
     const natives: Route[] = configurations.flatMap((c) => {
@@ -272,7 +300,9 @@ export function buildProject(root: string, environment: string, args: any) {
   const targetNames = new Set(flows.filter((f) => wanted.has(f.id)).map(owner));
   const candidates = new Set(
     flows
-      .filter((f) => !f.ingestion?.connection && targetNames.has(owner(f)))
+      .filter(
+        (f) => !isPortableConnection(project, f) && targetNames.has(owner(f)),
+      )
       .map((f) => f.id),
   );
   const addNativeParents = (id: string, visiting = new Set<string>()) => {
@@ -283,7 +313,7 @@ export function buildProject(root: string, environment: string, args: any) {
       const parent = r.dataset.split(".")[1];
       const producer = flows.find((f) => f.id === parent);
       check(
-        producer && !producer.ingestion?.connection,
+        producer && !isPortableConnection(project, producer),
         "DATASET",
         "Connector-to-native dataset handovers require an explicit supported publication contract",
       );
@@ -412,7 +442,7 @@ export function buildProject(root: string, environment: string, args: any) {
     const native = nativeGroups.find((g) => g.id === configuration);
     const nativeFiles = native ? renderProject(root, native.plan) : {};
     const connections = selected
-      .filter((f) => f.ingestion?.connection)
+      .filter((f) => isPortableConnection(project, f))
       .map((f) => {
         check(
           manifest.projectAssembly,
@@ -601,7 +631,8 @@ export function buildProject(root: string, environment: string, args: any) {
     directory: args.out,
     nodes:
       selectedNative.nodes.length +
-      flows.filter((f) => wanted.has(f.id) && f.ingestion?.connection).length,
+      flows.filter((f) => wanted.has(f.id) && isPortableConnection(project, f))
+        .length,
     packages: packages.map((p) => p.configuration),
     scope: selection,
     evidence:
