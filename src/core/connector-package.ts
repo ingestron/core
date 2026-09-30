@@ -1,6 +1,7 @@
 /** Source definitions are data-only; execution remains with a selected provider. */
 import { z } from "zod";
 import { qualityDeclarationSchema } from "./quality.js";
+import { connectorSourceSchema } from "./sources.js";
 const schema = z.record(z.string(), z.unknown());
 export const connectorPackageSchema = z
   .object({
@@ -40,6 +41,8 @@ export const connectorPackageSchema = z
       .strict(),
     // Library rules the connector runtime evaluates on staged output before commit.
     quality: qualityDeclarationSchema.optional(),
+    // Source kind and reference record for this portable route (PB-064).
+    source: connectorSourceSchema.optional(),
     execution: z.record(
       z.string(),
       z

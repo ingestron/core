@@ -36,6 +36,12 @@ import { version } from "../version.js";
 import type { Plan } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
 import { connectorPackageSchema } from "./connector-package.js";
+import {
+  connectionRoutes,
+  type ConnectionRoutes,
+  type Route,
+  type SourceCapability,
+} from "./sources.js";
 
 /** Resolve a provider configuration to its installed, validated manifest. */
 export function configurationManifest(
@@ -57,12 +63,12 @@ export function configurationManifest(
   return { config, reference, locked, manifest };
 }
 
-/** Connector runtime quality declaration for a connection flow. */
-function connectorQuality(
+/** The installed connector package a connection flow reads through. */
+function connectorManifest(
   root: string,
   project: any,
   flow: { ingestion?: { connection?: unknown } },
-): ProviderQuality | undefined {
+) {
   const connection = flow.ingestion?.connection
     ? project.connections?.[String(flow.ingestion.connection)]
     : undefined;
@@ -72,8 +78,102 @@ function connectorQuality(
     resolvePackage(root, configuredPackageReference(pkg)).file,
   );
   return raw.apiVersion === "ingestron.connector/v1"
-    ? (connectorPackageSchema.parse(raw).quality as ProviderQuality | undefined)
+    ? connectorPackageSchema.parse(raw)
     : undefined;
+}
+
+/** Connector runtime quality declaration for a connection flow. */
+function connectorQuality(
+  root: string,
+  project: any,
+  flow: { ingestion?: { connection?: unknown } },
+): ProviderQuality | undefined {
+  return connectorManifest(root, project, flow)?.quality as
+    ProviderQuality | undefined;
+}
+
+/** Routes for each connection flow: the selected portable connector and native
+ * routes that configured providers declare for the same source kind. */
+export function sourceRouting(
+  root: string,
+  state: { project: any; reader: { path: (p: string) => string } },
+  flows: {
+    id: string;
+    provider?: string;
+    ingestion?: { connection?: unknown; requires?: unknown };
+  }[],
+): ConnectionRoutes[] {
+  const manifests = new Map<string, any>();
+  const manifest = (configuration: string) => {
+    if (!manifests.has(configuration))
+      try {
+        manifests.set(
+          configuration,
+          configurationManifest(
+            root,
+            state.reader,
+            state.project,
+            configuration,
+          ).manifest,
+        );
+      } catch {
+        // An uninstalled alternative provider offers no route; the selected
+        // provider is checked by connection preparation.
+        manifests.set(configuration, undefined);
+      }
+    return manifests.get(configuration);
+  };
+  const configurations = Object.keys(
+    state.project.providers?.configurations ?? {},
+  );
+  return flows.flatMap((f) => {
+    if (!f.ingestion?.connection) return [];
+    const connector = connectorManifest(root, state.project, f);
+    const configuration = f.provider ?? state.project.defaults.provider;
+    const selectedManifest = configuration && manifest(configuration);
+    if (!connector || !selectedManifest) return [];
+    const kind = connector.source?.kind ?? connector.id;
+    const natives: Route[] = configurations.flatMap((c) => {
+      const declared = manifest(c)?.sources?.[kind];
+      return declared
+        ? [
+            {
+              route: "native" as const,
+              configuration: c,
+              platform: manifest(c).platform,
+              standards: declared.standards,
+              capabilities: declared.capabilities,
+              reference: declared.reference,
+            },
+          ]
+        : [];
+    });
+    return [
+      connectionRoutes({
+        flow: f.id,
+        connection: String(f.ingestion.connection),
+        kind,
+        selected: {
+          route: "portable",
+          configuration,
+          platform: selectedManifest.platform,
+          package: `${connector.id}@${connector.version}`,
+          // Connectors without a declaration read reviewed full snapshots.
+          capabilities: connector.source?.capabilities ?? [
+            "snapshot",
+            "discovery",
+          ],
+          ...(connector.source
+            ? { reference: connector.source.reference }
+            : {}),
+        },
+        natives,
+        requires: Array.isArray(f.ingestion.requires)
+          ? (f.ingestion.requires as SourceCapability[])
+          : undefined,
+      }),
+    ];
+  });
 }
 
 /** Quality rule coverage for flows on their configured targets. */

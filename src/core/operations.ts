@@ -1,6 +1,11 @@
 import { executionSchemas, performExecution } from "./execution.js";
 import { dataProducts } from "./governance.js";
-import { buildProject, qualityCoverage } from "./project-build.js";
+import {
+  buildProject,
+  qualityCoverage,
+  sourceRouting,
+} from "./project-build.js";
+import { checkRoutes } from "./sources.js";
 import { checkCoverage, coverageSummary } from "./quality.js";
 import { prepareConnection } from "./connections.js";
 import { reportPackSchema } from "./report-pack-schema.js";
@@ -797,12 +802,15 @@ export function execute(
               coverage,
               state.project.defaults.quality?.unsupported,
             );
+            const sources = sourceRouting(root, state, selected as any);
+            checkRoutes(sources);
             result = {
               mode: "strict",
               evidence: "offline",
               connections: checks,
               dataProducts: dataProducts(selected as any),
               quality: { summary: coverageSummary(coverage), rules: coverage },
+              sources,
             };
             break;
           }
