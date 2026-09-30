@@ -224,7 +224,16 @@ export const providerPackageSchema = z
         transport: z.string().min(1),
         entryPoint: z.string().min(1),
         actions: z
-          .array(z.enum(["prepare", "discover", "review", "approve", "run"]))
+          .array(
+            z.enum([
+              "prepare",
+              "catalogue",
+              "discover",
+              "review",
+              "approve",
+              "run",
+            ]),
+          )
           .min(1),
         status: z.literal("receipt"),
         retry: z.literal("same-run-id"),

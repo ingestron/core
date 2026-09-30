@@ -84,6 +84,12 @@ export const providerSourcesSchema = z.record(
       /** The standard's source settings, with {{binding.*}} and {{connection.*}}
        * placeholders; table source settings are merged over it. */
       source: z.record(z.string(), z.unknown()).optional(),
+      /** Provider command that generates metadata discovery assets for this
+       * route when the source is not reachable from the machine (PB-064 phase 6). */
+      discovery: z
+        .object({ command: z.string().min(1).max(100) })
+        .strict()
+        .optional(),
     })
     .strict()
     .refine((r) => !r.source === !r.bindingSchema, {

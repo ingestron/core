@@ -38,6 +38,10 @@ export function prepareConnection(
   reviewFile?: string,
   configureExecution?: (execution: Record<string, any>) => Record<string, any>,
   executionProfile?: string,
+  // Discovery (PB-064 phase 6): tables may lack contracts, and a native or
+  // bridge connection that names a portable package is read through it on the
+  // given local configuration.
+  discovery?: { provider: string },
 ) {
   // Do not interpolate $env here: connection credentials must never enter compiler memory/output.
   const reader = new Configuration(root, {});
@@ -68,7 +72,11 @@ export function prepareConnection(
     "FLOW",
     "Select an ingestion flow",
   );
-  const ingestion = flow.ingestion!;
+  // Discovery reads only through the connection; a native flow's standard and
+  // target settings belong to its platform build, not to the portable reader.
+  const ingestion = discovery
+    ? { connection: flow.ingestion?.connection }
+    : flow.ingestion!;
   check(
     isMap(ingestion) &&
       Object.keys(ingestion).every((k) =>
@@ -94,15 +102,15 @@ export function prepareConnection(
   const connection = project.connections[String(ingestion.connection)];
   check(connection, "CONNECTION", "Unknown ingestion connection");
   check(
-    connection.route !== "native" &&
-      connection.route !== "bridge" &&
+    (discovery !== undefined ||
+      (connection.route !== "native" && connection.route !== "bridge")) &&
       !!connection.package,
     "CONNECTION",
     "This connection uses a native route; ingestron build generates it, so there is nothing to prepare",
   );
   const configured =
     project.providers.configurations[
-      flow.provider ?? project.defaults.provider ?? ""
+      discovery?.provider ?? flow.provider ?? project.defaults.provider ?? ""
     ];
   check(configured, "PROVIDER", "Select the execution provider configuration");
   const packages = projectPackages(project);
@@ -148,9 +156,14 @@ export function prepareConnection(
     "CONNECTION",
     "Selected execution provider does not support this connector runtime",
   );
-  const binding = connection.binding
-    ? profile.bindings[connection.binding]
-    : {};
+  // A native or bridge connection's binding belongs to its platform route;
+  // discovery through the portable package uses the connection settings only.
+  const platformBinding =
+    connection.route === "native" || connection.route === "bridge";
+  const binding =
+    connection.binding && !platformBinding
+      ? profile.bindings[connection.binding]
+      : {};
   check(binding, "CONNECTION", "Missing connection environment binding");
   let settings = { ...connection.settings, ...binding };
   const rejectEnvironment = (v: any): void => {
@@ -211,11 +224,13 @@ export function prepareConnection(
       );
       return [
         name,
-        {
-          source,
-          contract: table.contract,
-          columns: contractColumns(table.contract),
-        },
+        discovery && !table.contract
+          ? { source, columns: [] }
+          : {
+              source,
+              contract: table.contract,
+              columns: contractColumns(table.contract),
+            },
       ];
     }),
   );
@@ -227,7 +242,8 @@ export function prepareConnection(
   rejectEnvironment(execution);
   if (configureExecution) execution = configureExecution(execution);
   else if (target.manifest.projectAssembly) {
-    const configuration = flow.provider ?? project.defaults.provider!;
+    const configuration =
+      discovery?.provider ?? flow.provider ?? project.defaults.provider!;
     const configured = project.providers.configurations[configuration];
     const result: any = runProviderCommand(root, environment, {
       configuration,
@@ -349,13 +365,15 @@ export function prepareConnection(
       "Provider does not declare contract export",
     );
     return runProviderCommand(root, environment, {
-      configuration: flow.provider ?? project.defaults.provider!,
+      configuration:
+        discovery?.provider ?? flow.provider ?? project.defaults.provider!,
       command: adapter.contractsCommand,
       input: { review },
     });
   }
   const result = runProviderCommand(root, environment, {
-    configuration: flow.provider ?? project.defaults.provider!,
+    configuration:
+      discovery?.provider ?? flow.provider ?? project.defaults.provider!,
     command: adapter.prepareCommand,
     input: { ...input, runtimeAssets },
   });

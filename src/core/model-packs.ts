@@ -47,7 +47,7 @@ export function resolveModelContracts(
   };
   for (const flow of flows) {
     for (const table of Object.values(flow.tables ?? {}))
-      table.contract = resolveContract(table.contract);
+      if (table.contract) table.contract = resolveContract(table.contract);
     for (const output of Object.values(flow.publishes))
       output.contract = resolveContract(output.contract);
   }

@@ -8,7 +8,7 @@
  * leg is planned, generated and reviewed by its own provider. Nothing is
  * inferred: every setting comes from the connection's bridge block.
  */
-import { check, isMap } from "./errors.js";
+import { check } from "./errors.js";
 import { flowSchema } from "./schema.js";
 
 const clone = <T>(value: T): T => structuredClone(value);
@@ -119,12 +119,6 @@ export function expandBridgeFlows<F extends Record<string, any>>(
         ),
       }),
     );
-    for (const t of tables)
-      check(
-        isMap(flow.tables[t].contract),
-        "CONNECTION",
-        `${flow.id}.${t}: bridged tables need a reviewed contract`,
-      );
     out.push({
       ...flow,
       ingestion,
