@@ -776,8 +776,8 @@ export function execute(
           );
           check(selected.length > 0, "FLOW", "Unknown flow");
           // Native flows on several provider configurations (for example a
-          // bridge, or ADF and Databricks together) plan as a coordinated
-          // delivery, one export per configuration, as build does.
+          // bridge, or ADF and Databricks together) plan as build does: a
+          // coordinated delivery with one export per configuration.
           const delivery =
             !args.table &&
             !args.step &&
@@ -813,7 +813,8 @@ export function execute(
               planProject(root, environment, {
                 ...args,
                 nativeOnly: true,
-                ...(delivery ? { delivery } : {}),
+                // One export per configuration, as build groups them.
+                ...(delivery ? { delivery, projectBuild: true } : {}),
               });
             const coverage = qualityCoverage(root, state, selected as any);
             checkCoverage(
@@ -834,7 +835,8 @@ export function execute(
           }
           const plan = planProject(root, environment, {
             ...args,
-            ...(delivery ? { delivery } : {}),
+            // One export per configuration, as build groups them.
+            ...(delivery ? { delivery, projectBuild: true } : {}),
           });
           const coverage = qualityCoverage(root, state, selected as any);
           checkCoverage(coverage, state.project.defaults.quality?.unsupported);
