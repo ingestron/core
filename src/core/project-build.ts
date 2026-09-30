@@ -168,6 +168,34 @@ export function sourceRouting(
       const kind = String(connectionConfig.kind);
       const declared = selectedManifest?.sources?.[kind];
       if (!declared) return [];
+      // A separately billed native route may be replaced by a bridge through
+      // another configured platform that reads the same kind natively and
+      // lands snapshots; check proposes it, the project records it.
+      const bridges: Route[] =
+        declared.reference?.cost?.model === "separately-billed"
+          ? configurations.flatMap((c) => {
+              const other = manifest(c);
+              const landing = other?.sources?.[kind];
+              return c !== configuration &&
+                other?.platform !== selectedManifest.platform &&
+                landing?.standards?.includes("snapshot-land@v1")
+                ? [
+                    {
+                      route: "bridge" as const,
+                      via: c,
+                      configuration,
+                      platform: selectedManifest.platform,
+                      standards: [
+                        "snapshot-land@v1",
+                        "snapshot-publication@v1",
+                      ],
+                      capabilities: landing.capabilities,
+                      reference: landing.reference,
+                    },
+                  ]
+                : [];
+            })
+          : [];
       return [
         connectionRoutes({
           flow: f.id,
@@ -181,7 +209,7 @@ export function sourceRouting(
             capabilities: declared.capabilities,
             reference: declared.reference,
           },
-          natives: [],
+          natives: bridges,
           requires: Array.isArray(f.ingestion.requires)
             ? (f.ingestion.requires as SourceCapability[])
             : undefined,
