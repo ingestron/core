@@ -1,0 +1,4 @@
+
+> @ingestron/core@0.12.55 build /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core
+> node scripts/build-assets.mjs && tsc && node scripts/compiler-fingerprint.mjs
+

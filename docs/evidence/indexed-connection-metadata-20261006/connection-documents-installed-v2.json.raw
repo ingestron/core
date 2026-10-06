@@ -1,0 +1,22 @@
+{
+  "status": "failed",
+  "stage": "validate",
+  "error": "Error: Command failed: /Users/sacode/.local/share/fnm/node-versions/v22.23.2/installation/bin/node /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/installed-connection-documents-v5/node_modules/.pnpm/ingestron@file+..+..+artifacts+review-batch-runtime-v1+ingestron-0.17.21.tgz_zod@4.6.5/node_modules/ingestron/build/cli/cli/index.js --root /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-RalFWZ/project --environment dev --json connection validate flow_files\n    at genericNodeError (node:internal/errors:983:15)\n    at wrappedFn (node:internal/errors:537:14)\n    at checkExecSyncError (node:child_process:916:11)\n    at execFileSync (node:child_process:952:15)\n    at file:///Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/scripts/connection-documents-installed-v2.mjs:32:23",
+  "checks": [
+    "Installed hundred-table validation succeeds under unchanged provider command input limit"
+  ],
+  "details": {
+    "root": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-RalFWZ/project",
+    "base": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-RalFWZ",
+    "candidate": {
+      "cli": "0.17.21",
+      "core": "0.12.55",
+      "provider": "0.4.18",
+      "files": "1.5.13"
+    },
+    "tables": 100,
+    "fields": 20000,
+    "scope": "Installed immutable compiler/provider/source preparation and local build. No browser, runtime discovery, approval, rows or native-cloud claim.",
+    "resolveBytes": 3689301
+  }
+}

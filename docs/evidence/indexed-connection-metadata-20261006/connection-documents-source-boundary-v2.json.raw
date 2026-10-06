@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "root": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/project",
+  "flow": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/project/build/indexed/flows/flow_files",
+  "tables": 100,
+  "fields": 20000,
+  "completeMetadataAndPrimaryKeysPreserved": true,
+  "sourceParserTypes": 20000,
+  "runtimeIdentity": {
+    "projectSpecSha256": "2c5d26fe13c2647a55226e3f49cc80d841678154ead8250f761bc8ab7afa8d03",
+    "bridgeVersion": "0.4.0",
+    "connector": "files@23.0.1",
+    "licence": "Apache-2.0",
+    "sourceId": "files",
+    "tenantId": "synthetic",
+    "runtimeLockSha256": "7bd241ff11cd35c93afdf7d7295828f3b39d0bfbcaed1250c4f9c89909a8a3e6"
+  },
+  "changedLastDocumentRefused": true,
+  "allFilesRestoredAndUnchanged": true,
+  "noReviewOrRowsPublished": true,
+  "scope": "Actual installed compiler/provider-generated Files runtime, using the existing exact pinned Files dependency environment. Source metadata/identity only; no runtime preparation, discover/review/approve/run, mounted or vendor claim."
+}

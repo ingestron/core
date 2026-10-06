@@ -648,6 +648,27 @@ export function flowCreate(root: string, environment: string, args: any) {
     source: selectedSource,
     ...options
   } = args;
+  if (options.kind === "transformation" && selectedContract) {
+    check(
+      !selectedSource,
+      "INPUT",
+      "Choose a published input dataset for a transformation",
+    );
+    const reader = new Configuration(root);
+    const path = contractPath(root, selectedContract);
+    const contract = reader.load(path);
+    contractColumns(contract, path);
+    if (options.provider)
+      options.provider = providerConfiguration(root, options.provider);
+    const proposal = addFlow(root, { ...options, outputContract: contract });
+    return preview(
+      root,
+      Object.fromEntries(
+        proposal.changes.map((change) => [change.path, change.after]),
+      ),
+      { ...proposal.inputs, ...reader.files },
+    );
+  }
   let sourceId = selectedSource;
   if (
     !sourceId &&

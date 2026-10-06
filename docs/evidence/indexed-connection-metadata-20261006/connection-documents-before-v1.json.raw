@@ -1,0 +1,112 @@
+[
+  {
+    "owner": "core",
+    "path": "src/core/packages.ts",
+    "beforeSha256": "bde7719389b406af3f8ecfd71078dc5aac4afdf2178aa25748c0a877ed4a3440"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/connector-package.ts",
+    "beforeSha256": "eca993bd7b27066986ea1e97db2156d9f05c8e6bec99862685db41c182fe89e2"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/connections.ts",
+    "beforeSha256": "b56858f361595f9d3fcd97e42cd5665b40deb56611920d53366609d924d1de39"
+  },
+  {
+    "owner": "core",
+    "path": "src/plugins/compatibility.ts",
+    "beforeSha256": "1c2ade74f1078f7499819e8e724b47718a9d427cd65764c85899f57ab258a076"
+  },
+  {
+    "owner": "core",
+    "path": "package.json",
+    "beforeSha256": "f5c9cf0be3cf94c3023bdb25aa4557cdf145c0c55bd68d18b91ec24a52f4ad49"
+  },
+  {
+    "owner": "core",
+    "path": "test/integration/connections.test.ts",
+    "beforeSha256": "23f3806e35450cfb2ccf2161c9692c59a857a6afbbc221d7084071b16388bd92"
+  },
+  {
+    "owner": "core",
+    "path": "docs/api.md",
+    "beforeSha256": "4b313a8a1d0c2be9b520d0f49e3dbdd5f480980d4e5163cdad27288c39eb62a5"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/commands.mjs",
+    "beforeSha256": "f32f4940f56624e72d7c7b523f75d767d087ffce7b48d2f1afba40caffbb628b"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/contracts/connection-contract.mjs",
+    "beforeSha256": "148e33072862a98ea7b1fe467ad8b4529bb73bc6932fed06ebfbc8e4714124bb"
+  },
+  {
+    "owner": "provider-local",
+    "path": "scripts/build.mjs",
+    "beforeSha256": "f01cfab150a9f7881e8693acc89c0e67f78dd44b05f00ae63533e7c9f0e031bd"
+  },
+  {
+    "owner": "provider-local",
+    "path": "package.json",
+    "beforeSha256": "2eea3494fae083e6f32b8bb87d06c7dc46fb106627f6a2d8e1e12f9d6aec5e43"
+  },
+  {
+    "owner": "provider-local",
+    "path": "plugin/provider.yaml",
+    "beforeSha256": "6ce0a97fc65399276e3f5e5c089d7dc7a263c1ce5bcbfdfd0083c91da3daea41"
+  },
+  {
+    "owner": "provider-local",
+    "path": "plugin/commands.mjs",
+    "beforeSha256": "a39ebf5eb234176834c33ce675f2aa4c5cebd64310b1d93a60fff3bc91beafa8"
+  },
+  {
+    "owner": "provider-local",
+    "path": "docs/local-execution.md",
+    "beforeSha256": "2652dacb0a3ff3bd90465473d13c8759a4e814c45c77924231ae65eeec89dbe7"
+  },
+  {
+    "owner": "provider-local",
+    "path": "test/connections.test.mjs",
+    "beforeSha256": "db3f76eaccb442706f371f89efbe171b7a7482ac41167815de7ad68c23438af6"
+  },
+  {
+    "owner": "connectors",
+    "path": "scripts/build-files.mjs",
+    "beforeSha256": "9ec5cb024391e060f9e98fca76880c7833f197efae9086ab3e5e7cd0ab5e90a9"
+  },
+  {
+    "owner": "connectors",
+    "path": "connectors/files/connector.yaml",
+    "beforeSha256": "8c8070c76ff3b620d333ab9f683be91a96375a67a84b74fa93c6be010630c97c"
+  },
+  {
+    "owner": "connectors",
+    "path": "docs/files.md",
+    "beforeSha256": "26f04e6f8326634c089a92d44f19dd744acd6df0f8c1ba8d8e60859903f282b9"
+  },
+  {
+    "owner": "connectors",
+    "path": "scripts/build-source-access.mjs",
+    "beforeSha256": "3ea919e4dedacb5384bbd2db949472c17a6bba361cec82015f7b9bdce4a75e60"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/project-build.ts",
+    "beforeSha256": "3cd7c9c9271487fc4b3f40395bf76e1d4c6b95c4775e7f65266bd3a1483e5bed"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/project-assembly.mjs",
+    "beforeSha256": "0ff377af14103eafeb852fbb9cd3940a4bbffa0917b990790558a29f4cb65931"
+  },
+  {
+    "owner": "provider-local",
+    "path": "test/project-assembly.test.mjs",
+    "beforeSha256": "167be41e9fe2793c226decd8e563b4101ef3521be59286f6454bf5c28a23bb36"
+  }
+]

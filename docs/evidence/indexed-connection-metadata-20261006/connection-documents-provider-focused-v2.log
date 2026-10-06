@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: project preparation embeds only references, projection and immutable input provenance
+ok 1 - project preparation embeds only references, projection and immutable input provenance
+  ---
+  duration_ms: 2.3965
+  type: 'test'
+  ...
+# Subtest: direct command rejects plaintext credentials, unsupported options and empty projection
+ok 2 - direct command rejects plaintext credentials, unsupported options and empty projection
+  ---
+  duration_ms: 0.379166
+  type: 'test'
+  ...
+# Subtest: ODCS columns derive the runtime projection; unsupported types fail explicitly
+ok 3 - ODCS columns derive the runtime projection; unsupported types fail explicitly
+  ---
+  duration_ms: 0.300208
+  type: 'test'
+  ...
+# Subtest: runtime capability accepts a source unknown to the engine and rejects another ABI
+ok 4 - runtime capability accepts a source unknown to the engine and rejects another ABI
+  ---
+  duration_ms: 0.111708
+  type: 'test'
+  ...
+# Subtest: incremental execution requires a policy on every reviewed table
+ok 5 - incremental execution requires a policy on every reviewed table
+  ---
+  duration_ms: 0.839791
+  type: 'test'
+  ...
+# Subtest: local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+ok 6 - local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+  ---
+  duration_ms: 0.707666
+  type: 'test'
+  ...
+# Subtest: wide multilingual metadata keeps exact contracts within the runtime byte bound
+ok 7 - wide multilingual metadata keeps exact contracts within the runtime byte bound
+  ---
+  duration_ms: 41.105542
+  type: 'test'
+  ...
+# Subtest: indexed preparation compiles columns without embedding projection tables or losing document references
+ok 8 - indexed preparation compiles columns without embedding projection tables or losing document references
+  ---
+  duration_ms: 1.178125
+  type: 'test'
+  ...
+# Subtest: indexed assembly returns the original collection location without transporting document bodies
+ok 9 - indexed assembly returns the original collection location without transporting document bodies
+  ---
+  duration_ms: 2.503375
+  type: 'test'
+  ...
+# Subtest: local project has one dependency environment and selectable isolated flow folders
+ok 10 - local project has one dependency environment and selectable isolated flow folders
+  ---
+  duration_ms: 0.280042
+  type: 'test'
+  ...
+# Subtest: runner preserves virtual environment interpreter identity
+ok 11 - runner preserves virtual environment interpreter identity
+  ---
+  duration_ms: 133.764542
+  type: 'test'
+  ...
+# Subtest: standalone runner defaults to the active interpreter
+ok 12 - standalone runner defaults to the active interpreter
+  ---
+  duration_ms: 112.652917
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 287.391792

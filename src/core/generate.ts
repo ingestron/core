@@ -1,3 +1,5 @@
+import { withBuildGuard, assertBuildIdle } from "./build-access.js";
+import { resolveScheduleBoundaries } from "./schedule-boundaries.js";
 import { generateProvider } from "../plugins/generation.js";
 import {
   readFileSync,
@@ -14,7 +16,9 @@ import {
 import { resolve, dirname, isAbsolute } from "node:path";
 import { parseDocument } from "yaml";
 import { parser as pythonParser } from "@lezer/python";
-import { check, canonical, digest, Problem } from "./errors.js";
+import { check, canonical, digest } from "./errors.js";
+import { inspectProject } from "./planner.js";
+import { enforceProjectPolicy } from "./project-governance.js";
 import { Configuration } from "./config.js";
 import type { Plan } from "./schema.js";
 import { compilerFingerprint } from "./fingerprint.js";
@@ -45,7 +49,21 @@ export function verifyPlan(root: string, plan: Plan) {
     "STALE",
     "Compiler content changed since planning; create a new plan",
   );
+  const reviewedBoundaries = Object.fromEntries(
+    plan.flows
+      .filter((flow) => flow.schedule)
+      .map((flow) => [flow.id, resolveScheduleBoundaries(flow.schedule!)]),
+  );
+  check(
+    canonical(plan.scheduleBoundaries ?? {}) === canonical(reviewedBoundaries),
+    "SCHEDULE_BOUNDARIES",
+    "Schedule boundary resolution or host clock data changed; create and review a new plan",
+  );
   const reader = new Configuration(root);
+  enforceProjectPolicy(
+    inspectProject(root, plan.environment, { draft: true }),
+    { flowIds: [...new Set(plan.nodes.map((n) => n.flow))] },
+  );
   for (const [file, hash] of Object.entries(plan.files))
     check(
       digest(reader.text(file)) === hash,
@@ -130,8 +148,30 @@ export function writeOutput(
     "PATH",
     "Output directory cannot be a symlink",
   );
+  return withBuildGuard(directory, () => {
+    assertBuildIdle(directory);
+    return writeOutputOwned(directory, plan, files, ownership);
+  });
+}
+function writeOutputOwned(
+  directory: string,
+  plan: Pick<Plan, "project" | "environment" | "selection" | "digest">,
+  files: Files,
+  ownership: "managed" | "team" = "managed",
+) {
+  directory = resolve(directory);
+  check(
+    !existsSync(directory) || !lstatSync(directory).isSymbolicLink(),
+    "PATH",
+    "Output directory cannot be a symlink",
+  );
   mkdirSync(directory, { recursive: true });
   directory = realpathSync(directory);
+  check(
+    !readdirSync(directory).includes(".ingestron-retained-build.json"),
+    "OWNER",
+    "Retained baselines cannot be regenerated; select the working build directory",
+  );
   const manifestFile = outputPath(directory, manifestName),
     previous: Manifest | undefined = existsSync(manifestFile)
       ? JSON.parse(readFileSync(manifestFile, "utf8"))
@@ -143,7 +183,10 @@ export function writeOutput(
   );
   if (ownership === "team") {
     check(
-      !previous && readdirSync(directory).length === 0,
+      !previous &&
+        readdirSync(directory).every(
+          (name) => name === ".ingestron-generate.lock",
+        ),
       "OWNER",
       "Team export requires a new or empty output directory",
     );
@@ -196,15 +239,6 @@ export function writeOutput(
     files: merged,
     ownership,
   };
-  const guard = outputPath(directory, ".ingestron-generate.lock");
-  try {
-    writeFileSync(guard, plan.digest, { flag: "wx" });
-  } catch {
-    throw new Problem(
-      "CONFLICT",
-      "Another generator owns this output directory",
-    );
-  }
   const stage = mkdtempSync(resolve(directory, ".generate-")),
     touched: string[] = [],
     before = new Map<string, Buffer | null>();
@@ -259,7 +293,6 @@ export function writeOutput(
     throw error;
   } finally {
     rmSync(stage, { recursive: true, force: true });
-    rmSync(guard, { force: true });
   }
   return { directory, files: Object.keys(files).length, digest: plan.digest };
 }

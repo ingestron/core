@@ -1,0 +1,6 @@
+
+> @ingestron/core@0.12.55 format:check /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!

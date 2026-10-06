@@ -26,3 +26,16 @@ export { initialise, addFlow, addTable, apply } from "../core/authoring.js";
 export { contractColumns } from "../core/contracts.js";
 
 export { browseProviders, pluginKindLabel } from "../core/installed-plugins.js";
+
+export {
+  connectorSchedulingSchema,
+  connectorScheduleOwnerSchema,
+} from "../core/connector-schedule-schema.js";
+export type {
+  ConnectorScheduling,
+  ConnectorScheduleOwner,
+} from "../core/connector-schedule-schema.js";
+export {
+  connectorScheduleHandover,
+  validateConnectorScheduleHandover,
+} from "../core/connector-schedule.js";

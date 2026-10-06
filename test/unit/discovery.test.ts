@@ -170,3 +170,34 @@ test("exported metadata rows from ADF and Databricks become catalogue columns", 
     /no metadata rows/,
   );
 });
+
+test("source-owned date and timezone-less timestamp metadata drafts compile to executable physical types without guessing string contents", () => {
+  const { contract, skipped } = draftContract(
+    "events",
+    [
+      { name: "day", type: "date", nullable: false },
+      { name: "occurred", type: "timestamp", nullable: true },
+      { name: "text", type: "string", nullable: true },
+      {
+        name: "zoned",
+        type: "string",
+        nullable: true,
+        supported: false,
+        sourceType: "timestamp[us, tz=UTC]",
+      },
+    ],
+    false,
+  );
+  assert.deepEqual(
+    contractColumns(contract).map((c) => [c.name, c.type, c.required]),
+    [
+      ["day", "DATE", true],
+      ["occurred", "TIMESTAMP", false],
+      ["text", "STRING", false],
+    ],
+  );
+  assert.deepEqual(
+    skipped.map((field) => field.name),
+    ["zoned"],
+  );
+});

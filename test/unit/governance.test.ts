@@ -84,3 +84,47 @@ test("data products are listed once per contract with their flows", () => {
   assert.deepEqual(products[0].flows, ["ingest", "publish"]);
   assert.deepEqual(products[0].owners, ["ana"]);
 });
+
+test("future appointments do not establish current ownership and published outputs are inventoried", () => {
+  assert.deepEqual(
+    contractGovernance(
+      base({
+        team: {
+          members: [
+            { username: "future", role: "owner", dateIn: "2999-01-01" },
+          ],
+        },
+      }),
+    ).owners,
+    [],
+  );
+  assert.equal(
+    dataProducts([
+      { id: "publish", publishes: { orders: { contract: base({ team }) } } },
+    ])[0].contract,
+    "orders",
+  );
+});
+
+test("blank team identities cannot satisfy current ownership or stewardship", () => {
+  for (const username of ["", " ", "\t\n"]) {
+    const contract = base({
+      status: "active",
+      team: { members: [{ username, role: "owner data steward" }] },
+    });
+    assert.deepEqual(contractGovernance(contract).owners, []);
+    assert.deepEqual(contractGovernance(contract).stewards, []);
+    assert.throws(
+      () => contractColumns(contract),
+      /active contract must name an owner/,
+    );
+  }
+  assert.deepEqual(
+    contractGovernance(
+      base({
+        team: { members: [{ username: "owner@example.test", role: "owner" }] },
+      }),
+    ).owners,
+    ["owner@example.test"],
+  );
+});

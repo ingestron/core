@@ -23,6 +23,7 @@ import { resolve, relative, dirname, isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import { parseDocument, stringify } from "yaml";
 import { z } from "zod";
+import { connectorSchedulingSchema } from "./connector-schedule-schema.js";
 import { check, digest, canonical, Problem } from "./errors.js";
 import {
   gitTags,
@@ -109,8 +110,19 @@ export const providerPackageSchema = z
     activities: z.record(z.string(), z.string()),
     capabilities: z
       .object({
+        typedTransformationLanguages: z
+          .array(z.enum(["sql", "python"]))
+          .min(1)
+          .optional(),
+        transformationLanguages: z
+          .array(z.enum(["sql", "python"]))
+          .min(1)
+          .optional(),
         artifactKinds: z.array(platform).min(1),
         delivery: z.boolean().default(false),
+        schedules: z
+          .array(z.enum(["interval", "daily", "weekly", "monthly"]))
+          .default([]),
         handovers: z.array(z.enum(["files", "relation"])).default([]),
         packContracts: z
           .record(
@@ -130,6 +142,9 @@ export const providerPackageSchema = z
       .object({
         apiVersion: z.literal("ingestron.project-assembly/v1"),
         command: z.string().min(1),
+        metadataDocuments: z
+          .literal("ingestron.metadata-documents/v1")
+          .optional(),
       })
       .strict()
       .optional(),
@@ -141,7 +156,11 @@ export const providerPackageSchema = z
             selectionSchema: z.record(z.string(), z.unknown()),
             executionSchema: z.record(z.string(), z.unknown()),
             prepareCommand: z.string(),
+            metadataDocuments: z
+              .literal("ingestron.metadata-documents/v1")
+              .optional(),
             contractsCommand: z.string().optional(),
+            scheduling: connectorSchedulingSchema.optional(),
             executionPlatforms: z.array(z.string()).min(1),
           })
           .strict(),
@@ -163,6 +182,12 @@ export const providerPackageSchema = z
       )
       .optional(),
     quality: qualityDeclarationSchema.optional(),
+    authoring: z
+      .object({
+        transformationSettingsSchema: z.record(z.string(), z.unknown()),
+      })
+      .strict()
+      .optional(),
     sources: providerSourcesSchema.optional(),
     compatibility: z
       .object({
@@ -232,12 +257,30 @@ export const providerPackageSchema = z
               "review",
               "approve",
               "run",
+              "checkpoint_preview",
+              "checkpoint_apply",
             ]),
           )
           .min(1),
         status: z.literal("receipt"),
         retry: z.literal("same-run-id"),
         cancellation: z.literal("interrupt"),
+        acknowledgement: z.literal("provider-journal/v1").optional(),
+        resources: z
+          .object({
+            apiVersion: z.literal("ingestron.execution-resources/v1"),
+            command: z.string().min(1).max(100),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    sourceAccess: z
+      .object({
+        apiVersion: z.literal("ingestron.source-access-host/v1"),
+        transport: z.literal("local-python/v1"),
+        entryPoint: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]*$/),
       })
       .strict()
       .optional(),

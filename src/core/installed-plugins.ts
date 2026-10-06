@@ -95,6 +95,8 @@ export function browseProviders(
                   ),
                 ] as string[])
               : ([manifest.platform].filter(Boolean) as string[]),
+          sourceAccess: manifest.sourceAccess,
+          ...(kind === "connector" ? { definition: manifest.definition } : {}),
           availability: "installed",
           installable: false,
           documentation: (manifest.documentation ?? url) as string,

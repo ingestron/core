@@ -35,6 +35,9 @@ export function validateSchemaShape(schema: unknown) {
     "maxLength",
     "minimum",
     "maximum",
+    "title",
+    "description",
+    "default",
   ]);
   const walk = (value: any, depth = 0) => {
     check(
@@ -51,6 +54,28 @@ export function validateSchemaShape(schema: unknown) {
         allowed.has(key),
         "PACKAGE",
         `Unsupported command schema keyword ${key}`,
+      );
+    for (const [annotation, maximum] of [
+      ["title", 200],
+      ["description", 2000],
+    ] as const) {
+      if (value[annotation] !== undefined)
+        check(
+          typeof value[annotation] === "string" &&
+            value[annotation].length <= maximum,
+          "PACKAGE",
+          "Schema annotation exceeds supported bounds",
+        );
+    }
+    if (value.default !== undefined)
+      check(
+        value.default === null ||
+          typeof value.default === "boolean" ||
+          (typeof value.default === "number" &&
+            Number.isFinite(value.default)) ||
+          (typeof value.default === "string" && value.default.length <= 1000),
+        "PACKAGE",
+        "Schema defaults must be bounded scalar values",
       );
     if (value.properties)
       for (const child of Object.values(value.properties))
@@ -161,13 +186,15 @@ export function runProviderCommand(
     "PROVIDER",
     `Unknown provider command ${args.command}; inspect provider_commands for ${args.configuration}`,
   );
-  check(
-    Buffer.byteLength(JSON.stringify(args.input)) <=
-      (s.manifest.projectAssembly?.command === args.command
+  const inputBytes = Buffer.byteLength(JSON.stringify(args.input)),
+    inputLimit =
+      s.manifest.projectAssembly?.command === args.command
         ? 7_000_000
-        : 2_000_000),
+        : 2_000_000;
+  check(
+    inputBytes <= inputLimit,
     "LIMIT",
-    "Command input exceeds its bounded transport limit",
+    `Input for '${args.command}' is ${inputBytes} bytes; the limit is ${inputLimit} bytes. Split large flows or select fewer fields, then retry.`,
   );
   const ajv = new Ajv2020({
     strict: true,

@@ -23,6 +23,11 @@ import {
 } from "./packages.js";
 import { checkProviderCompatibility } from "../plugins/compatibility.js";
 import { prepareConnection } from "./connections.js";
+import {
+  composeMetadataDocuments,
+  metadataDocumentsVersion,
+  projectTableDocuments,
+} from "./metadata-documents.js";
 import { runProviderCommand } from "./provider-commands.js";
 import { deliveryExports } from "./delivery-exports.js";
 import {
@@ -270,6 +275,8 @@ export function qualityCoverage(
     id: string;
     provider?: string;
     tables?: Record<string, any>;
+    steps?: any[];
+    publishes?: Record<string, any>;
     ingestion?: { connection?: unknown; standard?: unknown };
   }[],
 ): CoverageEntry[] {
@@ -287,12 +294,36 @@ export function qualityCoverage(
     return flowCoverage(f, {
       configuration,
       platform: manifest.platform,
+      publishedQuality: transformationOutputQuality(f, manifest),
       quality: combineQuality(
         connectorQuality(root, state.project, f),
         standardQuality(manifest.quality as any, f.ingestion?.standard),
       ),
     });
   });
+}
+
+/** Published transformations use their own enforcement declaration, never ingestion coverage. */
+function transformationOutputQuality(
+  flow: { steps?: any[]; publishes?: Record<string, any> },
+  manifest: any,
+) {
+  return Object.fromEntries(
+    Object.entries(flow.publishes ?? {}).flatMap(([name, output]) => {
+      const step = flow.steps?.find(
+        (step) => output.from === `steps.${step.id}.outputs.result`,
+      );
+      const language = step?.with?.pythonFile
+        ? "python"
+        : step?.with?.sqlFile &&
+            manifest.capabilities?.typedTransformationLanguages?.includes("sql")
+          ? "sql"
+          : undefined;
+      return language
+        ? [[name, manifest.quality?.transformations?.[language]]]
+        : [];
+    }),
+  );
 }
 
 export function buildProject(root: string, environment: string, args: any) {
@@ -393,9 +424,13 @@ export function buildProject(root: string, environment: string, args: any) {
     }
   };
   [...candidates].forEach((id) => addNativeParents(id));
+  // A portable test profile has no native member for the planner to select.
+  // Retain the profile for connection assembly below; native planning owns only
+  // the native candidates and must not select a flow it deliberately excludes.
+  const nativeProfile = args.profile && candidates.has(args.flow);
   const nativePlan = planProject(root, environment, {
-    flow: args.profile ? args.flow : undefined,
-    profile: args.profile,
+    flow: nativeProfile ? args.flow : undefined,
+    profile: nativeProfile ? args.profile : undefined,
     nativeOnly: true,
     flowIds: [...candidates],
     delivery: true,
@@ -491,6 +526,7 @@ export function buildProject(root: string, environment: string, args: any) {
           flowCoverage(f, {
             configuration,
             platform: manifest.platform,
+            publishedQuality: transformationOutputQuality(f, manifest),
             quality: combineQuality(
               connectorQuality(root, project, f),
               standardQuality(manifest.quality as any, f.ingestion?.standard),
@@ -513,6 +549,11 @@ export function buildProject(root: string, environment: string, args: any) {
     const identity = { project: project.id, environment, configuration, scope };
     const native = nativeGroups.find((g) => g.id === configuration);
     const nativeFiles = native ? renderProject(root, native.plan) : {};
+    const externalDocuments: {
+      flow: string;
+      artifacts: Files;
+      documents: Files;
+    }[] = [];
     const connections = selected
       .filter((f) => isPortableConnection(project, f))
       .map((f) => {
@@ -521,6 +562,8 @@ export function buildProject(root: string, environment: string, args: any) {
           "CAPABILITY",
           `${configuration}: install a provider with project assembly support`,
         );
+        let metadataDocuments:
+          ReturnType<typeof projectTableDocuments> | undefined;
         const prepared = prepareConnection(
           root,
           environment,
@@ -549,11 +592,31 @@ export function buildProject(root: string, environment: string, args: any) {
           },
           args.profile,
           args.catalogue ? { provider: configuration } : undefined,
+          (documents) => {
+            metadataDocuments = documents;
+          },
         ) as any;
+        let artifacts = prepared.result.artifacts;
+        const external =
+          manifest.projectAssembly?.metadataDocuments ===
+            metadataDocumentsVersion && metadataDocuments;
+        if (external) {
+          artifacts = Object.fromEntries(
+            Object.entries(artifacts).filter(
+              ([name]) => !Object.hasOwn(external.artifacts, name),
+            ),
+          );
+          externalDocuments.push({
+            flow: f.id,
+            artifacts,
+            documents: external.artifacts,
+          });
+        }
         return {
           flow: f.id,
-          artifacts: prepared.result.artifacts,
+          artifacts,
           inputDigest: prepared.inputDigest,
+          ...(external ? { metadataDocuments: external.index } : {}),
         };
       });
     let artifacts: Files = nativeFiles;
@@ -582,6 +645,12 @@ export function buildProject(root: string, environment: string, args: any) {
         "Invalid assembled project package",
       );
       artifacts = assembled.result.artifacts;
+      if (externalDocuments.length)
+        artifacts = composeMetadataDocuments(
+          artifacts,
+          externalDocuments,
+          assembled.result.metadataDocumentRoots,
+        );
       details = assembled.result.details;
     } else
       check(

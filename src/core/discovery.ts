@@ -26,7 +26,14 @@ import type { Context } from "./operations.js";
 import { nativeConnectionFlow } from "./native-connections.js";
 import { runProviderCommand } from "./provider-commands.js";
 
-type Kind = "integer" | "decimal" | "number" | "boolean" | "string";
+type Kind =
+  | "integer"
+  | "decimal"
+  | "number"
+  | "boolean"
+  | "string"
+  | "date"
+  | "timestamp";
 export interface CatalogueColumn {
   name: string;
   type: Kind;
@@ -38,7 +45,15 @@ export interface CatalogueColumn {
   scale?: number;
 }
 const identifier = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
-const kinds = new Set(["integer", "decimal", "number", "boolean", "string"]);
+const kinds = new Set([
+  "integer",
+  "decimal",
+  "number",
+  "boolean",
+  "string",
+  "date",
+  "timestamp",
+]);
 
 /** Draft ODCS contract for one table, and the columns left out with reasons. */
 export function draftContract(
@@ -72,9 +87,13 @@ export function draftContract(
           ? `DECIMAL(${c.precision ?? 38},${c.scale ?? 9})`
           : kind === "number"
             ? "DOUBLE"
-            : kind === "boolean"
-              ? "BOOLEAN"
-              : "STRING";
+            : kind === "date"
+              ? "DATE"
+              : kind === "timestamp"
+                ? "TIMESTAMP"
+                : kind === "boolean"
+                  ? "BOOLEAN"
+                  : "STRING";
     properties.push({
       name: c.name,
       logicalType: kind === "decimal" ? "number" : kind,

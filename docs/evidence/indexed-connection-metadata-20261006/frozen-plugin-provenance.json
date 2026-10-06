@@ -1,0 +1,70 @@
+{
+  "status": "passed",
+  "archives": [
+    {
+      "owner": "provider-local",
+      "path": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/artifacts/connection-documents-provider-local-v1.tgz",
+      "sha256": "dac5caface41d320eab35335cd26cab55abf3674589a2098ad16b39157d93c46",
+      "files": 5,
+      "byteEqualToOwner": true
+    },
+    {
+      "owner": "connectors",
+      "path": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/artifacts/connection-documents-connectors-v1.tgz",
+      "sha256": "4931e9040d5d6b644ba5c006eabafe7ea95ac658c47010b4c6c39df995703ade",
+      "files": 3,
+      "byteEqualToOwner": true
+    }
+  ],
+  "files": [
+    {
+      "owner": "provider-local",
+      "path": "plugin/commands.mjs",
+      "sha256": "f2cfbd4b8b3ff8741797f968b1a6a7106934d98557a61cfcc0ca28c8a4a2923b",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/provider/plugin/commands.mjs"
+    },
+    {
+      "owner": "provider-local",
+      "path": "plugin/execution.py",
+      "sha256": "8438a14c5231d0986e344f7108d83c965d8b43cedb1fa5f2fa7ccb267dab3ca8",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/provider/plugin/execution.py"
+    },
+    {
+      "owner": "provider-local",
+      "path": "plugin/lifecycle.mjs",
+      "sha256": "311b7d944c19127a22b899b631d2ac6c05fe0660d14130a77b3ff1b89776420f",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/provider/plugin/lifecycle.mjs"
+    },
+    {
+      "owner": "provider-local",
+      "path": "plugin/provider.yaml",
+      "sha256": "f676db5ad744e51f9dd4a9dd19520a558c8d8e0bed4385aed2ecd26f3ee972b7",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/provider/plugin/provider.yaml"
+    },
+    {
+      "owner": "provider-local",
+      "path": "plugin/source_access_host.py",
+      "sha256": "122a6097cff7cd8e92de7ffdfbf22c5bbc48a6f38889fc7d0bde8cc848f025b6",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/provider/plugin/source_access_host.py"
+    },
+    {
+      "owner": "connectors",
+      "path": "connectors/files/UPSTREAM-LICENSE.txt",
+      "sha256": "23fc45dce1769d9ddf4aac4d6cdaf3f7f0d14fcc4d930dd0d4afbefa2ea3322a",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/sources/connectors/files/UPSTREAM-LICENSE.txt"
+    },
+    {
+      "owner": "connectors",
+      "path": "connectors/files/connector.yaml",
+      "sha256": "6ce8ea11abb7787a9f4e21ca60efd3c20d4d03b5b1f0d63efb4cff23eb7eaee5",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/sources/connectors/files/connector.yaml"
+    },
+    {
+      "owner": "connectors",
+      "path": "connectors/files/runtime.json",
+      "sha256": "dfb6fb84c4259a621d7e0ee5943b806d3736b46a06e8c5fc2523ef2d86d20fe5",
+      "snapshotPath": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/sources/connectors/files/runtime.json"
+    }
+  ],
+  "syntheticSnapshotCommitsOnly": true
+}

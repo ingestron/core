@@ -14,7 +14,7 @@ export function providerRepository(name: string): string {
 /** Preserve custom manifest paths and immutable selectors when formatting references. */
 export function friendlyReference(reference: string): string {
   return reference
-    .replace(/\/plugin\/provider\.yaml(?=@|$)/, "")
+    .replace(/^([^/]+\/[^/]+)\/plugin\/provider\.yaml(?=@|$)/, "$1")
     .replace(/@v(?=\d+\.\d+\.\d+$)/, "@");
 }
 export function packageGitEnvironment() {

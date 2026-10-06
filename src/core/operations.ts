@@ -1,5 +1,36 @@
-import { executionSchemas, performExecution } from "./execution.js";
+import {
+  buildRetainSchema,
+  buildRetainedSchema,
+  retainBuild,
+  inspectRetainedBuild,
+} from "./build-retention.js";
+import {
+  inspectProviderConfiguration,
+  proposeProviderConfiguration,
+} from "./provider-configuration.js";
+import {
+  scheduleOccurrences,
+  scheduleOccurrencesSchema,
+} from "./schedule-clock.js";
+import { schedulerSchemas, performScheduler } from "./scheduler.js";
+import { workerSchemas, performSchedulerWorker } from "./scheduler-worker.js";
+import { scheduleSchema } from "./schedule-schema.js";
+import {
+  sourceFlowSchema,
+  sourceFlowsSchema,
+  proposeSourceFlow,
+  proposeSourceFlows,
+} from "./source-flow.js";
+import { sourceAccessSchemas, performSourceAccess } from "./source-access.js";
+import {
+  executionSchemas,
+  performExecution,
+  executionFeatures,
+} from "./execution.js";
 import { dataProducts } from "./governance.js";
+import { compilerIdentity } from "./compiler-identity.js";
+import { projectGovernance } from "./project-governance.js";
+import { policySchema } from "./policy-schema.js";
 import {
   buildProject,
   qualityCoverage,
@@ -13,10 +44,16 @@ import { reportPackSchema } from "./report-pack-schema.js";
 import { modelPackSchema } from "./model-pack-schema.js";
 import { deliveryIndexSchema } from "./deliveries.js";
 import { existsSync, realpathSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { z } from "zod";
 import { check, Problem, canonical, digest } from "./errors.js";
 import { Configuration } from "./config.js";
+import { deliveryPlanSchema } from "./delivery-plan-schema.js";
+import {
+  checkDeliveryPlan,
+  proposeDeliveryPlan,
+  proposeDeliveryBaseline,
+} from "./delivery-plan.js";
 import {
   projectSchema,
   flowSchema,
@@ -51,7 +88,51 @@ import * as workflows from "./workflows.js";
 import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
+  compiler_identity: z.object({}).strict(),
+  build_retain: buildRetainSchema,
+  build_retained: buildRetainedSchema,
   ...executionSchemas,
+  ...schedulerSchemas,
+  ...workerSchemas,
+  ...sourceAccessSchemas,
+  provider_configuration_inspect: z
+    .object({ configuration: workflows.identifier })
+    .strict(),
+  provider_configuration_propose: z
+    .object({
+      configuration: workflows.identifier,
+      options: z.record(z.string(), z.unknown()),
+      expectedDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    })
+    .strict(),
+  schedule_occurrences: scheduleOccurrencesSchema,
+  schedule_check: z.object({ schedule: scheduleSchema }).strict(),
+  schedule_propose: z
+    .object({ flow: workflows.identifier, schedule: scheduleSchema.nullable() })
+    .strict(),
+  schedule_inspect: z.object({ flow: workflows.identifier }).strict(),
+  governance_check: z.object({ flow: z.string().optional() }).strict(),
+  policy_propose: z.object({ policy: policySchema }).strict(),
+  connection_flow_review: sourceFlowSchema,
+  connection_flows_review: sourceFlowsSchema,
+  delivery_plan_check: z
+    .object({
+      path: z.string().default("delivery-plan.yaml"),
+      baseline: z.string().optional(),
+    })
+    .strict(),
+  delivery_plan_propose: z
+    .object({
+      plan: deliveryPlanSchema,
+      path: z.string().default("delivery-plan.yaml"),
+    })
+    .strict(),
+  delivery_plan_baseline: z
+    .object({
+      path: z.string().default("delivery-plan.yaml"),
+      baseline: z.string().default("delivery-plan.baseline.yaml"),
+    })
+    .strict(),
   connection_add: z
     .object({
       id: workflows.identifier,
@@ -60,6 +141,25 @@ export const operationSchemas = {
       tenantId: workflows.identifier,
       binding: workflows.identifier.optional(),
       settings: z.record(z.string(), z.unknown()).default({}),
+    })
+    .strict(),
+  connection_setup: z
+    .object({
+      id: workflows.identifier,
+      package: workflows.identifier,
+      reference: z.string().min(1),
+      sourceId: workflows.identifier,
+      tenantId: workflows.identifier,
+      binding: workflows.identifier.optional(),
+      settings: z.record(z.string(), z.unknown()).default({}),
+    })
+    .strict(),
+  connection_configure: z
+    .object({
+      id: workflows.identifier,
+      sourceId: workflows.identifier,
+      tenantId: workflows.identifier,
+      settings: z.record(z.string(), z.unknown()),
     })
     .strict(),
   connection_flow_add: z
@@ -85,6 +185,7 @@ export const operationSchemas = {
     .object({
       apiVersion: z.literal("ingestron.field-mapping/v1"),
       flow: workflows.identifier,
+      profile: workflows.identifier.optional(),
       environment: workflows.identifier,
       contract: z.string().min(1),
       discovery: z.string().min(1),
@@ -181,6 +282,13 @@ export const operationSchemas = {
     .strict(),
   contract_list: z.object({}).strict(),
   contract_show: z.object({ id: z.string() }).strict(),
+  contract_location: z
+    .object({ flow: workflows.identifier, table: workflows.identifier })
+    .strict(),
+  authoring_locations: z.object({ flow: workflows.identifier }).strict(),
+  authoring_locations_batch: z
+    .object({ flows: z.array(workflows.identifier).min(1).max(20) })
+    .strict(),
   contract_check: z
     .object({ id: z.string(), native: z.boolean().default(false) })
     .strict(),
@@ -196,6 +304,8 @@ export const operationSchemas = {
     .strict(),
   flow_create: z
     .object({
+      transformationSettings: z.record(z.string(), z.unknown()).optional(),
+      language: z.enum(["sql", "python"]).optional(),
       id: workflows.identifier,
       kind: z.enum(["ingestion", "transformation"]).default("ingestion"),
       standard: z.string().optional(),
@@ -234,7 +344,10 @@ export const operationSchemas = {
         "project",
         "source",
         "flow",
+        "schedule",
         "delivery-index",
+        "delivery-plan",
+        "policy",
         "step",
         "environment",
         "activity",
@@ -243,7 +356,30 @@ export const operationSchemas = {
       ]),
     })
     .strict(),
-  read: z.object({ path: z.string() }).strict(),
+  read: z
+    .object({
+      path: z.string(),
+      slice: z
+        .object({
+          offset: z
+            .number()
+            .int()
+            .min(0)
+            .max(10 * 1024 * 1024),
+          limit: z
+            .number()
+            .int()
+            .min(2)
+            .max(256 * 1024),
+          sha256: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict(),
   validate: z
     .object({
       mode: z.enum(["draft", "strict"]).default("strict"),
@@ -289,12 +425,27 @@ export const operationSchemas = {
     })
     .strict(),
   activity_inspect: z.object({ path: z.string() }).strict(),
+  provider_activity_inspect: z
+    .object({ reference: z.string().min(1), activity: z.string().min(1) })
+    .strict(),
   contract_draft: z
     .object({ metadata: z.string(), id: z.string(), out: z.string() })
     .strict(),
   contract_validate: z.object({ path: z.string() }).strict(),
   flow_configure: z
     .object({ flow: z.string(), patch: z.record(z.string(), z.unknown()) })
+    .strict(),
+  ingestion_configure: z
+    .object({
+      flow: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
+      execution: z.record(z.string(), z.unknown()),
+      sources: z
+        .record(
+          z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
+          z.record(z.string(), z.unknown()),
+        )
+        .default({}),
+    })
     .strict(),
   step_add: z
     .object({
@@ -305,6 +456,8 @@ export const operationSchemas = {
     .strict(),
   flow_add: z
     .object({
+      transformationSettings: z.record(z.string(), z.unknown()).optional(),
+      language: z.enum(["sql", "python"]).optional(),
       id: z.string(),
       kind: z.enum(["ingestion", "transformation"]),
       standard: z.string().optional(),
@@ -435,8 +588,98 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "build_retained":
+        result = inspectRetainedBuild({ ...context, root, environment }, args);
+        break;
+      case "build_retain":
+        write();
+        result = retainBuild({ ...context, root, environment }, args);
+        break;
+      case "compiler_identity":
+        result = compilerIdentity();
+        break;
+      case "execution_features":
+        result = executionFeatures();
+        break;
+      case "provider_configuration_inspect":
+        result = inspectProviderConfiguration(
+          root,
+          environment,
+          args.configuration,
+        );
+        break;
+      case "provider_configuration_propose":
+        result = proposeProviderConfiguration(root, environment, args);
+        break;
+      case "schedule_occurrences":
+        result = scheduleOccurrences(args);
+        break;
+      case "schedule_check":
+        result = {
+          schedule: args.schedule,
+          digest: digest(canonical(args.schedule)),
+          scope: "definition",
+          executionEnabled: false,
+        };
+        break;
+      case "schedule_propose":
+        result = author.configureSchedule(root, args.flow, args.schedule);
+        break;
+      case "schedule_inspect": {
+        const found = inspectProject(root, environment, {
+          draft: true,
+        }).flows.find((flow) => flow.id === args.flow);
+        check(found, "FLOW", "Select one existing flow identity");
+        const schedule = found.schedule ?? null;
+        result = {
+          flow: args.flow,
+          schedule,
+          digest: digest(canonical(schedule)),
+          scope: "definition",
+          executionEnabled: false,
+        };
+        break;
+      }
+      case "governance_check":
+        result = projectGovernance(
+          inspectProject(root, environment, {
+            ...args,
+            draft: true,
+          }),
+          args,
+        );
+        break;
+      case "policy_propose":
+        result = author.configurePolicy(root, args.policy);
+        break;
+      case "delivery_plan_check":
+        result = checkDeliveryPlan(root, args.path, args.baseline);
+        break;
+      case "delivery_plan_propose":
+        result = proposeDeliveryPlan(root, args.plan, args.path);
+        break;
+      case "delivery_plan_baseline":
+        result = proposeDeliveryBaseline(root, args.path, args.baseline);
+        break;
       case "connection_add":
-        result = author.addConnection(root, args);
+        result = author.addConnection(root, args, environment);
+        break;
+      case "connection_setup": {
+        const registration = workflows.pluginConfigure(root, {
+          reference: args.reference,
+          name: args.package,
+        });
+        result = author.addConnection(root, args, environment, registration);
+        break;
+      }
+      case "connection_configure":
+        result = author.configureConnection(root, args, environment);
+        break;
+      case "connection_flows_review":
+        result = proposeSourceFlows({ ...context, root, environment }, args);
+        break;
+      case "connection_flow_review":
+        result = proposeSourceFlow({ ...context, root, environment }, args);
         break;
       case "connection_flow_add":
         result = author.addConnectionFlow(root, args);
@@ -452,6 +695,9 @@ export function execute(
           environment,
           args.flow,
           true,
+          undefined,
+          undefined,
+          args.profile,
         ) as {
           specificationSha256: string;
           sourceBoundarySha256: string;
@@ -462,7 +708,7 @@ export function execute(
         if (discoveredSpec !== prepared.specificationSha256) {
           const saved = JSON.parse(
             reader.text(
-              `build/generated/flows/${args.flow}/project-connection.lock.json`,
+              `${dirname(args.discovery)}/project-connection.lock.json`,
             ),
           );
           const { specificationSha256: savedDigest, ...savedSpec } = saved;
@@ -483,12 +729,32 @@ export function execute(
             "Source configuration changed since discovery; rebuild and rediscover before mapping fields",
           );
         }
-        result = author.mapContractFields(root, args);
+        result = author.mapContractFields(root, args, reader.files);
         break;
       }
+      case "connection_access":
+      case "connection_runtime_prepare":
+      case "connection_test":
+      case "connection_inventory":
+      case "connection_sample":
+      case "connection_metadata":
+      case "connection_contracts":
+      case "connection_drafts":
       case "runtime_prepare":
       case "run":
+      case "scheduler_inspect":
+      case "scheduler_status":
+      case "scheduler_register":
+      case "scheduler_tick":
+      case "scheduler_pause":
+      case "scheduler_cancel":
+      case "scheduler_retry":
+      case "checkpoint_preview":
+      case "checkpoint_apply":
+      case "execution_recover":
+      case "execution_evidence":
       case "run_status":
+      case "execution_resources":
         throw new Problem(
           "EXECUTION",
           "Use executeAsync for execution operations",
@@ -565,6 +831,15 @@ export function execute(
         break;
       case "contract_list":
         result = workflows.contractList(root);
+        break;
+      case "contract_location":
+        result = author.contractLocation(root, args.flow, args.table);
+        break;
+      case "authoring_locations_batch":
+        result = author.authoringLocationsBatch(root, args.flows);
+        break;
+      case "authoring_locations":
+        result = author.authoringLocations(root, args.flow);
         break;
       case "contract_show":
         result = new Configuration(root).load(
@@ -724,7 +999,10 @@ export function execute(
               project: projectSchema,
               source: workflows.sourceSchema,
               flow: flowSchema,
+              schedule: scheduleSchema,
               "delivery-index": deliveryIndexSchema,
+              "delivery-plan": deliveryPlanSchema,
+              policy: policySchema,
               step: stepSchema,
               environment: environmentSchema,
               activity: externalActivitySchema,
@@ -749,6 +1027,44 @@ export function execute(
           path: args.path,
           content: new Configuration(root).text(args.path),
         };
+        if (args.slice) {
+          const text = result.content,
+            hash = digest(text),
+            { offset, limit, sha256 } = args.slice;
+          check(
+            !sha256 || sha256 === hash,
+            "STALE",
+            "File changed between read pages",
+          );
+          check(
+            offset <= text.length,
+            "SELECT",
+            "Read offset exceeds file length",
+          );
+          const high = (value: number) => value >= 0xd800 && value <= 0xdbff,
+            low = (value: number) => value >= 0xdc00 && value <= 0xdfff;
+          check(
+            !offset ||
+              !low(text.charCodeAt(offset)) ||
+              !high(text.charCodeAt(offset - 1)),
+            "SELECT",
+            "Read offset splits a Unicode character",
+          );
+          let end = Math.min(text.length, offset + limit);
+          if (high(text.charCodeAt(end - 1)) && low(text.charCodeAt(end)))
+            end--;
+          result = {
+            path: args.path,
+            content: text.slice(offset, end),
+            slice: {
+              offset,
+              ...(end < text.length ? { nextOffset: end } : {}),
+              totalCharacters: text.length,
+              totalBytes: Buffer.byteLength(text),
+              sha256: hash,
+            },
+          };
+        }
         break;
       case "validate": {
         if (args.mode === "draft") {
@@ -922,6 +1238,13 @@ export function execute(
       case "activity_inspect":
         result = development.activityInspect(root, args.path);
         break;
+      case "provider_activity_inspect":
+        result = development.providerActivityInspect(
+          root,
+          args.reference,
+          args.activity,
+        );
+        break;
       case "contract_draft":
         result = development.contractDraft(
           root,
@@ -938,6 +1261,9 @@ export function execute(
         break;
       case "flow_configure":
         result = author.configureFlow(root, args.flow, args.patch);
+        break;
+      case "ingestion_configure":
+        result = author.configureIngestion(root, args);
         break;
       case "step_add":
         result = author.addStep(root, args.flow, args.step, args.after);
@@ -1092,11 +1418,17 @@ export async function executeAsync(
   operation: OperationName,
   request: unknown = {},
 ): Promise<Result> {
-  if (!Object.hasOwn(executionSchemas, operation))
+  const asyncSchemas = {
+    ...executionSchemas,
+    ...sourceAccessSchemas,
+    ...schedulerSchemas,
+    ...workerSchemas,
+  };
+  if (!Object.hasOwn(asyncSchemas, operation))
     return execute(context, operation, request);
   try {
-    const name = operation as keyof typeof executionSchemas;
-    const parsed = executionSchemas[name].safeParse(request);
+    const name = operation as keyof typeof asyncSchemas;
+    const parsed = asyncSchemas[name].safeParse(request);
     check(
       parsed.success,
       "SCHEMA",
@@ -1104,7 +1436,29 @@ export async function executeAsync(
         .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; ") ?? "Invalid execution request",
     );
-    const result = await performExecution(context, name, parsed.data);
+    const result = Object.hasOwn(workerSchemas, name)
+      ? await performSchedulerWorker(
+          context,
+          name as keyof typeof workerSchemas,
+          parsed.data,
+        )
+      : Object.hasOwn(schedulerSchemas, name)
+        ? await performScheduler(
+            context,
+            name as keyof typeof schedulerSchemas,
+            parsed.data,
+          )
+        : Object.hasOwn(sourceAccessSchemas, name)
+          ? await performSourceAccess(
+              context,
+              name as keyof typeof sourceAccessSchemas,
+              parsed.data,
+            )
+          : await performExecution(
+              context,
+              name as keyof typeof executionSchemas,
+              parsed.data,
+            );
     return {
       apiVersion: "ingestron.operation/v1",
       operation,

@@ -78,3 +78,29 @@ Profiles cannot replace dataset schema/table identities. Select one flow with a
 profile in build, validate, plan or resolve operations. Environment is independent.
 The build records the selection; execution rejects a different profile. Use a
 separate output directory per profile. Local evidence does not qualify a cloud target.
+
+## Portable schedule clock preview
+
+The read-only `schedule_occurrences` operation accepts `schedule`, exact UTC
+`from` and `to` bounds, and an optional `limit` (default20, maximum1000).
+The window must be positive and no longer than366 elapsed days. It calculates
+interval, daily, weekly and monthly occurrences without reading the current clock,
+accessing sources, registering a daemon or executing work. Paused definitions can
+be inspected. Start/from are inclusive; end/to are exclusive. Interval occurrences
+retain the exact seconds of the reviewed UTC start. Calendar slots remain paired;
+missing month dates are skipped rather than rolled into the following month.
+
+Optional calendar `daylightSaving` choices are `gap: skip | shift-forward` and
+`fold: earlier | later | both`. Without a reviewed choice, an encountered ambiguous
+or nonexistent wall time returns `SCHEDULE_DST_REVIEW`. Forward shifting retains
+minutes within the actual offset jump, including half-hour and whole-date jumps.
+Colliding slots are merged into one UTC occurrence, retaining every requested slot.
+A definition with native missed-run/clock behaviour returns
+`SCHEDULE_NATIVE_CLOCK`: portable previews do not promise native platform timing.
+Elapsed UTC intervals and native-clock definitions reject portable DST overrides.
+
+Results include exact UTC instants, actual local times/offsets, requested slots,
+resolution, truncation, capped skipped-slot details, and the host time-zone database
+version. Occurrence IDs bind the definition digest, database version and instant.
+They do not authorise execution or replace reviewed project/plan identity.
+Portable overlap, missed-run dispatch and durable recovery remain separate work.

@@ -67,6 +67,13 @@ const baseDeclaration = z
 /** Declared by providers (native mechanisms) and connectors (runtime checks before commit).
  * `standards` replaces the declaration for flows using that ingestion standard. */
 export const qualityDeclarationSchema = baseDeclaration.extend({
+  transformations: z
+    .object({
+      python: baseDeclaration.optional(),
+      sql: baseDeclaration.optional(),
+    })
+    .strict()
+    .optional(),
   standards: z
     .record(z.string().regex(/^[a-z0-9-]+@v\d+$/), baseDeclaration)
     .optional(),
@@ -299,16 +306,33 @@ export interface CoverageEntry extends QualityRule {
 }
 
 export function flowCoverage(
-  flow: { id: string; tables?: Record<string, any> },
+  flow: {
+    id: string;
+    tables?: Record<string, any>;
+    publishes?: Record<string, any>;
+  },
   target: {
     configuration: string;
     platform: string;
     quality?: ProviderQuality;
+    publishedQuality?: Record<string, ProviderQuality | undefined>;
   },
 ): CoverageEntry[] {
   const seen = new Set<string>();
   const entries: CoverageEntry[] = [];
-  for (const table of Object.values(flow.tables ?? {})) {
+  const datasets = [
+    ...Object.values(flow.tables ?? {}).map((table) => ({
+      table,
+      quality: target.quality,
+    })),
+    ...Object.entries(flow.publishes ?? {})
+      .filter(([name]) => Object.hasOwn(target.publishedQuality ?? {}, name))
+      .map(([name, table]) => ({
+        table,
+        quality: target.publishedQuality?.[name],
+      })),
+  ];
+  for (const { table, quality } of datasets) {
     const contract = table?.contract;
     if (!contract || typeof contract !== "object") continue;
     for (const rule of contractRules(contract)) {
@@ -320,7 +344,7 @@ export function flowCoverage(
         flow: flow.id,
         configuration: target.configuration,
         platform: target.platform,
-        mode: enforcementMode(rule, target.quality),
+        mode: enforcementMode(rule, quality),
       });
     }
   }

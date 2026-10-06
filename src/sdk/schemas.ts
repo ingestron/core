@@ -1,5 +1,10 @@
+export { scheduleSchema } from "../core/schedule-schema.js";
 /** Editor-safe exports: no filesystem access, runtime loading or plugin execution. */
 import { LineCounter, parseDocument, isMap, isSeq } from "yaml";
+import { deliveryPlanSchema } from "../core/delivery-plan-schema.js";
+export { deliveryPlanSchema };
+import { policySchema } from "../core/policy-schema.js";
+export { policySchema };
 import {
   projectSchema,
   flowSchema,
@@ -12,11 +17,15 @@ export const documentSchemas: {
   readonly flow: typeof flowSchema;
   readonly environment: typeof environmentSchema;
   readonly step: typeof stepSchema;
+  readonly "delivery-plan": typeof deliveryPlanSchema;
+  readonly policy: typeof policySchema;
 } = {
   project: projectSchema,
   flow: flowSchema,
   environment: environmentSchema,
   step: stepSchema,
+  "delivery-plan": deliveryPlanSchema,
+  policy: policySchema,
 } as const;
 export type DocumentKind = keyof typeof documentSchemas;
 export interface DocumentDiagnostic {

@@ -1,4 +1,4 @@
-import { digest } from "../../src/core/errors.js";
+import { digest, canonical } from "../../src/core/errors.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
@@ -9,11 +9,29 @@ import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
 import { execute } from "../../src/core/operations.js";
 import { pluginConfigure } from "../../src/core/workflows.js";
+import { prepareConnection } from "../../src/core/connections.js";
+test("locked connector browsing returns its authoring schema without connection values", (t) => {
+  const f = setup(t, true);
+  const result = execute({ root: f.root }, "plugin_browse", {
+    kind: "connector",
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const [connector] = result.result;
+  assert.deepEqual(connector.definition.tableSourceSchema.properties, {
+    schema: { type: "string" },
+    table: { type: "string" },
+  });
+  assert.ok(connector.definition.settingsSchema.properties.password);
+  assert.equal(Object.hasOwn(connector, "settings"), false);
+  assert.equal(Object.hasOwn(connector, "connection"), false);
+});
 function setup(
   t: any,
-  perTableSource = false,
+  perTableSource: boolean | Record<string, unknown> = false,
   connector: any = {},
   provider: any = {},
+  scheduling?: any,
+  indexed = false,
 ) {
   const f = fixture(t),
     origin = resolve(f.root, "connection-plugin");
@@ -38,6 +56,7 @@ function setup(
         minimumCli: "4.2.0",
         requiredFeatures: [
           "connector-runtime-capabilities",
+          ...(indexed ? ["connection-metadata-documents"] : []),
           ...(provider.sources ? ["source-coverage"] : []),
         ],
       },
@@ -49,7 +68,11 @@ function setup(
             mode: { type: "string", enum: ["local"] },
           }),
           prepareCommand: "connection prepare",
+          ...(indexed
+            ? { metadataDocuments: "ingestron.metadata-documents/v1" }
+            : {}),
           executionPlatforms: ["test"],
+          ...(scheduling ? { scheduling } : {}),
         },
       },
       commands: {
@@ -94,6 +117,9 @@ function setup(
       path: "runtime.json",
       sha256: digest(asset),
       contract: "ingestron.snapshot/python/v1",
+      ...(indexed
+        ? { metadataDocuments: "ingestron.metadata-documents/v1" }
+        : {}),
     },
     definition: {
       settingsSchema: object({
@@ -103,7 +129,10 @@ function setup(
       selectionSchema: { type: "object", additionalProperties: true },
       ...(perTableSource
         ? {
-            tableSourceSchema: object({ schema: text, table: text }),
+            tableSourceSchema:
+              typeof perTableSource === "object"
+                ? perTableSource
+                : object({ schema: text, table: text }),
           }
         : {}),
     },
@@ -213,6 +242,36 @@ function setup(
   };
   return { ...f, origin, run };
 }
+test("a declared source stream survives a different output table name", (t) => {
+  const f = setup(t, {
+    type: "object",
+    properties: { stream: { type: "string", enum: ["issues"] } },
+    required: ["stream"],
+    additionalProperties: false,
+  });
+  f.project.flows[0].tables.orders.source = { stream: "issues" };
+  const prepared = f.run();
+  assert.equal(prepared.ok, true, JSON.stringify(prepared.diagnostics));
+  const tables = prepared.result.result.echo.tables;
+  assert.deepEqual(tables.orders.source, { stream: "issues" });
+  assert.equal(tables.orders.contract.id, "orders");
+  f.project.flows[0].tables.duplicate = structuredClone(
+    f.project.flows[0].tables.orders,
+  );
+  const duplicate = f.run();
+  assert.equal(duplicate.ok, false);
+  assert.match(
+    JSON.stringify(duplicate.diagnostics),
+    /Duplicate source stream/,
+  );
+  delete f.project.flows[0].tables.duplicate;
+  f.project.flows[0].tables.orders.source.stream = "unreviewed";
+  assert.equal(
+    f.run().ok,
+    false,
+    "Declared source schema remains authoritative",
+  );
+});
 test("connection and workflow authoring use reviewable project proposals", (t) => {
   const f = setup(t);
   const contract = f.project.flows[0].tables.orders.contract;
@@ -258,8 +317,8 @@ test("connection and workflow authoring use reviewable project proposals", (t) =
     validateOnly: true,
   });
   assert.equal(prepared.ok, true, JSON.stringify(prepared));
-  const discovery = "build/generated/flows/sales/discovery.json";
-  mkdirSync(resolve(f.root, "build/generated/flows/sales"), {
+  const discovery = "build/studio/dev/sales/flows/sales/discovery.json";
+  mkdirSync(resolve(f.root, "build/studio/dev/sales/flows/sales"), {
     recursive: true,
   });
   writeFileSync(
@@ -281,6 +340,12 @@ test("connection and workflow authoring use reviewable project proposals", (t) =
       },
     }),
   );
+  const packet = execute(context, "connection_prepare", { flow: "sales" });
+  assert.equal(packet.ok, true, JSON.stringify(packet));
+  const { runtimeAssets, ...savedSpecification } = packet.result.result.echo;
+  const savedPath =
+    "build/studio/dev/sales/flows/sales/project-connection.lock.json";
+  writeFileSync(resolve(f.root, savedPath), JSON.stringify(savedSpecification));
   const mapping = execute(context, "contract_map_fields", {
     apiVersion: "ingestron.field-mapping/v1",
     flow: "sales",
@@ -301,6 +366,37 @@ test("connection and workflow authoring use reviewable project proposals", (t) =
   );
   assert.equal(changed.schema[0].properties[0].name, "customer_id");
   assert.equal(changed.schema[0].properties[0].physicalName, "id");
+  const next = {
+    apiVersion: "ingestron.field-mapping/v1",
+    flow: "sales",
+    environment: "dev",
+    contract: "contracts/orders.odcs.yaml",
+    discovery,
+    stream: "orders",
+    table: "orders",
+    fields: [{ source: "id", target: "account_id" }],
+  };
+  const remapping = execute(context, "contract_map_fields", next);
+  assert.equal(remapping.ok, true, JSON.stringify(remapping));
+  assert.ok(remapping.result.inputs[savedPath]);
+  writeFileSync(
+    resolve(f.root, savedPath),
+    JSON.stringify(savedSpecification) + "\n",
+  );
+  const stale = execute(context, "apply", { proposal: remapping.result });
+  assert.equal(stale.ok, false);
+  assert.equal(stale.diagnostics[0].code, "STALE");
+  const located = execute(context, "authoring_locations", {
+    flow: "sales",
+  }).result;
+  const literal = parse(
+    readFileSync(resolve(f.root, located.flow.path), "utf8"),
+  );
+  literal.tables.orders.source.stream = "changed_source";
+  writeFileSync(resolve(f.root, located.flow.path), stringify(literal));
+  const foreign = execute(context, "contract_map_fields", next);
+  assert.equal(foreign.ok, false);
+  assert.equal(foreign.diagnostics[0].code, "DISCOVERY");
 });
 test("one connection selects multiple physical tables with contract-derived columns and short package refs", (t) => {
   const f = setup(t, true);
@@ -873,4 +969,514 @@ test("check lists source routes with reference records and blocks missing capabi
     f.project.flows[0].ingestion.standard = "snapshot-land@v1";
   });
   assert.equal(listingOnly.ok, false);
+});
+
+test("portable named profiles reach connection assembly without selecting excluded native flows", (t) => {
+  const f = setup(t);
+  const flow = f.project.flows[0];
+  flow.executionProfiles = {
+    local_test: {
+      provider: flow.provider,
+      source: {},
+      ingestion: flow.ingestion,
+    },
+  };
+  f.put("project.yaml", f.project);
+  const result = execute(
+    { root: f.root, environment: "dev", allowWrite: true },
+    "build",
+    { flow: flow.id, profile: "local_test" },
+  );
+  assert.equal(result.ok, false);
+  // This synthetic provider deliberately lacks assembly. It must reach that
+  // capability boundary rather than fail native selection for a portable flow.
+  assert.equal(result.diagnostics[0].code, "CAPABILITY");
+  assert.match(result.diagnostics[0].message, /project assembly/);
+});
+
+test("connection authoring validates effective installed settings before a proposal", (t) => {
+  const f = setup(t);
+  f.run();
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  const context = { root: f.root, environment: "dev", allowWrite: true };
+  const marker = "PRIVATE_VALUE_MUST_NOT_APPEAR";
+  for (const settings of [
+    { host: 42, password: { $secret: { env: "MISSING_AUTHORED_PASSWORD" } } },
+    { host: "example.invalid", password: marker },
+    { host: "example.invalid", password: { $env: marker } },
+    { host: "example.invalid", password: { $secret: { env: "PATH" } } },
+    { host: "example.invalid", password: { $secret: { env: "INVALID NAME" } } },
+    {
+      host: "example.invalid",
+      password: {
+        $secret: { env: "MISSING_AUTHORED_PASSWORD", extra: marker },
+      },
+    },
+  ]) {
+    const result = execute(context, "connection_add", {
+      id: "invalid",
+      package: "source",
+      sourceId: "erp",
+      tenantId: "nz",
+      settings,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(["CONNECTION", "SECRET"].includes(result.diagnostics[0].code));
+    assert.equal(result.result, undefined);
+    assert.equal(JSON.stringify(result.diagnostics).includes(marker), false);
+    assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  }
+  const valid = execute(context, "connection_add", {
+    id: "valid",
+    package: "source",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: {
+      host: "example.invalid",
+      password: { $secret: { env: "MISSING_AUTHORED_PASSWORD" } },
+    },
+  });
+  assert.equal(valid.ok, true, JSON.stringify(valid));
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+});
+
+test("connection configuration preserves installed ownership, bindings, siblings and comments", (t) => {
+  const f = setup(t);
+  f.project.connections.neighbor = {
+    ...f.project.connections.sales,
+    sourceId: "neighbor",
+  };
+  f.run();
+  const path = resolve(f.root, "project.yaml");
+  writeFileSync(
+    path,
+    "# Keep the engineer's project note\n" + readFileSync(path, "utf8"),
+  );
+  const before = readFileSync(path, "utf8");
+  const context = { root: f.root, environment: "dev", allowWrite: true };
+  const proposal = execute(context, "connection_configure", {
+    id: "sales",
+    sourceId: "reviewed",
+    tenantId: "au",
+    settings: { host: "{{values.host}}" },
+  });
+  // The selected binding supplies host/password; a pending credential is not read.
+  assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  assert.equal(readFileSync(path, "utf8"), before);
+  const denied = execute({ ...context, allowWrite: false }, "apply", {
+    proposal: proposal.result,
+  });
+  assert.equal(denied.diagnostics[0].code, "PERMISSION");
+  assert.equal(
+    execute(context, "apply", { proposal: proposal.result }).ok,
+    true,
+  );
+  const after = readFileSync(path, "utf8");
+  assert.ok(after.startsWith("# Keep the engineer's project note\n"));
+  const old = parse(before),
+    changed = parse(after);
+  assert.deepEqual(changed.connections.neighbor, old.connections.neighbor);
+  assert.deepEqual(changed.connections.sales, {
+    ...old.connections.sales,
+    sourceId: "reviewed",
+    tenantId: "au",
+    settings: { host: "{{values.host}}" },
+  });
+  assert.deepEqual(changed.providers, old.providers);
+});
+
+test("connection authoring resolves selected values and binds newly referenced inputs to approval", (t) => {
+  const f = setup(t);
+  f.project.environments.dev.values.host = "example.invalid";
+  f.run();
+  const settingsFile = resolve(f.root, "pending-settings.yaml");
+  writeFileSync(
+    settingsFile,
+    stringify({
+      host: "{{values.host}}",
+      password: { $secret: { env: "UNSUPPLIED_AUTHORING_SECRET" } },
+    }),
+  );
+  const context = { root: f.root, environment: "dev", allowWrite: true };
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  const proposal = execute(context, "connection_add", {
+    id: "referenced",
+    package: "source",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: { $resolve: "./pending-settings.yaml" },
+  });
+  assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  assert.equal(
+    proposal.result.inputs["pending-settings.yaml"],
+    digest(readFileSync(settingsFile)),
+  );
+  writeFileSync(
+    settingsFile,
+    stringify({
+      host: "changed.example.invalid",
+      password: { $secret: { env: "UNSUPPLIED_AUTHORING_SECRET" } },
+    }),
+  );
+  const stale = execute(context, "apply", { proposal: proposal.result });
+  assert.equal(stale.diagnostics[0].code, "STALE");
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  f.project.environments.dev.values.password = {
+    $env: "PRIVATE_AUTHORING_ENV_VALUE",
+  };
+  writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
+  const templateEnv = execute(context, "connection_add", {
+    id: "blocked",
+    package: "source",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: { host: "{{values.host}}", password: "{{values.password}}" },
+  });
+  assert.equal(templateEnv.ok, false);
+  assert.equal(templateEnv.diagnostics[0].code, "SECRET");
+  assert.equal(
+    JSON.stringify(templateEnv.diagnostics).includes(
+      "PRIVATE_AUTHORING_ENV_VALUE",
+    ),
+    false,
+  );
+});
+
+test("connection authoring rejects unsafe referenced settings and missing bindings without writes", (t) => {
+  const f = setup(t);
+  f.run();
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  for (const options of [
+    { settings: { $resolve: "../outside.yaml" } },
+    { binding: "absent", settings: { host: "example.invalid" } },
+  ]) {
+    const result = execute({ root: f.root }, "connection_add", {
+      id: "blocked",
+      package: "source",
+      sourceId: "erp",
+      tenantId: "nz",
+      ...options,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.result, undefined);
+    assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  }
+});
+
+test("one reviewed source setup validates an installed package and preserves external provider ownership", (t) => {
+  const f = setup(t);
+  f.run();
+  const path = resolve(f.root, "project.yaml");
+  const project = parse(readFileSync(path, "utf8"));
+  delete project.providers.packages.source;
+  writeFileSync(
+    resolve(f.root, "providers.yaml"),
+    stringify(project.providers),
+  );
+  project.providers = { $resolve: "./providers.yaml" };
+  writeFileSync(path, stringify(project));
+  const before = readFileSync(path, "utf8");
+  const providersBefore = readFileSync(
+    resolve(f.root, "providers.yaml"),
+    "utf8",
+  );
+  const context = { root: f.root, environment: "dev", allowWrite: true };
+  const args = {
+    id: "new_source",
+    package: "source",
+    reference: "example/source/connector.yaml@1.0.0",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: {
+      host: "example.invalid",
+      password: { $secret: { env: "UNSUPPLIED_SETUP_SECRET" } },
+    },
+  };
+  const invalid = execute(context, "connection_setup", {
+    ...args,
+    settings: { host: 42 },
+  });
+  assert.equal(invalid.ok, false);
+  assert.equal(readFileSync(path, "utf8"), before);
+  assert.equal(
+    readFileSync(resolve(f.root, "providers.yaml"), "utf8"),
+    providersBefore,
+  );
+  const proposal = execute(context, "connection_setup", args);
+  assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  assert.equal(proposal.result.changes.length, 2);
+  assert.equal(readFileSync(path, "utf8"), before);
+  assert.equal(
+    execute(context, "apply", { proposal: proposal.result }).ok,
+    true,
+  );
+  assert.deepEqual(parse(readFileSync(path, "utf8")).providers, {
+    $resolve: "./providers.yaml",
+  });
+  assert.deepEqual(
+    parse(readFileSync(path, "utf8")).connections.new_source.settings,
+    args.settings,
+  );
+  assert.ok(
+    parse(readFileSync(resolve(f.root, "providers.yaml"), "utf8")).packages
+      .source,
+  );
+});
+
+test("portable edits reject schema violations while native settings retain platform ownership", (t) => {
+  const f = setup(t);
+  delete f.project.connections.sales.binding;
+  f.project.connections.sales.settings = {
+    host: "example.invalid",
+    password: { $secret: { env: "UNSUPPLIED_EDIT_SECRET" } },
+  };
+  f.run();
+  const context = { root: f.root, environment: "dev", allowWrite: true };
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  const result = execute(context, "connection_configure", {
+    id: "sales",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: { host: 42, password: "PRIVATE_INVALID_PASSWORD" },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostics[0].code, "CONNECTION");
+  assert.equal(
+    JSON.stringify(result.diagnostics).includes("PRIVATE_INVALID_PASSWORD"),
+    false,
+  );
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  f.project.connections.sales.route = "native";
+  f.project.connections.sales.kind = "sql-server";
+  f.run();
+  const native = execute(context, "connection_configure", {
+    id: "sales",
+    sourceId: "erp",
+    tenantId: "nz",
+    settings: { nativeOwned: true },
+  });
+  assert.equal(native.ok, true, JSON.stringify(native));
+  const after = parse(native.result.changes[0].after);
+  assert.equal(after.connections.sales.route, "native");
+  assert.equal(after.connections.sales.kind, "sql-server");
+  assert.equal(after.connections.sales.package, "source");
+});
+
+test("portable preparation cannot silently omit a scheduled flow when its provider has no schedule capability", (t) => {
+  const f = setup(t);
+  const file = resolve(f.root, "project.yaml");
+  const project = f.project;
+  // The setup's reviewed portable flow is inline in the authoritative project.
+  const flow = project.flows.find((item: any) => item.ingestion?.connection);
+  assert.ok(flow);
+  flow.schedule = {
+    apiVersion: "ingestron.schedule/v1",
+    enabled: false,
+    timeZone: "UTC",
+    start: "2026-10-05T00:00:00Z",
+    recurrence: { kind: "daily", times: ["09:00"] },
+  };
+  writeFileSync(file, stringify(project));
+  const result = execute({ root: f.root }, "connection_prepare", {
+    flow: flow.id,
+    validateOnly: true,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.diagnostics[0].code,
+    "SCHEDULE_UNSUPPORTED",
+    JSON.stringify(result),
+  );
+});
+
+test("native calendar capabilities cannot authorise dropping a connector schedule", (t) => {
+  const f = setup(
+    t,
+    false,
+    {},
+    {
+      capabilities: {
+        artifactKinds: ["native-notebook"],
+        schedules: ["interval", "daily", "weekly", "monthly"],
+      },
+      compatibility: {
+        plan: "ingestron.plan/v1",
+        minimumCli: "4.2.0",
+        requiredFeatures: ["connector-runtime-capabilities", "flow-schedules"],
+      },
+    },
+  );
+  const flow = f.project.flows[0];
+  flow.schedule = {
+    apiVersion: "ingestron.schedule/v1",
+    enabled: true,
+    timeZone: "UTC",
+    start: "2026-10-05T00:00:17Z",
+    end: "2026-10-06T00:00:17Z",
+    recurrence: { kind: "interval", minutes: 15 },
+    overlap: "native",
+    missed: "native",
+  };
+  const path = resolve(f.root, "project.yaml");
+  writeFileSync(path, stringify(f.project));
+  const before = readFileSync(path, "utf8");
+  for (const validateOnly of [true, false]) {
+    const result = execute(
+      { root: f.root, allowWrite: true },
+      "connection_prepare",
+      {
+        flow: flow.id,
+        validateOnly,
+      },
+    );
+    assert.equal(result.ok, false, JSON.stringify(result));
+    assert.equal(result.diagnostics[0].code, "SCHEDULE_UNSUPPORTED");
+    assert.match(
+      result.diagnostics[0].message,
+      /native asset schedule support/,
+    );
+    assert.equal(result.result, undefined);
+    assert.equal(readFileSync(path, "utf8"), before);
+  }
+  delete flow.schedule;
+  assert.equal(
+    f.run().ok,
+    true,
+    "Unscheduled connector preparation remains available",
+  );
+});
+
+const schedulingCapability = {
+  apiVersion: "ingestron.connector-schedule/v1",
+  clock: "portable",
+  recurrences: ["interval", "daily", "weekly", "monthly"],
+};
+const schedulingProvider = {
+  compatibility: {
+    plan: "ingestron.plan/v1",
+    minimumCli: "4.2.0",
+    requiredFeatures: [
+      "connector-runtime-capabilities",
+      "connector-schedule-handover",
+    ],
+  },
+};
+const connectionSchedule = {
+  apiVersion: "ingestron.schedule/v1",
+  enabled: false,
+  timeZone: "Pacific/Auckland",
+  start: "2026-09-26T13:30:17Z",
+  end: "2027-09-26T13:30:17Z",
+  recurrence: {
+    kind: "weekly",
+    weekDays: ["Monday", "Friday"],
+    times: ["09:15", "17:45"],
+  },
+  overlap: "queue",
+  missed: "latest",
+  daylightSaving: { gap: "skip", fold: "both" },
+};
+test("an explicitly declared connector adapter receives complete digest-bound scheduling intent", (t) => {
+  const f = setup(t, false, {}, schedulingProvider, schedulingCapability);
+  const flow = f.project.flows[0];
+  const unscheduled = f.run();
+  assert.equal(unscheduled.ok, true);
+  const before = unscheduled.result.result.echo;
+  assert.equal(Object.hasOwn(before, "schedule"), false);
+  flow.schedule = connectionSchedule;
+  const prepared = f.run();
+  assert.equal(prepared.ok, true, JSON.stringify(prepared));
+  const input = prepared.result.result.echo;
+  assert.deepEqual(input.schedule.definition, connectionSchedule);
+  assert.deepEqual(input.schedule.owner, {
+    project: f.project.id,
+    environment: "dev",
+    flow: "sales",
+    connection: "sales",
+  });
+  assert.equal(
+    input.schedule.boundaries.start.instant,
+    connectionSchedule.start,
+  );
+  assert.equal(input.schedule.boundaries.end.instant, connectionSchedule.end);
+  assert.equal(
+    input.schedule.boundaries.start.localTime,
+    "2026-09-27T01:30:17",
+  );
+  assert.notEqual(input.specificationSha256, before.specificationSha256);
+  const {
+    specificationSha256,
+    runtimeAssets: _assets,
+    ...specification
+  } = input;
+  assert.equal(specificationSha256, digest(canonical(specification)));
+  const path = resolve(f.root, "project.yaml");
+  const original = readFileSync(path, "utf8");
+  const checked = execute({ root: f.root }, "connection_prepare", {
+    flow: "sales",
+    validateOnly: true,
+  });
+  assert.equal(checked.ok, true, JSON.stringify(checked));
+  assert.equal(checked.result.specificationSha256, specificationSha256);
+  assert.equal(readFileSync(path, "utf8"), original);
+  flow.schedule = { ...connectionSchedule, enabled: true };
+  assert.notEqual(
+    f.run().result.result.echo.specificationSha256,
+    specificationSha256,
+  );
+  delete flow.schedule;
+  assert.deepEqual(f.run().result.result.echo, before);
+});
+test("scheduled connector validation refuses a clock mismatch or unsupported recurrence before provider dispatch", (t) => {
+  const f = setup(t, false, {}, schedulingProvider, {
+    ...schedulingCapability,
+    recurrences: ["daily"],
+  });
+  const flow = f.project.flows[0];
+  flow.schedule = connectionSchedule;
+  assert.equal(f.run().diagnostics[0].code, "SCHEDULE_UNSUPPORTED");
+  flow.schedule = {
+    ...connectionSchedule,
+    daylightSaving: undefined,
+    overlap: "native",
+    missed: "native",
+    recurrence: { kind: "daily", times: ["09:15"] },
+  };
+  assert.equal(f.run().diagnostics[0].code, "SCHEDULE_POLICY");
+  delete flow.schedule;
+  assert.equal(f.run().ok, true);
+});
+
+test("indexed preparation keeps one hundred complete contracts while its isolated compilation request stays bounded", (t) => {
+  const f = setup(t, false, {}, {}, undefined, true),
+    base = f.project.flows[0].tables.orders;
+  base.contract.schema[0].properties = Array.from({ length: 200 }, (_, i) => ({
+    name: "business_" + i,
+    physicalName: "column_" + i,
+    logicalType: "string",
+    physicalType: "STRING",
+    description: "Reviewed field metadata retained",
+  }));
+  f.project.flows[0].tables = Object.fromEntries(
+    Array.from({ length: 100 }, (_, i) => [
+      "table_" + i,
+      {
+        source: { stream: "stream_" + i },
+        contract: structuredClone(base.contract),
+      },
+    ]),
+  );
+  writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
+  const result = prepareConnection(f.root, "dev", "sales", true);
+  assert.equal(result.valid, true);
+  assert.match(result.specificationSha256, /^[a-f0-9]{64}$/);
+  const prepared: any = execute({ root: f.root }, "connection_prepare", {
+    flow: "sales",
+  });
+  assert.equal(
+    prepared.ok,
+    false,
+    "Synthetic echo provider is not an unapplied artifact proposal",
+  );
+  assert.match(prepared.diagnostics[0].message, /unapplied artifact proposal/);
 });

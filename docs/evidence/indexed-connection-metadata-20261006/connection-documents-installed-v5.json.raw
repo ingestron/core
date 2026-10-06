@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "stage": "build",
+  "checks": [
+    "Installed hundred-table validation succeeds under unchanged provider command input limit",
+    "Actual CLI validation equals installed SDK specification",
+    "Complete 20,000-field Unicode contracts, source identities, exact byte lengths and hashes survive indexed preparation without duplicated full contracts",
+    "Actual installed provider project assembly and managed build succeed",
+    "Authored inputs, source rows and locked packages remain byte-identical"
+  ],
+  "details": {
+    "root": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/project",
+    "base": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB",
+    "candidate": {
+      "cli": "0.17.21",
+      "core": "0.12.55",
+      "provider": "0.4.18",
+      "files": "1.5.13"
+    },
+    "tables": 100,
+    "fields": 20000,
+    "scope": "Installed immutable compiler/provider/source preparation and local build. No browser, runtime discovery, approval, rows or native-cloud claim.",
+    "resolveBytes": 3689301,
+    "metadata": {
+      "logicalBytes": 5465300,
+      "uniqueDocuments": 100,
+      "indexBytes": 20100,
+      "proposalBytes": 8289065
+    },
+    "build": {
+      "directory": "build/indexed",
+      "files": 131,
+      "digest": "ef07ae53786e0aa0aa036446e6d8f1762385d6b319aa9f420970dcb806270d7c",
+      "nodes": 1,
+      "packages": [
+        "local"
+      ],
+      "scope": {
+        "projectBuild": true,
+        "flow": "flow_files"
+      },
+      "evidence": "Project assets generated locally; no deployment or source execution"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/scripts/connection-documents-source-boundary-v1.py", line 27, in <module>
+    assert before=={str(p.relative_to(root)):sha(p) for p in root.rglob('*') if p.is_file()}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

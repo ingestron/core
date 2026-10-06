@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "root": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-WGJojB/project",
+  "stdout": "{\"apiVersion\":\"ingestron.operation/v1\",\"operation\":\"build\",\"ok\":true,\"result\":{\"directory\":\"build/cli-indexed\",\"files\":131,\"digest\":\"ef07ae53786e0aa0aa036446e6d8f1762385d6b319aa9f420970dcb806270d7c\",\"nodes\":1,\"packages\":[\"local\"],\"scope\":{\"projectBuild\":true,\"flow\":\"flow_files\"},\"evidence\":\"Project assets generated locally; no deployment or source execution\"},\"diagnostics\":[]}\n",
+  "stderr": "",
+  "exitCode": 0,
+  "sdkDigest": "ef07ae53786e0aa0aa036446e6d8f1762385d6b319aa9f420970dcb806270d7c",
+  "cliDigest": "ef07ae53786e0aa0aa036446e6d8f1762385d6b319aa9f420970dcb806270d7c",
+  "authoredInputsUnchanged": true,
+  "scope": "Actual immutable CLI build of the same 100-table project and exact compiler output; no runtime or mounted interface claim."
+}

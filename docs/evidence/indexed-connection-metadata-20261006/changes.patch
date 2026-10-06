@@ -1,0 +1,1187 @@
+--- connectors/connectors/files/connector.yaml:before
++++ connectors/connectors/files/connector.yaml:after
+@@ -1,6 +1,6 @@
+ apiVersion: ingestron.connector/v1
+ id: files
+-version: 1.5.12
++version: 1.5.13
+ description: Reviewed snapshots from local CSV, TSV, JSON, JSONL and Parquet files
+ connector: singer:files@23.0.1
+ documentation: https://github.com/ingestron/connectors/blob/main/docs/files.md
+@@ -17,6 +17,7 @@
+   path: connectors/files/runtime.json
+   sha256: dfb6fb84c4259a621d7e0ee5943b806d3736b46a06e8c5fc2523ef2d86d20fe5
+   contract: ingestron.snapshot/python/v1
++  metadataDocuments: ingestron.metadata-documents/v1
+ quality:
+   library:
+     nullValues: at-load
+--- connectors/docs/files.md:before
++++ connectors/docs/files.md:after
+@@ -204,3 +204,7 @@
+ require a smaller source file or row group before they can be previewed. These
+ preview limits are separate from full ingestion. Supported Parquet fields remain
+ flat scalar types; binary, temporal and nested mappings require separate support.
++
++### Indexed prepared project metadata
++
++The private Files1.5.13 candidate explicitly declares `ingestron.metadata-documents/v1` for prepared project tables. Complete contracts and column metadata use the source-owned document codec: exact hashes and byte counts, safe owned paths, at most100 documents,2MB per document and7MB per collection. Core and the selected provider must also support this format. Existing inline project locks remain supported. This opt-in reuses the existing locked runtime assets; it does not qualify current candidate source access, indexed discovery/review or installed ingestion until their separate acceptance checks pass.
+--- connectors/scripts/build-files.mjs:before
++++ connectors/scripts/build-files.mjs:after
+@@ -79,6 +79,7 @@
+     path: dir + "/runtime.json",
+     sha256: sha(content),
+     contract: runtimeContract,
++    metadataDocuments: "ingestron.metadata-documents/v1",
+   },
+   quality,
+   source: sources["files"],
+--- connectors/scripts/build-source-access.mjs:before
++++ connectors/scripts/build-source-access.mjs:after
+@@ -6,7 +6,7 @@
+ import { selectionSchema } from "../src/connection-contract.mjs";
+ const candidateVersions = {
+   "azure-blob": "2.1.10",
+-  files: "1.5.12",
++  files: "1.5.13",
+   gcs: "0.1.10",
+   github: "1.36.10",
+   hubspot: "0.1.8",
+--- core/docs/api.md:before
++++ core/docs/api.md:after
+@@ -157,3 +157,9 @@
+ Native and bridge settings belong to their platform provider and are not validated against a portable connector schema by these operations. Referenced whole connections require editing their owning definition. Older published CLI/core builds may lack the new operations; callers must report that capability gap instead of substituting an unchecked edit.
+ 
+ Run `scripts/connection-authoring-acceptance.mjs` against an installed private CLI archive with `INGESTRON_ACCEPTANCE_CLI_PACKAGE`, a passed all-source configuration report in `INGESTRON_ACCEPTANCE_FIXTURE`, an isolated output directory in `INGESTRON_ACCEPTANCE_OUTPUT`, and a report path in `INGESTRON_ACCEPTANCE_PROOF`. The harness copies immutable package inputs into its own synthetic project and verifies SDK/CLI/read-only MCP parity, invalid-settings denial, reviewed configuration/setup and source-access/offline-preparation parity for all16 sources. It does not execute sources or qualify vendor access.
++
++### Indexed connection metadata
++
++A source runtime and its selected provider adapter must both explicitly declare `metadataDocuments: ingestron.metadata-documents/v1` to use indexed project tables. Core stores each complete resolved table (source, reviewed contract and compiled columns) in a content-addressed generated document. The project specification binds the complete index; source-boundary identity still excludes contract changes. Compilation receives only the source/column projection and the exact index. Core adds the original document bytes to the unapplied provider proposal and rejects provider collisions with those paths. Legacy runtimes retain inline tables. The existing 2 MB command limit is unchanged; each document is bounded to 2 MB, the collection to 100 documents / 7 MB. Native or installed runtime qualification is separate from this encoding capability.
++
++Indexed project assembly explicitly declares the same capability. Core keeps complete metadata documents outside the assembly command, then attaches their exact original bytes only at safe, separate provider-declared flow roots. The assembled connection assets must remain byte-identical; missing roots, changed runners, colliding document paths and path escapes are refused before managed output is written. Existing command and VM limits remain unchanged.
+--- core/package.json:before
++++ core/package.json:after
+@@ -1,6 +1,6 @@
+ {
+   "name": "@ingestron/core",
+-  "version": "0.12.54",
++  "version": "0.12.55",
+   "type": "module",
+   "description": "Shared Ingestron project compiler, operations and editor schemas",
+   "license": "Apache-2.0",
+--- core/src/core/connections.ts:before
++++ core/src/core/connections.ts:after
+@@ -4,6 +4,10 @@
+ import { connectorPackageSchema } from "./connector-package.js";
+ import { sourceCapabilities } from "./sources.js";
+ import { contractColumns } from "./contracts.js";
++import {
++  metadataDocumentsVersion,
++  projectTableDocuments,
++} from "./metadata-documents.js";
+ import { resolveModelContracts } from "./model-packs.js";
+ /** Project-owned configuration; schemas and runtime assets remain plugin-owned. */
+ import { Ajv2020 } from "ajv/dist/2020.js";
+@@ -48,6 +52,9 @@
+   // bridge connection that names a portable package is read through it on the
+   // given local configuration.
+   discovery?: { provider: string },
++  preserveDocuments?: (
++    documents: ReturnType<typeof projectTableDocuments>,
++  ) => void,
+ ) {
+   // Do not interpolate $env here: connection credentials must never enter compiler memory/output.
+   const reader = new Configuration(root, {});
+@@ -338,9 +345,18 @@
+       commit: target.locked.entry.commit,
+     },
+   };
++  const documents =
++    connectorPackage.runtime.metadataDocuments === metadataDocumentsVersion &&
++    adapter.metadataDocuments === metadataDocumentsVersion
++      ? projectTableDocuments(tables)
++      : undefined;
++  const { tables: _tables, ...header } = specification;
++  const preparedSpecification = documents
++    ? { ...header, tableDocuments: documents.index }
++    : specification;
+   const input = {
+-    ...specification,
+-    specificationSha256: digest(canonical(specification)),
++    ...preparedSpecification,
++    specificationSha256: digest(canonical(preparedSpecification)),
+   };
+   if (reviewFile) {
+     const review = JSON.parse(reader.text(reviewFile));
+@@ -379,8 +395,53 @@
+     configuration:
+       discovery?.provider ?? flow.provider ?? project.defaults.provider!,
+     command: adapter.prepareCommand,
+-    input: { ...input, runtimeAssets },
++    input: {
++      ...input,
++      runtimeAssets,
++      ...(documents
++        ? {
++            projectionTables: Object.fromEntries(
++              Object.entries(tables).map(([name, table]) => [
++                name,
++                {
++                  source: table.source,
++                  // Primary-key metadata stays in the complete document; this
++                  // provider projection consumes names, types and nullability.
++                  columns: table.columns.map(
++                    ({
++                      key: _key,
++                      ...column
++                    }: ReturnType<typeof contractColumns>[number]) => column,
++                  ),
++                  ...(table.contract ? { contract: true } : {}),
++                },
++              ]),
++            ),
++          }
++        : {}),
++    },
+   });
++  if (documents && !validateOnly) {
++    const prepared: any = result.result;
++    check(
++      isMap(prepared) &&
++        prepared.apiVersion === "ingestron.artifact-proposal/v1" &&
++        prepared.applied === false &&
++        isMap(prepared.artifacts),
++      "PROVIDER",
++      "Indexed preparation requires an unapplied artifact proposal",
++    );
++    for (const path of Object.keys(documents.artifacts))
++      check(
++        !Object.hasOwn(prepared.artifacts, path),
++        "PROVIDER",
++        "Provider cannot replace compiler-owned metadata documents",
++      );
++    prepared.artifacts = { ...prepared.artifacts, ...documents.artifacts };
++    // Internal assembly receives ownership without duplicating documents in
++    // the public SDK/CLI result.
++    preserveDocuments?.(documents);
++  }
+   return validateOnly
+     ? {
+         valid: true,
+--- core/src/core/connector-package.ts:before
++++ core/src/core/connector-package.ts:after
+@@ -30,6 +30,9 @@
+         contract: z.string().min(1),
+         path: z.string().min(1),
+         sha256: z.string().regex(/^[a-f0-9]{64}$/),
++        metadataDocuments: z
++          .literal("ingestron.metadata-documents/v1")
++          .optional(),
+       })
+       .strict(),
+     sourceAccess: z
+--- core/src/core/metadata-documents.ts:before
++++ core/src/core/metadata-documents.ts:after
+@@ -0,0 +1,114 @@
++import { canonical, check, digest, isMap } from "./errors.js";
++
++export const metadataDocumentsVersion = "ingestron.metadata-documents/v1";
++
++/** Reattach Core-owned bytes only where assembly preserves their original runner. */
++export function composeMetadataDocuments(
++  artifacts: Record<string, string>,
++  connections: {
++    flow: string;
++    artifacts: Record<string, string>;
++    documents: Record<string, string>;
++  }[],
++  roots: unknown,
++) {
++  check(
++    isMap(roots) &&
++      Object.keys(roots).length === connections.length &&
++      connections.every(({ flow }) => Object.hasOwn(roots, flow)),
++    "PROVIDER",
++    "Assembly must locate every indexed metadata collection",
++  );
++  const result = { ...artifacts };
++  const locations: string[] = [];
++  for (const connection of connections) {
++    const location = roots[connection.flow];
++    check(
++      typeof location === "string" &&
++        location.length <= 200 &&
++        /^[A-Za-z0-9][A-Za-z0-9_.-]*(\/[A-Za-z0-9][A-Za-z0-9_.-]*)*$/.test(
++          location,
++        ) &&
++        locations.every(
++          (other) =>
++            other !== location &&
++            !other.startsWith(location + "/") &&
++            !location.startsWith(other + "/"),
++        ),
++      "PROVIDER",
++      "Assembly metadata roots must be safe and separate",
++    );
++    locations.push(location);
++    for (const [name, content] of Object.entries(connection.artifacts))
++      check(
++        Object.hasOwn(artifacts, `${location}/${name}`) &&
++          artifacts[`${location}/${name}`] === content,
++        "PROVIDER",
++        "Assembly cannot change an indexed connection's runner or references",
++      );
++    for (const [name, content] of Object.entries(connection.documents)) {
++      check(
++        /^metadata\/project\/[a-f0-9]{64}\.json$/.test(name) &&
++          name === `metadata/project/${digest(content)}.json` &&
++          !Object.hasOwn(result, `${location}/${name}`),
++        "PROVIDER",
++        "Assembly cannot replace compiler-owned metadata documents",
++      );
++      result[`${location}/${name}`] = content;
++    }
++  }
++  return result;
++}
++
++/** Encode complete documents; references bind exact bytes, including unmanaged metadata. */
++export function projectTableDocuments(tables: Record<string, unknown>) {
++  const entries = Object.entries(tables);
++  check(
++    entries.length >= 1 && entries.length <= 100,
++    "SOURCE_METADATA_COLLECTION_LIMIT",
++    "Select 1–100 metadata documents",
++  );
++  let totalBytes = 0;
++  const artifacts: Record<string, string> = {};
++  const records = entries.map(([name, table]) => {
++    check(
++      /^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(name) && isMap(table),
++      "CONNECTION",
++      "Invalid metadata document identity",
++    );
++    JSON.stringify(table, (_key, value) => {
++      check(
++        typeof value !== "number" || Number.isFinite(value),
++        "CONNECTION",
++        "Metadata requires finite JSON numbers",
++      );
++      return value;
++    });
++    const content = canonical(table),
++      bytes = Buffer.byteLength(content);
++    check(
++      bytes <= 2_000_000,
++      "SOURCE_METADATA_LIMIT",
++      "A table exceeds the 2 MB metadata document limit",
++    );
++    totalBytes += bytes;
++    check(
++      totalBytes <= 7_000_000,
++      "SOURCE_METADATA_COLLECTION_LIMIT",
++      "Tables exceed the 7 MB metadata collection limit",
++    );
++    const sha256 = digest(content),
++      path = `metadata/project/${sha256}.json`;
++    artifacts[path] = content;
++    return [name, { path, sha256, bytes }];
++  });
++  return {
++    index: {
++      apiVersion: metadataDocumentsVersion,
++      kind: "project",
++      documents: Object.fromEntries(records),
++      totalBytes,
++    },
++    artifacts,
++  };
++}
+--- core/src/core/packages.ts:before
++++ core/src/core/packages.ts:after
+@@ -142,6 +142,9 @@
+       .object({
+         apiVersion: z.literal("ingestron.project-assembly/v1"),
+         command: z.string().min(1),
++        metadataDocuments: z
++          .literal("ingestron.metadata-documents/v1")
++          .optional(),
+       })
+       .strict()
+       .optional(),
+@@ -153,6 +156,9 @@
+             selectionSchema: z.record(z.string(), z.unknown()),
+             executionSchema: z.record(z.string(), z.unknown()),
+             prepareCommand: z.string(),
++            metadataDocuments: z
++              .literal("ingestron.metadata-documents/v1")
++              .optional(),
+             contractsCommand: z.string().optional(),
+             scheduling: connectorSchedulingSchema.optional(),
+             executionPlatforms: z.array(z.string()).min(1),
+--- core/src/core/project-build.ts:before
++++ core/src/core/project-build.ts:after
+@@ -23,6 +23,11 @@
+ } from "./packages.js";
+ import { checkProviderCompatibility } from "../plugins/compatibility.js";
+ import { prepareConnection } from "./connections.js";
++import {
++  composeMetadataDocuments,
++  metadataDocumentsVersion,
++  projectTableDocuments,
++} from "./metadata-documents.js";
+ import { runProviderCommand } from "./provider-commands.js";
+ import { deliveryExports } from "./delivery-exports.js";
+ import {
+@@ -544,6 +549,11 @@
+     const identity = { project: project.id, environment, configuration, scope };
+     const native = nativeGroups.find((g) => g.id === configuration);
+     const nativeFiles = native ? renderProject(root, native.plan) : {};
++    const externalDocuments: {
++      flow: string;
++      artifacts: Files;
++      documents: Files;
++    }[] = [];
+     const connections = selected
+       .filter((f) => isPortableConnection(project, f))
+       .map((f) => {
+@@ -552,6 +562,8 @@
+           "CAPABILITY",
+           `${configuration}: install a provider with project assembly support`,
+         );
++        let metadataDocuments:
++          ReturnType<typeof projectTableDocuments> | undefined;
+         const prepared = prepareConnection(
+           root,
+           environment,
+@@ -580,11 +592,31 @@
+           },
+           args.profile,
+           args.catalogue ? { provider: configuration } : undefined,
++          (documents) => {
++            metadataDocuments = documents;
++          },
+         ) as any;
++        let artifacts = prepared.result.artifacts;
++        const external =
++          manifest.projectAssembly?.metadataDocuments ===
++            metadataDocumentsVersion && metadataDocuments;
++        if (external) {
++          artifacts = Object.fromEntries(
++            Object.entries(artifacts).filter(
++              ([name]) => !Object.hasOwn(external.artifacts, name),
++            ),
++          );
++          externalDocuments.push({
++            flow: f.id,
++            artifacts,
++            documents: external.artifacts,
++          });
++        }
+         return {
+           flow: f.id,
+-          artifacts: prepared.result.artifacts,
++          artifacts,
+           inputDigest: prepared.inputDigest,
++          ...(external ? { metadataDocuments: external.index } : {}),
+         };
+       });
+     let artifacts: Files = nativeFiles;
+@@ -613,6 +645,12 @@
+         "Invalid assembled project package",
+       );
+       artifacts = assembled.result.artifacts;
++      if (externalDocuments.length)
++        artifacts = composeMetadataDocuments(
++          artifacts,
++          externalDocuments,
++          assembled.result.metadataDocumentRoots,
++        );
+       details = assembled.result.details;
+     } else
+       check(
+--- core/src/plugins/compatibility.ts:before
++++ core/src/plugins/compatibility.ts:after
+@@ -8,6 +8,7 @@
+   "published-transformation-quality",
+   "typed-transformation-outputs",
+   "project-assembly",
++  "connection-metadata-documents",
+   "provider-execution",
+   "source-checkpoint-migration",
+   "provider-execution-resources",
+@@ -149,6 +150,22 @@
+       "COMPATIBILITY",
+       "Connector scheduling adapters must declare requiredFeatures: connector-schedule-handover",
+     );
++  if (
++    (manifest.projectAssembly !== null &&
++      typeof manifest.projectAssembly === "object" &&
++      Object.hasOwn(manifest.projectAssembly, "metadataDocuments")) ||
++    Object.values(manifest.connectorRuntimes ?? {}).some(
++      (runtime) =>
++        runtime !== null &&
++        typeof runtime === "object" &&
++        Object.hasOwn(runtime, "metadataDocuments"),
++    )
++  )
++    check(
++      required.includes("connection-metadata-documents"),
++      "COMPATIBILITY",
++      "Indexed connection metadata requires connection-metadata-documents",
++    );
+   if (manifest.quality)
+     check(
+       required.includes("quality-capabilities"),
+--- core/test/integration/connections.test.ts:before
++++ core/test/integration/connections.test.ts:after
+@@ -9,6 +9,7 @@
+ import { installPackage } from "../../src/core/packages.js";
+ import { execute } from "../../src/core/operations.js";
+ import { pluginConfigure } from "../../src/core/workflows.js";
++import { prepareConnection } from "../../src/core/connections.js";
+ test("locked connector browsing returns its authoring schema without connection values", (t) => {
+   const f = setup(t, true);
+   const result = execute({ root: f.root }, "plugin_browse", {
+@@ -30,6 +31,7 @@
+   connector: any = {},
+   provider: any = {},
+   scheduling?: any,
++  indexed = false,
+ ) {
+   const f = fixture(t),
+     origin = resolve(f.root, "connection-plugin");
+@@ -54,6 +56,7 @@
+         minimumCli: "4.2.0",
+         requiredFeatures: [
+           "connector-runtime-capabilities",
++          ...(indexed ? ["connection-metadata-documents"] : []),
+           ...(provider.sources ? ["source-coverage"] : []),
+         ],
+       },
+@@ -65,6 +68,9 @@
+             mode: { type: "string", enum: ["local"] },
+           }),
+           prepareCommand: "connection prepare",
++          ...(indexed
++            ? { metadataDocuments: "ingestron.metadata-documents/v1" }
++            : {}),
+           executionPlatforms: ["test"],
+           ...(scheduling ? { scheduling } : {}),
+         },
+@@ -111,6 +117,9 @@
+       path: "runtime.json",
+       sha256: digest(asset),
+       contract: "ingestron.snapshot/python/v1",
++      ...(indexed
++        ? { metadataDocuments: "ingestron.metadata-documents/v1" }
++        : {}),
+     },
+     definition: {
+       settingsSchema: object({
+@@ -1437,3 +1446,37 @@
+   delete flow.schedule;
+   assert.equal(f.run().ok, true);
+ });
++
++test("indexed preparation keeps one hundred complete contracts while its isolated compilation request stays bounded", (t) => {
++  const f = setup(t, false, {}, {}, undefined, true),
++    base = f.project.flows[0].tables.orders;
++  base.contract.schema[0].properties = Array.from({ length: 200 }, (_, i) => ({
++    name: "business_" + i,
++    physicalName: "column_" + i,
++    logicalType: "string",
++    physicalType: "STRING",
++    description: "Reviewed field metadata retained",
++  }));
++  f.project.flows[0].tables = Object.fromEntries(
++    Array.from({ length: 100 }, (_, i) => [
++      "table_" + i,
++      {
++        source: { stream: "stream_" + i },
++        contract: structuredClone(base.contract),
++      },
++    ]),
++  );
++  writeFileSync(resolve(f.root, "project.yaml"), stringify(f.project));
++  const result = prepareConnection(f.root, "dev", "sales", true);
++  assert.equal(result.valid, true);
++  assert.match(result.specificationSha256, /^[a-f0-9]{64}$/);
++  const prepared: any = execute({ root: f.root }, "connection_prepare", {
++    flow: "sales",
++  });
++  assert.equal(
++    prepared.ok,
++    false,
++    "Synthetic echo provider is not an unapplied artifact proposal",
++  );
++  assert.match(prepared.diagnostics[0].message, /unapplied artifact proposal/);
++});
+--- core/test/unit/metadata-documents.test.ts:before
++++ core/test/unit/metadata-documents.test.ts:after
+@@ -0,0 +1,124 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import {
++  projectTableDocuments,
++  composeMetadataDocuments,
++} from "../../src/core/metadata-documents.js";
++import { digest } from "../../src/core/errors.js";
++
++test("indexed assembly preserves exact runners and documents and refuses ambiguous, changed or colliding destinations", () => {
++  const docs = projectTableDocuments({
++    orders: { contract: { description: "Māori" } },
++  }).artifacts;
++  const connections = [
++    {
++      flow: "orders",
++      artifacts: { "connector.json": "original index" },
++      documents: docs,
++    },
++  ];
++  const original = { "flows/orders/connector.json": "original index" };
++  const result = composeMetadataDocuments(original, connections, {
++    orders: "flows/orders",
++  });
++  const document = Object.keys(docs)[0];
++  assert.equal(result[`flows/orders/${document}`], docs[document]);
++  assert.deepEqual(original, {
++    "flows/orders/connector.json": "original index",
++  });
++  for (const roots of [
++    undefined,
++    {},
++    { orders: "../escape" },
++    { orders: "/absolute" },
++    { orders: "flows/orders", extra: "flows/extra" },
++  ])
++    assert.throws(() => composeMetadataDocuments(original, connections, roots));
++  assert.throws(() =>
++    composeMetadataDocuments(
++      { ...original, "flows/orders/connector.json": "changed" },
++      connections,
++      { orders: "flows/orders" },
++    ),
++  );
++  assert.throws(() =>
++    composeMetadataDocuments(
++      { ...original, [`flows/orders/${document}`]: docs[document] },
++      connections,
++      { orders: "flows/orders" },
++    ),
++  );
++  assert.throws(() =>
++    composeMetadataDocuments(
++      original,
++      [...connections, { ...connections[0], flow: "other" }],
++      { orders: "flows/orders", other: "flows/orders/nested" },
++    ),
++  );
++  assert.throws(() =>
++    composeMetadataDocuments(
++      original,
++      [{ ...connections[0], documents: { [document]: "changed" } }],
++      { orders: "flows/orders" },
++    ),
++  );
++});
++
++test("project metadata documents retain complete UTF-8 contracts, exact hashes and logical byte accounting", () => {
++  const table = {
++    source: { stream: "orders" },
++    contract: {
++      id: "orders",
++      description: "レビュー Māori",
++      custom: { retain: true },
++    },
++    columns: [
++      {
++        name: "wire_id",
++        target: "customer_id",
++        type: "BIGINT",
++        required: true,
++        key: true,
++      },
++    ],
++  };
++  const before = JSON.stringify(table),
++    result = projectTableDocuments({ orders: table, another: table }),
++    record = result.index.documents.orders;
++  assert.equal(result.index.kind, "project");
++  assert.equal(result.index.totalBytes, record.bytes * 2);
++  assert.equal(Object.keys(result.artifacts).length, 1);
++  assert.equal(Buffer.byteLength(result.artifacts[record.path]), record.bytes);
++  assert.equal(digest(result.artifacts[record.path]), record.sha256);
++  assert.deepEqual(JSON.parse(result.artifacts[record.path]), table);
++  assert.equal(JSON.stringify(table), before);
++});
++test("document preparation rejects count, identity, malformed, nonfinite, document and collection bounds before producing a proposal", () => {
++  for (const tables of [
++    {},
++    Object.fromEntries(
++      Array.from({ length: 101 }, (_, i) => ["table_" + i, {}]),
++    ),
++    { "../escape": {} },
++    { orders: null },
++    { orders: { value: Infinity } },
++  ])
++    assert.throws(() => projectTableDocuments(tables as any));
++  assert.throws(
++    () =>
++      projectTableDocuments({ orders: { description: "ā".repeat(1_000_001) } }),
++    /2 MB metadata document limit/,
++  );
++  assert.throws(
++    () =>
++      projectTableDocuments(
++        Object.fromEntries(
++          Array.from({ length: 8 }, (_, i) => [
++            "table_" + i,
++            { description: "x".repeat(900_000) },
++          ]),
++        ),
++      ),
++    /7 MB metadata collection limit/,
++  );
++});
+--- provider-local/docs/local-execution.md:before
++++ provider-local/docs/local-execution.md:after
+@@ -101,3 +101,9 @@
+ For standalone scheduling, generated `run.py` uses its active interpreter. Launch
+ it in the prepared environment and select `--flow NAME` or `--all`. CLI receipts
+ are only produced by CLI execution.
++
++### Indexed project tables
++
++The local adapter accepts an explicit hash-bound project-table index with separate compilation projections. Core supplies those columns from validated contracts; the provider derives its existing typed selection without embedding the projection into the project lock. Complete contracts remain in generated metadata documents verified by the source runtime before review or execution. Source and provider must both opt in; ordinary inline requests keep their existing form. The adapter rejects ambiguous tables/selection, mismatched document/projection names, paths and byte/count bounds. This declaration requires the `connection-metadata-documents` host feature. It does not grant source or execution permissions.
++
++Indexed assembly receives the original collection index and the connection assets without document bodies. It returns the exact flow directory for Core to attach its original documents. Core checks that assembly preserved the runner and references. Ordinary inline assembly remains supported. This encoding capability is distinct from installed review, approval and runtime qualification.
+--- provider-local/package.json:before
++++ provider-local/package.json:after
+@@ -1,6 +1,6 @@
+ {
+   "name": "@ingestron/provider-local",
+-  "version": "0.4.17",
++  "version": "0.4.18",
+   "private": true,
+   "type": "module",
+   "license": "Apache-2.0",
+--- provider-local/plugin/commands.mjs:before
++++ provider-local/plugin/commands.mjs:after
+@@ -547,7 +547,7 @@
+     !Object.keys(input.nativeFiles).length,
+     "Local native standards are not implemented"
+   );
+-  const artifacts = {}, flows = {}, environments = {};
++  const artifacts = {}, flows = {}, environments = {}, metadataDocumentRoots = {};
+   for (const c of input.connections) {
+     check(
+       /^[A-Za-z0-9_][A-Za-z0-9_-]*$/.test(c.flow) && !flows[c.flow],
+@@ -556,6 +556,15 @@
+     for (const [name, content] of Object.entries(c.artifacts))
+       artifacts[`flows/${c.flow}/${name}`] = content;
+     const config = JSON.parse(c.artifacts["connector.json"]);
++    if (c.metadataDocuments) {
++      check(
++        c.metadataDocuments.apiVersion === "ingestron.metadata-documents/v1" && JSON.stringify(c.metadataDocuments) === JSON.stringify(config.projectLock.tableDocuments) && !Object.keys(c.artifacts).some(
++          (name) => name.startsWith("metadata/project/")
++        ),
++        "Indexed assembly requires the original index and external documents"
++      );
++      metadataDocumentRoots[c.flow] = `flows/${c.flow}`;
++    }
+     const runtime = config.projectLock.runtimeAssetSha256;
+     environments[runtime] = {
+       requirements: `flows/${c.flow}/requirements.lock.txt`,
+@@ -588,6 +597,7 @@
+   return {
+     apiVersion: "ingestron.project-package/v1",
+     artifacts,
++    metadataDocumentRoots,
+     details: {
+       entryPoint: "run.py",
+       flows: Object.keys(flows),
+@@ -606,6 +616,29 @@
+   additionalProperties: false
+ });
+ var text = { type: "string", minLength: 1 };
++
++// src/contracts/metadata-projection.mjs
++function validateMetadataProjection(input, tables) {
++  const index = input.tableDocuments;
++  const object2 = (value) => value && typeof value === "object" && !Array.isArray(value);
++  const keys = (value, expected) => object2(value) && Object.keys(value).length === expected.length && expected.every((key) => Object.hasOwn(value, key));
++  if (Object.hasOwn(input, "tables") || Object.hasOwn(input, "selection") || !keys(index, ["apiVersion", "kind", "documents", "totalBytes"]) || index.apiVersion !== "ingestron.metadata-documents/v1" || index.kind !== "project" || !object2(index.documents) || !object2(tables))
++    throw Error("Invalid indexed connection metadata");
++  const names = Object.keys(index.documents);
++  if (!names.length || names.length > 100 || Object.keys(tables).length !== names.length)
++    throw Error("Invalid indexed connection metadata");
++  let bytes = 0;
++  for (const name of names) {
++    const record = index.documents[name], table = tables[name];
++    if (!/^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(name) || !Object.hasOwn(tables, name) || !keys(record, ["path", "sha256", "bytes"]) || !/^[a-f0-9]{64}$/.test(record.sha256) || record.path !== `metadata/project/${record.sha256}.json` || !Number.isInteger(record.bytes) || record.bytes < 1 || record.bytes > 2e6 || !object2(table) || Object.keys(table).some(
++      (key) => !["source", "columns", "contract"].includes(key)
++    ) || !object2(table.source) || !Array.isArray(table.columns) || table.columns.length > 500 || (Object.hasOwn(table, "contract") ? table.contract !== true || !table.columns.length : table.columns.length !== 0))
++      throw Error("Invalid indexed connection metadata");
++    bytes += record.bytes;
++  }
++  if (bytes > 7e6 || index.totalBytes !== bytes)
++    throw Error("Indexed metadata exceeds its collection bounds");
++}
+ 
+ // src/contracts/connection-contract.mjs
+ var runtimeContract = "ingestron.snapshot/python/v1";
+@@ -643,7 +676,12 @@
+   description: "Prepare a project-resolved connection, selected fields and runtime-only secrets",
+   inputSchema: { type: "object", additionalProperties: true }
+ };
+-function validateProjectConnection(input, descriptor) {
++function validateProjectConnection(input, descriptor, projectionTables) {
++  if (Object.hasOwn(input, "tableDocuments"))
++    validateMetadataProjection(input, projectionTables);
++  else if (projectionTables !== void 0)
++    throw Error("Projection requires indexed connection metadata");
++  const tables = projectionTables ?? input.tables;
+   if (input.apiVersion !== "ingestron.connection-request/v1" || !/^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*@\d+\.\d+\.\d+$/.test(input.connector) || input.runtimeContract !== runtimeContract || !input.specificationSha256)
+     throw Error("Invalid project connection request");
+   if (Object.keys(input).some(
+@@ -659,6 +697,7 @@
+       "settings",
+       "selection",
+       "tables",
++      "tableDocuments",
+       "execution",
+       "timeoutSeconds",
+       "sourcePackage",
+@@ -694,16 +733,16 @@
+   if (input.tables && input.selection)
+     throw Error("Use ODCS tables or legacy selection, never both");
+   const incremental = input.execution?.ingestion === "incremental";
+-  if (incremental && !input.tables)
++  if (incremental && !tables)
+     throw Error(
+       "Incremental append execution requires reviewed table policies"
+     );
+-  for (const table of Object.values(input.tables ?? {}))
++  for (const table of Object.values(tables ?? {}))
+     if (!!table.source?.incremental !== incremental)
+       throw Error(
+         "Use an incremental policy on every table only in incremental execution"
+       );
+-  const selection = input.tables ? selectionFromTables(input.tables) : input.selection;
++  const selection = tables ? selectionFromTables(tables) : input.selection;
+   if (!conforms(descriptor.settingsSchema, input.settings) || !conforms(descriptor.selectionSchema, selection) || !conforms(descriptor.executionSchema, input.execution))
+     throw Error("Invalid connector settings, selection or execution");
+   const values = [];
+@@ -726,7 +765,7 @@
+   const names = Object.values(selection).map((table) => table.name);
+   if (new Set(names).size !== names.length || names.some((name) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)))
+     throw Error("Invalid or duplicate selected table name");
+-  const discoveryOnly = input.tables && Object.values(input.tables).every((t) => !t.contract);
++  const discoveryOnly = tables && Object.values(tables).every((t) => !t.contract);
+   if (!Object.keys(selection).length && !discoveryOnly)
+     throw Error("Select at least one source stream");
+   for (const [stream, table] of Object.entries(selection)) {
+@@ -909,6 +948,7 @@
+       recurrences: ["interval", "daily", "weekly", "monthly"]
+     },
+     prepareCommand: "connection prepare",
++    metadataDocuments: "ingestron.metadata-documents/v1",
+     contractsCommand: "connector contracts"
+   }
+ };
+@@ -934,13 +974,17 @@
+   }
+ ];
+ function prepare(request) {
+-  const { runtimeAssets, ...input } = request;
++  const { runtimeAssets, projectionTables, ...input } = request;
+   if (!runtimeAssets || !input.runtimeAssetSha256)
+     throw Error("Install a source package with locked runtime assets");
+-  const selection = validateProjectConnection(input, {
+-    ...connectorRuntimes[runtimeContract],
+-    settingsSchema: JSON.parse(runtimeAssets["settings.schema.json"])
+-  });
++  const selection = validateProjectConnection(
++    input,
++    {
++      ...connectorRuntimes[runtimeContract],
++      settingsSchema: JSON.parse(runtimeAssets["settings.schema.json"])
++    },
++    projectionTables
++  );
+   if (![input.sourceId, input.tenantId].every(
+     (v) => typeof v === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,100}$/.test(v)
+   ))
+--- provider-local/plugin/provider.yaml:before
++++ provider-local/plugin/provider.yaml:after
+@@ -1,6 +1,6 @@
+ apiVersion: ingestron.provider/v1
+ id: local
+-version: 0.4.17
++version: 0.4.18
+ platform: local
+ activities: {}
+ compatibility:
+@@ -11,6 +11,7 @@
+     - project-connections
+     - odcs-connections
+     - project-assembly
++    - connection-metadata-documents
+     - provider-execution
+     - source-checkpoint-migration
+     - provider-execution-resources
+@@ -109,6 +110,7 @@
+         - weekly
+         - monthly
+     prepareCommand: connection prepare
++    metadataDocuments: ingestron.metadata-documents/v1
+     contractsCommand: connector contracts
+ lifecycle:
+   apiVersion: ingestron.provider-lifecycle/v1
+@@ -164,3 +166,4 @@
+ projectAssembly:
+   apiVersion: ingestron.project-assembly/v1
+   command: project assemble
++  metadataDocuments: ingestron.metadata-documents/v1
+--- provider-local/scripts/build.mjs:before
++++ provider-local/scripts/build.mjs:after
+@@ -86,11 +86,13 @@
+ manifest.projectAssembly = {
+   apiVersion: "ingestron.project-assembly/v1",
+   command: "project assemble",
++  metadataDocuments: "ingestron.metadata-documents/v1",
+ };
+ manifest.compatibility.requiredFeatures = [
+   ...new Set([
+     ...manifest.compatibility.requiredFeatures,
+     "project-assembly",
++    "connection-metadata-documents",
+     "provider-execution",
+     "source-checkpoint-migration",
+     "provider-execution-resources",
+--- provider-local/src/commands.mjs:before
++++ provider-local/src/commands.mjs:after
+@@ -24,6 +24,7 @@
+       recurrences: ["interval", "daily", "weekly", "monthly"],
+     },
+     prepareCommand: "connection prepare",
++    metadataDocuments: "ingestron.metadata-documents/v1",
+     contractsCommand: "connector contracts",
+   },
+ };
+@@ -50,13 +51,17 @@
+   },
+ ];
+ export function prepare(request) {
+-  const { runtimeAssets, ...input } = request;
++  const { runtimeAssets, projectionTables, ...input } = request;
+   if (!runtimeAssets || !input.runtimeAssetSha256)
+     throw Error("Install a source package with locked runtime assets");
+-  const selection = validateProjectConnection(input, {
+-    ...connectorRuntimes[runtimeContract],
+-    settingsSchema: JSON.parse(runtimeAssets["settings.schema.json"]),
+-  });
++  const selection = validateProjectConnection(
++    input,
++    {
++      ...connectorRuntimes[runtimeContract],
++      settingsSchema: JSON.parse(runtimeAssets["settings.schema.json"]),
++    },
++    projectionTables,
++  );
+   if (
+     ![input.sourceId, input.tenantId].every(
+       (v) =>
+--- provider-local/src/contracts/connection-contract.mjs:before
++++ provider-local/src/contracts/connection-contract.mjs:after
+@@ -1,4 +1,5 @@
+ import { object, text } from "./shape.mjs";
++import { validateMetadataProjection } from "./metadata-projection.mjs";
+ export const runtimeContract = "ingestron.snapshot/python/v1";
+ const field = object(
+   {
+@@ -35,7 +36,12 @@
+     "Prepare a project-resolved connection, selected fields and runtime-only secrets",
+   inputSchema: { type: "object", additionalProperties: true },
+ };
+-export function validateProjectConnection(input, descriptor) {
++export function validateProjectConnection(input, descriptor, projectionTables) {
++  if (Object.hasOwn(input, "tableDocuments"))
++    validateMetadataProjection(input, projectionTables);
++  else if (projectionTables !== undefined)
++    throw Error("Projection requires indexed connection metadata");
++  const tables = projectionTables ?? input.tables;
+   if (
+     input.apiVersion !== "ingestron.connection-request/v1" ||
+     !/^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*@\d+\.\d+\.\d+$/.test(input.connector) ||
+@@ -58,6 +64,7 @@
+           "settings",
+           "selection",
+           "tables",
++          "tableDocuments",
+           "execution",
+           "timeoutSeconds",
+           "sourcePackage",
+@@ -120,18 +127,16 @@
+   if (input.tables && input.selection)
+     throw Error("Use ODCS tables or legacy selection, never both");
+   const incremental = input.execution?.ingestion === "incremental";
+-  if (incremental && !input.tables)
++  if (incremental && !tables)
+     throw Error(
+       "Incremental append execution requires reviewed table policies",
+     );
+-  for (const table of Object.values(input.tables ?? {}))
++  for (const table of Object.values(tables ?? {}))
+     if (!!table.source?.incremental !== incremental)
+       throw Error(
+         "Use an incremental policy on every table only in incremental execution",
+       );
+-  const selection = input.tables
+-    ? selectionFromTables(input.tables)
+-    : input.selection;
++  const selection = tables ? selectionFromTables(tables) : input.selection;
+   if (
+     !conforms(descriptor.settingsSchema, input.settings) ||
+     !conforms(descriptor.selectionSchema, selection) ||
+@@ -171,7 +176,7 @@
+     throw Error("Invalid or duplicate selected table name");
+   // Discovery-only builds (every table still without a contract) select nothing yet.
+   const discoveryOnly =
+-    input.tables && Object.values(input.tables).every((t) => !t.contract);
++    tables && Object.values(tables).every((t) => !t.contract);
+   if (!Object.keys(selection).length && !discoveryOnly)
+     throw Error("Select at least one source stream");
+   for (const [stream, table] of Object.entries(selection)) {
+--- provider-local/src/contracts/metadata-projection.mjs:before
++++ provider-local/src/contracts/metadata-projection.mjs:after
+@@ -0,0 +1,56 @@
++/** Core supplies bounded compilation columns; the source verifies complete indexed documents. */
++export function validateMetadataProjection(input, tables) {
++  const index = input.tableDocuments;
++  const object = (value) =>
++    value && typeof value === "object" && !Array.isArray(value);
++  const keys = (value, expected) =>
++    object(value) &&
++    Object.keys(value).length === expected.length &&
++    expected.every((key) => Object.hasOwn(value, key));
++  if (
++    Object.hasOwn(input, "tables") ||
++    Object.hasOwn(input, "selection") ||
++    !keys(index, ["apiVersion", "kind", "documents", "totalBytes"]) ||
++    index.apiVersion !== "ingestron.metadata-documents/v1" ||
++    index.kind !== "project" ||
++    !object(index.documents) ||
++    !object(tables)
++  )
++    throw Error("Invalid indexed connection metadata");
++  const names = Object.keys(index.documents);
++  if (
++    !names.length ||
++    names.length > 100 ||
++    Object.keys(tables).length !== names.length
++  )
++    throw Error("Invalid indexed connection metadata");
++  let bytes = 0;
++  for (const name of names) {
++    const record = index.documents[name],
++      table = tables[name];
++    if (
++      !/^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(name) ||
++      !Object.hasOwn(tables, name) ||
++      !keys(record, ["path", "sha256", "bytes"]) ||
++      !/^[a-f0-9]{64}$/.test(record.sha256) ||
++      record.path !== `metadata/project/${record.sha256}.json` ||
++      !Number.isInteger(record.bytes) ||
++      record.bytes < 1 ||
++      record.bytes > 2_000_000 ||
++      !object(table) ||
++      Object.keys(table).some(
++        (key) => !["source", "columns", "contract"].includes(key),
++      ) ||
++      !object(table.source) ||
++      !Array.isArray(table.columns) ||
++      table.columns.length > 500 ||
++      (Object.hasOwn(table, "contract")
++        ? table.contract !== true || !table.columns.length
++        : table.columns.length !== 0)
++    )
++      throw Error("Invalid indexed connection metadata");
++    bytes += record.bytes;
++  }
++  if (bytes > 7_000_000 || index.totalBytes !== bytes)
++    throw Error("Indexed metadata exceeds its collection bounds");
++}
+--- provider-local/src/project-assembly.mjs:before
++++ provider-local/src/project-assembly.mjs:after
+@@ -21,7 +21,8 @@
+   );
+   const artifacts = {},
+     flows = {},
+-    environments = {};
++    environments = {},
++    metadataDocumentRoots = {};
+   for (const c of input.connections) {
+     check(
+       /^[A-Za-z0-9_][A-Za-z0-9_-]*$/.test(c.flow) && !flows[c.flow],
+@@ -30,6 +31,18 @@
+     for (const [name, content] of Object.entries(c.artifacts))
+       artifacts[`flows/${c.flow}/${name}`] = content;
+     const config = JSON.parse(c.artifacts["connector.json"]);
++    if (c.metadataDocuments) {
++      check(
++        c.metadataDocuments.apiVersion === "ingestron.metadata-documents/v1" &&
++          JSON.stringify(c.metadataDocuments) ===
++            JSON.stringify(config.projectLock.tableDocuments) &&
++          !Object.keys(c.artifacts).some((name) =>
++            name.startsWith("metadata/project/"),
++          ),
++        "Indexed assembly requires the original index and external documents",
++      );
++      metadataDocumentRoots[c.flow] = `flows/${c.flow}`;
++    }
+     const runtime = config.projectLock.runtimeAssetSha256;
+     environments[runtime] = {
+       requirements: `flows/${c.flow}/requirements.lock.txt`,
+@@ -65,6 +78,7 @@
+   return {
+     apiVersion: "ingestron.project-package/v1",
+     artifacts,
++    metadataDocumentRoots,
+     details: {
+       entryPoint: "run.py",
+       flows: Object.keys(flows),
+--- provider-local/test/connections.test.mjs:before
++++ provider-local/test/connections.test.mjs:after
+@@ -228,3 +228,67 @@
+       2_000_000,
+   );
+ });
++
++test("indexed preparation compiles columns without embedding projection tables or losing document references", () => {
++  const value = input();
++  delete value.selection;
++  const hash = "a".repeat(64);
++  value.tableDocuments = {
++    apiVersion: "ingestron.metadata-documents/v1",
++    kind: "project",
++    documents: {
++      orders: {
++        path: "metadata/project/" + hash + ".json",
++        sha256: hash,
++        bytes: 123,
++      },
++    },
++    totalBytes: 123,
++  };
++  value.projectionTables = {
++    orders: {
++      source: { stream: "orders" },
++      contract: true,
++      columns: [
++        {
++          name: "wire_id",
++          target: "customer_id",
++          type: "BIGINT",
++          required: true,
++        },
++      ],
++    },
++  };
++  const before = JSON.stringify(value),
++    result = projectConnectionPrepare(value),
++    lock = JSON.parse(result.artifacts["project-connection.lock.json"]),
++    config = JSON.parse(result.artifacts["connector.json"]);
++  assert.deepEqual(lock.tableDocuments, value.tableDocuments);
++  assert.equal(Object.hasOwn(lock, "projectionTables"), false);
++  assert.equal(Object.hasOwn(lock, "tables"), false);
++  assert.deepEqual(config.projectLock, lock);
++  assert.deepEqual(JSON.parse(result.artifacts["selection.json"]), {
++    orders: {
++      name: "orders",
++      fields: {
++        wire_id: { type: "integer", nullable: false, target: "customer_id" },
++      },
++    },
++  });
++  assert.equal(JSON.stringify(value), before);
++  for (const mutate of [
++    (v) => (v.tableDocuments.documents.orders.path = "../escape"),
++    (v) => v.tableDocuments.totalBytes++,
++    (v) => (v.projectionTables.extra = v.projectionTables.orders),
++    (v) => (v.projectionTables.orders.contract = {}),
++    (v) => (v.projectionTables.orders.columns = []),
++    (v) => (v.tables = {}),
++    (v) => (v.selection = {}),
++    (v) => delete v.projectionTables,
++    (v) => delete v.tableDocuments,
++  ]) {
++    const bad = structuredClone(value);
++    mutate(bad);
++    assert.throws(() => projectConnectionPrepare(bad));
++  }
++});
+--- provider-local/test/project-assembly.test.mjs:before
++++ provider-local/test/project-assembly.test.mjs:after
+@@ -15,6 +15,60 @@
+     "requirements.lock.txt": "locked",
+     "build-tools.lock.txt": "tools",
+   },
++});
++test("indexed assembly returns the original collection location without transporting document bodies", () => {
++  const index = {
++    apiVersion: "ingestron.metadata-documents/v1",
++    kind: "project",
++    documents: {
++      orders: {
++        path: "metadata/project/" + "a".repeat(64) + ".json",
++        sha256: "a".repeat(64),
++        bytes: 100,
++      },
++    },
++    totalBytes: 100,
++  };
++  const connection = flow("a");
++  const config = JSON.parse(connection.artifacts["connector.json"]);
++  config.projectLock.tableDocuments = index;
++  connection.artifacts["connector.json"] = JSON.stringify(config);
++  connection.metadataDocuments = index;
++  const input = {
++    phase: "assemble",
++    project: "demo",
++    environment: "dev",
++    configuration: "local",
++    scope,
++    nativeFiles: {},
++    connections: [connection],
++  };
++  const result = assemble(input);
++  assert.deepEqual(result.metadataDocumentRoots, { a: "flows/a" });
++  assert.equal(
++    result.artifacts["flows/a/connector.json"],
++    connection.artifacts["connector.json"],
++  );
++  assert.ok(
++    !Object.keys(result.artifacts).some((name) =>
++      name.includes("metadata/project/"),
++    ),
++  );
++  for (const change of [
++    () => {
++      connection.metadataDocuments = { ...index, totalBytes: 101 };
++    },
++    () => {
++      connection.metadataDocuments = index;
++      connection.artifacts[index.documents.orders.path] = "document";
++    },
++  ]) {
++    change();
++    assert.throws(
++      () => assemble(input),
++      /original index and external documents/,
++    );
++  }
+ });
+ test("local project has one dependency environment and selectable isolated flow folders", () => {
+   const r = assemble({

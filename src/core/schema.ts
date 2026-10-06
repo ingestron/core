@@ -1,4 +1,6 @@
+import { scheduleSchema } from "./schedule-schema.js";
 import { z } from "zod";
+import { policySchema } from "./policy-schema.js";
 const id = z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/);
 const map = z.record(z.string(), z.unknown());
 export const providerSchema = z
@@ -31,6 +33,7 @@ export const projectSchema = z
   .object({
     apiVersion: z.literal("ingestron.project/v1"),
     id,
+    policy: policySchema.optional(),
     description: z.string().optional(),
     packages: z.record(id, packageReferenceSchema).default({}),
     providers: z
@@ -144,6 +147,7 @@ export const flowSchema = z
     kind: z.enum(["ingestion", "transformation"]),
     id,
     description: z.string().optional(),
+    schedule: scheduleSchema.optional(),
     domain: id.optional(),
     export: id.optional(),
     product: id.optional(),
@@ -211,7 +215,10 @@ export interface Node {
     implementation: "native";
     configuration?: string;
     capabilities?: {
+      transformationLanguages?: ("sql" | "python")[];
+      typedTransformationLanguages?: ("sql" | "python")[];
       delivery: boolean;
+      schedules?: ("interval" | "daily" | "weekly" | "monthly")[];
       artifactKinds: string[];
       handovers: ("files" | "relation")[];
       packContracts: Record<string, { version: string; activities: string[] }>;
@@ -263,6 +270,26 @@ export interface Node {
     dependencies: Record<string, string>;
   };
 }
+/** Exact compiler resolution of UTC bounds; never native activation authority. */
+export interface ScheduleBoundary {
+  instant: string;
+  localTime: string;
+  offset: string;
+  ambiguous: boolean;
+  possibleInstants: { instant: string; offset: string }[];
+}
+export interface ScheduleBoundaryMetadata {
+  apiVersion: "ingestron.schedule-boundaries/v1";
+  definitionDigest: string;
+  timeZone: string;
+  clock: {
+    implementation: string;
+    timeZoneData: string;
+    icu: string;
+  };
+  start: ScheduleBoundary;
+  end?: ScheduleBoundary;
+}
 export interface Plan {
   apiVersion: "ingestron.plan/v1";
   delivery?: {
@@ -294,6 +321,7 @@ export interface Plan {
   nodes: Node[];
   activitySources: Record<string, string>;
   flows: Flow[];
+  scheduleBoundaries?: Record<string, ScheduleBoundaryMetadata>;
   files: Record<string, string>;
   datasets: Record<
     string,
