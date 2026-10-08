@@ -101,3 +101,21 @@ Removing a reference does not delete its stored value. There is no readback, rem
 secret retrieval, process-environment injection, cloud mutation or secret deletion
 operation in this increment. A later execution adapter must explicitly resolve the
 selected environment and credential references; persistence is not runtime activation.
+
+## Generation defaults catalogue
+
+`platforms[].configuration.targets[].generation` is an optional, provider-specific
+map of generation decisions. Unknown fields or option IDs are rejected. The catalogue
+returns available choices, conservative defaults and a source-audited provider/planned
+support distinction. This is not installed-provider introspection or cloud qualification.
+
+Programme read/save responses include computed `generationReviews` for saved profiles.
+Reviews identify the selected choice, a provider mapping where one exists and conflicts
+with disabled prerequisite capabilities. Older documents without generation choices
+remain valid; an absent programme retains its original null snapshot shape. Reviews
+are not persisted in the programme document and do not contain credential values.
+
+These choices are authoring intent. Applying them to project definitions is planned,
+so the review always reports that binding separately from existing provider support.
+The shared defaults do not alter planner behaviour, replace reviewed flow/source
+semantics, override project policy or silently fall back from a planned option.

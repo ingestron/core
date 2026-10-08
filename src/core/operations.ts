@@ -1,3 +1,4 @@
+import { reviewGeneration } from "./platform-generation.js";
 import { platformCatalogue } from "./platform-catalogue.js";
 import {
   platformSecretSchema,
@@ -625,6 +626,15 @@ export function execute(
         break;
       case "programme_read":
         result = readProgramme(root, args.id);
+        if (result.document)
+          result.generationReviews = (result.document.platforms ?? []).flatMap(
+            (p: any) =>
+              (p.configuration?.targets ?? []).map((t: any) => ({
+                platform: p.id,
+                provider: t.provider,
+                items: reviewGeneration(t),
+              })),
+          );
         break;
       case "programme_save":
         write();
@@ -634,6 +644,15 @@ export function execute(
           args.expectedDigest,
           args.document,
         );
+        if (result.document)
+          result.generationReviews = (result.document.platforms ?? []).flatMap(
+            (p: any) =>
+              (p.configuration?.targets ?? []).map((t: any) => ({
+                platform: p.id,
+                provider: t.provider,
+                items: reviewGeneration(t),
+              })),
+          );
         break;
       case "build_retained":
         result = inspectRetainedBuild({ ...context, root, environment }, args);

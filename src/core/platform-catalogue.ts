@@ -1,3 +1,4 @@
+import { generationCatalogue } from "./platform-generation.js";
 /** Curated desired configuration; no remote settings are read or changed. */
 export const platformCatalogue = [
   {
@@ -256,6 +257,20 @@ export const platformCatalogue = [
   },
 ].map((p) => ({
   ...p,
+  generation: generationCatalogue[p.id]!,
+  generationDefaults: {
+    qualityFailure: "block",
+    schemaEvolution: "reviewed",
+    ...(p.id === "databricks"
+      ? {
+          bronze: "streaming-table",
+          silver: "materialized-view",
+          gold: "materialized-view",
+        }
+      : p.id === "fabric"
+        ? { bronze: "lakehouse-table" }
+        : { bronze: "file-landing" }),
+  },
   capabilities: p.capabilities.map(([id, label, group, description]) => ({
     id: id!,
     label: label!,

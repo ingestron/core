@@ -197,3 +197,70 @@ test("local environment secrets require write authority, stay out of documents a
     rmSync(root, { recursive: true, force: true });
   }
 });
+test("generation defaults are provider-specific, survive saves, and report unsupported or conflicting choices", () => {
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "platform-generation-")),
+  );
+  try {
+    const doc: any = structuredClone(document);
+    const profile = doc.platforms[0].configuration.targets[0];
+    profile.generation = {
+      bronze: "streaming-table",
+      silver: "materialized-view",
+      gold: "sql-view",
+      qualityFailure: "block",
+    };
+    profile.capabilities.lakeflow = "disabled";
+    const save = (d: any, expectedDigest: string | null = null) =>
+      execute({ root, allowWrite: true }, "programme_save", {
+        id: "retail",
+        expectedDigest,
+        document: d,
+      });
+    const saved = save(doc);
+    assert.equal(saved.ok, true);
+    assert.deepEqual(
+      saved.result.generationReviews[0].items.find(
+        (i: any) => i.setting === "bronze",
+      ),
+      {
+        setting: "bronze",
+        label: "Bronze assets",
+        selection: "Streaming table",
+        support: "provider",
+        mapping: "lakeflow-ingest@v1",
+        binding: "planned",
+        blocked: true,
+        reason: "Enable lakeflow or choose another generation setting.",
+      },
+    );
+    const read = execute({ root }, "programme_read", { id: "retail" });
+    assert.deepEqual(
+      read.result.generationReviews,
+      saved.result.generationReviews,
+    );
+    assert.equal(
+      read.result.generationReviews[0].items.find(
+        (i: any) => i.setting === "gold",
+      ).support,
+      "planned",
+    );
+    for (const generation of [
+      { bronze: "lakehouse-table" },
+      { unknown: "streaming-table" },
+      { ingestion: "made-up" },
+    ]) {
+      profile.generation = generation;
+      assert.equal(
+        save(doc, saved.result.digest).diagnostics[0]?.code,
+        "SCHEMA",
+      );
+    }
+    assert.equal(
+      execute({ root }, "programme_read", { id: "retail" }).result.digest,
+      saved.result.digest,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

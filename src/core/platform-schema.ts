@@ -67,6 +67,7 @@ const setting = z.enum(["inherit", "enabled", "disabled"]);
 export const platformTargetSchema = z
   .object({
     provider: platformProvider,
+    generation: z.record(z.string(), z.string().max(80)).optional(),
     capabilities: z.record(z.string(), setting),
     policies: z.record(z.string(), setting),
     naming: z.record(z.string(), short),
@@ -101,6 +102,11 @@ export const platformTargetSchema = z
           : catalogue[field].map((f) => f.id);
       if (Object.keys(target[field]).some((key) => !keys.includes(key)))
         fail("Unknown platform setting");
+    }
+    for (const [key, value] of Object.entries(target.generation ?? {})) {
+      const field = catalogue.generation.find((s) => s.id === key);
+      if (!field || !field.options.some((o) => o.id === value))
+        fail("Unknown generation setting or option for this platform");
     }
     const tokens = [
       "programme",
