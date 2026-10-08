@@ -1,5 +1,13 @@
 import { z } from "zod";
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,79}$/);
+const projectId = z
+  .string()
+  .min(1)
+  .max(160)
+  .refine(
+    (value) => !/[\u0000-\u001f\u007f]/.test(value),
+    "Invalid project identity",
+  );
 const short = z.string().trim().max(200);
 const text = z.string().trim().max(4000);
 export const programmeSchema = z
@@ -9,10 +17,22 @@ export const programmeSchema = z
     name: short.min(1),
     objective: text,
     sponsor: short,
+    people: z.array(short.min(1)).max(200).optional(),
     stakeholders: z
       .array(z.object({ name: short.min(1), role: short }).strict())
       .max(50),
-    projects: z.array(z.object({ id, name: short.min(1) }).strict()).max(100),
+    projects: z
+      .array(
+        z
+          .object({
+            id: projectId,
+            name: short.min(1),
+            platformId: id.optional(),
+            template: z.literal("full-data-product/v1").optional(),
+          })
+          .strict(),
+      )
+      .max(100),
     platforms: z
       .array(z.object({ id, name: short.min(1) }).strict())
       .max(100)
@@ -24,15 +44,54 @@ export const programmeSchema = z
             id,
             title: short.min(1),
             kind: z
-              .enum(["epic", "requirement", "task", "milestone"])
+              .enum([
+                "epic",
+                "requirement",
+                "policy",
+                "standard",
+                "task",
+                "milestone",
+              ])
               .optional(),
+            applications: z
+              .array(
+                z
+                  .object({
+                    projectId,
+                    status: z.enum(["planned", "applied", "not-applicable"]),
+                    evidence: text,
+                  })
+                  .strict(),
+              )
+              .max(100)
+              .optional(),
+            basisIds: z.array(id).max(200).optional(),
             parentId: id.optional(),
+            dependsOn: z.array(id).max(200).optional(),
+            component: z
+              .enum([
+                "requirements",
+                "milestones",
+                "environments",
+                "policy",
+                "connections",
+                "standards",
+                "sources",
+                "ingestion",
+                "transformations",
+                "presentation",
+                "quality",
+                "build",
+                "deployment",
+              ])
+              .optional(),
+            templateKey: short.optional(),
             milestoneId: id.optional(),
             due: z.iso.date().optional(),
             area: z
               .object({
                 kind: z.enum(["programme", "platform", "project"]),
-                id,
+                id: projectId,
               })
               .strict()
               .optional(),
@@ -60,7 +119,7 @@ export const programmeSchema = z
               "deferred",
             ]),
             acceptance: z.array(text.min(1)).max(20),
-            projectIds: z.array(id).max(100),
+            projectIds: z.array(projectId).max(100),
           })
           .strict(),
       )
@@ -81,6 +140,10 @@ export const programmeSchema = z
     const platforms = new Set((doc.platforms ?? []).map((p) => p.id));
     if (platforms.size !== (doc.platforms ?? []).length)
       fail("Duplicate platform ID", ["platforms"]);
+    doc.projects.forEach((p, i) => {
+      if (p.platformId && !platforms.has(p.platformId))
+        fail("Choose a registered platform", ["projects", i, "platformId"]);
+    });
     const items = new Map(doc.requirements.map((r) => [r.id, r]));
     const external = new Set<string>();
     doc.requirements.forEach((r, i) => {
@@ -93,7 +156,46 @@ export const programmeSchema = z
           i,
           "projectIds",
         ]);
+      if (
+        new Set(r.dependsOn ?? []).size !== (r.dependsOn ?? []).length ||
+        (r.dependsOn ?? []).some((ref) => ref === r.id || !items.has(ref))
+      )
+        fail("Choose distinct existing dependencies", [
+          "requirements",
+          i,
+          "dependsOn",
+        ]);
       const kind = r.kind ?? "requirement";
+      const catalogue = ["requirement", "policy", "standard"].includes(kind);
+      const applications = r.applications ?? [];
+      if (
+        (!catalogue && applications.length) ||
+        new Set(applications.map((a) => a.projectId)).size !==
+          applications.length ||
+        applications.some(
+          (a) =>
+            !projects.has(a.projectId) ||
+            (a.status !== "planned" && !a.evidence.trim()),
+        )
+      )
+        fail(
+          "Application records need distinct registered projects and evidence or an exclusion reason",
+          ["requirements", i, "applications"],
+        );
+      if (
+        new Set(r.basisIds ?? []).size !== (r.basisIds ?? []).length ||
+        (r.basisIds ?? []).some(
+          (ref) =>
+            ref === r.id ||
+            !["requirement", "policy", "standard"].includes(
+              items.get(ref)?.kind ?? (items.has(ref) ? "requirement" : ""),
+            ),
+        )
+      )
+        fail(
+          "Choose existing requirements, policies or standards as the work basis",
+          ["requirements", i, "basisIds"],
+        );
       const parent = r.parentId ? items.get(r.parentId) : undefined;
       if (
         r.parentId &&
@@ -102,9 +204,12 @@ export const programmeSchema = z
           kind === "epic" ||
           kind === "milestone" ||
           !(
-            (kind === "requirement" && parent.kind === "epic") ||
+            (["requirement", "policy", "standard"].includes(kind) &&
+              parent.kind === "epic") ||
             (kind === "task" &&
-              ["epic", "requirement"].includes(parent.kind ?? "requirement"))
+              ["epic", "requirement", "policy", "standard"].includes(
+                parent.kind ?? "requirement",
+              ))
           ))
       )
         fail(
@@ -147,7 +252,7 @@ export const programmeSchema = z
       }
       if (
         ["ready", "active", "done"].includes(r.disposition) &&
-        kind === "requirement" &&
+        ["requirement", "policy", "standard"].includes(kind) &&
         (!r.owner || !r.description || !r.acceptance.length)
       )
         fail(
@@ -155,6 +260,20 @@ export const programmeSchema = z
           ["requirements", i],
         );
     });
+    const complete = new Set<string>();
+    const active = new Set<string>();
+    const visit = (id: string): boolean => {
+      if (active.has(id)) return false;
+      if (complete.has(id)) return true;
+      active.add(id);
+      for (const dependency of items.get(id)?.dependsOn ?? [])
+        if (!visit(dependency)) return false;
+      active.delete(id);
+      complete.add(id);
+      return true;
+    };
+    if ([...items.keys()].some((id) => !visit(id)))
+      fail("Work dependencies contain a cycle", ["requirements"]);
   });
 export type Programme = z.infer<typeof programmeSchema>;
 export const programmeReadSchema = z.object({ id }).strict();

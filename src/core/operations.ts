@@ -1,4 +1,8 @@
 import {
+  programmeProjectTemplateSchema,
+  programmeProjectTemplate,
+} from "./programme-template.js";
+import {
   programmeReadSchema,
   programmeSaveSchema,
 } from "./programme-schema.js";
@@ -120,6 +124,7 @@ export const operationSchemas = {
   policy_propose: z.object({ policy: policySchema }).strict(),
   connection_flow_review: sourceFlowSchema,
   connection_flows_review: sourceFlowsSchema,
+  programme_project_template: programmeProjectTemplateSchema,
   programme_read: programmeReadSchema,
   programme_save: programmeSaveSchema,
   delivery_plan_check: z
@@ -595,6 +600,9 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "programme_project_template":
+        result = programmeProjectTemplate(args);
+        break;
       case "programme_read":
         result = readProgramme(root, args.id);
         break;

@@ -202,3 +202,192 @@ test("programme work hierarchy, milestones, areas and external IDs preserve sync
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("programme project references accept opaque workspace identities", () => {
+  const root = mkdtempSync(join(tmpdir(), "programme-workspace-"));
+  try {
+    const document = {
+      ...doc,
+      projects: [{ id: "0123456789abcdef", name: "Workspace project" }],
+      requirements: [
+        {
+          ...doc.requirements[0],
+          projectIds: ["0123456789abcdef"],
+          area: { kind: "project", id: "0123456789abcdef" },
+        },
+      ],
+    };
+    const saved = execute({ root, allowWrite: true }, "programme_save", {
+      id: doc.id,
+      expectedDigest: null,
+      document,
+    });
+    assert.equal(saved.ok, true, JSON.stringify(saved));
+    assert.deepEqual(
+      execute({ root }, "programme_read", { id: doc.id }).result.document,
+      document,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("full data product template assigns scope, reuses shared work and proposes without writes", () => {
+  const root = mkdtempSync(join(tmpdir(), "programme-template-"));
+  try {
+    const generate = (document: unknown, id: string) =>
+      execute({ root }, "programme_project_template", {
+        id: "retail",
+        document,
+        newProject: { id, name: id },
+        platform: { id: "lakehouse", name: "Lakehouse" },
+        owner: "ion",
+        template: "full-data-product/v1",
+      });
+    const first = generate(doc, "one");
+    assert.equal(first.ok, true, JSON.stringify(first));
+    const plan = first.result.document;
+    assert.equal(
+      plan.projects.find((p: any) => p.id === "one").template,
+      "full-data-product/v1",
+    );
+    assert.ok(
+      plan.requirements.some(
+        (r: any) =>
+          r.area?.kind === "platform" && r.component === "connections",
+      ),
+    );
+    assert.ok(
+      plan.requirements.some(
+        (r: any) => r.area?.kind === "project" && r.component === "ingestion",
+      ),
+    );
+    assert.equal(
+      execute({ root }, "programme_read", { id: "retail" }).result.document,
+      null,
+    );
+    const second = generate(plan, "two");
+    assert.equal(second.ok, true, JSON.stringify(second));
+    assert.equal(
+      second.result.document.requirements.filter(
+        (r: any) => r.area?.kind === "platform",
+      ).length,
+      plan.requirements.filter((r: any) => r.area?.kind === "platform").length,
+    );
+    assert.equal(generate(plan, "one").ok, false);
+    const save = execute({ root, allowWrite: true }, "programme_save", {
+      id: "retail",
+      expectedDigest: null,
+      document: second.result.document,
+    });
+    assert.equal(save.ok, true, JSON.stringify(save));
+    const task = plan.requirements.find(
+      (r: any) => r.area?.kind === "project" && r.kind === "task",
+    );
+    task.dependsOn = [task.id];
+    assert.equal(generate(plan, "three").ok, false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("selected catalogue records form traceable WBS work without claiming application", () => {
+  const root = mkdtempSync(join(tmpdir(), "programme-basis-"));
+  try {
+    const document = {
+      ...doc,
+      people: ["ion", "Alex"],
+      requirements: [
+        ...doc.requirements,
+        {
+          ...doc.requirements[0],
+          id: "POL-1",
+          kind: "policy",
+          title: "Retain data for 30 days",
+          component: "ingestion",
+        },
+        {
+          ...doc.requirements[0],
+          id: "STD-1",
+          kind: "standard",
+          title: "Daily reconciliation",
+        },
+      ],
+    };
+    const input = {
+      id: "retail",
+      document,
+      newProject: { id: "new", name: "New" },
+      platform: { id: "lakehouse", name: "Lakehouse" },
+      owner: "ion",
+      template: "full-data-product/v1",
+      selectedRecordIds: ["REQ-1", "POL-1"],
+    };
+    const result = execute({ root }, "programme_project_template", input);
+    assert.equal(result.ok, true, JSON.stringify(result));
+    const plan = result.result.document;
+    assert.equal(
+      plan.projects.find((p: any) => p.id === "new").platformId,
+      "lakehouse",
+    );
+    const tasks = plan.requirements.filter((r: any) => r.basisIds?.length);
+    assert.equal(tasks.length, 2);
+    assert.ok(
+      tasks.every((r: any) => r.disposition === "draft" && r.area.id === "new"),
+    );
+    assert.deepEqual(
+      plan.requirements.find((r: any) => r.id === "POL-1").applications,
+      [{ projectId: "new", status: "planned", evidence: "" }],
+    );
+    assert.equal(
+      plan.requirements.find((r: any) => r.id === "STD-1").applications,
+      undefined,
+    );
+    assert.equal(
+      execute({ root }, "programme_project_template", {
+        ...input,
+        selectedRecordIds: ["missing"],
+      }).ok,
+      false,
+    );
+    assert.equal(
+      execute({ root }, "programme_project_template", {
+        ...input,
+        selectedRecordIds: ["POL-1", "POL-1"],
+      }).ok,
+      false,
+    );
+    const save = (document: unknown) =>
+      execute({ root, allowWrite: true }, "programme_save", {
+        id: "retail",
+        document,
+        expectedDigest: null,
+      });
+    const policy = plan.requirements.find((r: any) => r.id === "POL-1");
+    policy.applications[0].status = "applied";
+    assert.equal(save(plan).diagnostics[0]?.code, "SCHEMA");
+    policy.applications[0].evidence =
+      "Reviewed retention configuration in change 12";
+    const saved = save(plan);
+    assert.equal(saved.ok, true, JSON.stringify(saved));
+    assert.deepEqual(
+      execute({ root }, "programme_read", { id: "retail" }).result.document
+        .people,
+      ["ion", "Alex"],
+    );
+    const removed = {
+      ...plan,
+      requirements: plan.requirements.filter((r: any) => r.id !== "POL-1"),
+    };
+    assert.equal(
+      execute({ root, allowWrite: true }, "programme_save", {
+        id: "retail",
+        document: removed,
+        expectedDigest: saved.result.digest,
+      }).diagnostics[0]?.code,
+      "SCHEMA",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
