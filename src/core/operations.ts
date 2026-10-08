@@ -1,3 +1,10 @@
+import { platformCatalogue } from "./platform-catalogue.js";
+import {
+  platformSecretSchema,
+  platformSecretSetSchema,
+  platformSecretStatus,
+  platformSecretSet,
+} from "./platform-secrets.js";
 import {
   programmeProjectTemplateSchema,
   programmeProjectTemplate,
@@ -97,6 +104,9 @@ import * as workflows from "./workflows.js";
 import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
+  programme_platform_catalogue: z.object({ id: z.string() }).strict(),
+  programme_secret_status: platformSecretSchema,
+  programme_secret_set: platformSecretSetSchema,
   compiler_identity: z.object({}).strict(),
   build_retain: buildRetainSchema,
   build_retained: buildRetainedSchema,
@@ -600,6 +610,16 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "programme_platform_catalogue":
+        result = { document: null, digest: null, catalogue: platformCatalogue };
+        break;
+      case "programme_secret_status":
+        result = platformSecretStatus(root, args);
+        break;
+      case "programme_secret_set":
+        write();
+        result = platformSecretSet(root, args);
+        break;
       case "programme_project_template":
         result = programmeProjectTemplate(args);
         break;

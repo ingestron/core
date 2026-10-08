@@ -70,3 +70,34 @@ applicable. Applied requires an evidence note/reference, and Not applicable requ
 reason. These are recorded planning assertions, not enforced or independently verified
 compliance. Catalogue edits do not regenerate existing plans. Ordinary programme CAS
 save remains the only persistence operation; there is no database or remote sync.
+
+## Platform configuration and local credentials
+
+`platforms[].configuration.targets` holds independent Fabric, Databricks and ADF
+profiles: desired capabilities/policies, naming patterns and named environments.
+The catalogue is curated local product metadata, not a live tenant inventory.
+`programme_platform_catalogue` reads this catalogue without writing. Existing
+`programme_save` validates and persists profiles with revision protection. Unknown
+provider keys, naming tokens and authentication types are rejected. These settings
+do not yet drive compiler output or enforce cloud configuration.
+
+Environment configuration accepts declared non-secret fields. Secrets are strict
+references to `local-env`, Azure Key Vault URL/name, or Databricks scope/key. Scope
+references require Databricks; local references require a development environment.
+No inline value is accepted in the shared document. `programme_secret_status`
+reports presence only. `programme_secret_set` requires write permission, a declared
+local reference and a single-line value passed through CLI stdin. It never returns
+the value. Names that could alter process execution are reserved.
+
+The host sets `INGESTRON_LOCAL_SECRETS_DIR`; direct CLI use defaults to
+`~/.config/ingestron/local-env`. Storage is namespaced by canonical programme root,
+programme ID, platform, provider and environment. Values use shell-quoted assignments
+in `local.env`, owner-only directories (0700) and files (0600), a write lock and atomic
+rename. Symlinks, hardlinked files and permissive file modes are rejected. POSIX file
+permissions are required to write; Windows users must supply OS environment variables.
+This is private plaintext storage, not encryption or a vault.
+
+Removing a reference does not delete its stored value. There is no readback, remote
+secret retrieval, process-environment injection, cloud mutation or secret deletion
+operation in this increment. A later execution adapter must explicitly resolve the
+selected environment and credential references; persistence is not runtime activation.

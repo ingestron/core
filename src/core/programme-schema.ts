@@ -1,3 +1,4 @@
+import { platformConfigurationSchema } from "./platform-schema.js";
 import { z } from "zod";
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,79}$/);
 const projectId = z
@@ -34,7 +35,15 @@ export const programmeSchema = z
       )
       .max(100),
     platforms: z
-      .array(z.object({ id, name: short.min(1) }).strict())
+      .array(
+        z
+          .object({
+            id,
+            name: short.min(1),
+            configuration: platformConfigurationSchema.optional(),
+          })
+          .strict(),
+      )
       .max(100)
       .optional(),
     requirements: z
