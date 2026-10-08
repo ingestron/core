@@ -1,3 +1,4 @@
+export { programmeSchema } from "../core/programme-schema.js";
 export { scheduleSchema } from "../core/schedule-schema.js";
 /** Editor-safe exports: no filesystem access, runtime loading or plugin execution. */
 import { LineCounter, parseDocument, isMap, isSeq } from "yaml";

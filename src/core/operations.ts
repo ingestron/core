@@ -1,4 +1,9 @@
 import {
+  programmeReadSchema,
+  programmeSaveSchema,
+} from "./programme-schema.js";
+import { readProgramme, saveProgramme } from "./programme.js";
+import {
   buildRetainSchema,
   buildRetainedSchema,
   retainBuild,
@@ -115,6 +120,8 @@ export const operationSchemas = {
   policy_propose: z.object({ policy: policySchema }).strict(),
   connection_flow_review: sourceFlowSchema,
   connection_flows_review: sourceFlowsSchema,
+  programme_read: programmeReadSchema,
+  programme_save: programmeSaveSchema,
   delivery_plan_check: z
     .object({
       path: z.string().default("delivery-plan.yaml"),
@@ -588,6 +595,18 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "programme_read":
+        result = readProgramme(root, args.id);
+        break;
+      case "programme_save":
+        write();
+        result = saveProgramme(
+          root,
+          args.id,
+          args.expectedDigest,
+          args.document,
+        );
+        break;
       case "build_retained":
         result = inspectRetainedBuild({ ...context, root, environment }, args);
         break;

@@ -1,0 +1,50 @@
+# Programme intent
+
+`programme_read` and `programme_save` operate on `programme.json` in the explicitly
+registered operation root. They do not require `project.yaml`, load providers,
+resolve credentials, execute sources or modify any project in the programme.
+
+Read accepts `{ "id": "retail" }` and returns `{ document, digest }`, both null
+when no programme exists. Save accepts the same ID, `expectedDigest` (null only for
+creation) and an `ingestron.programme/v1` document. Save requires `allowWrite`.
+
+The document contains name, objective, sponsor, stakeholder names/roles, stable
+planned-project IDs and requirements with owner, priority, disposition, acceptance
+criteria and project references. Ready means ready for review, not approved or
+complete. Stakeholder assignments grant no access permissions. Existing arbitrary
+role text remains valid for compatibility; clients may offer a predefined role set.
+
+Schema checks enforce bounds, unique IDs, reference integrity and a description,
+owner and acceptance criteria for ready requirements. A whole document is limited
+to 512 KiB. Identity must match the registered ID on both read and save. No caller
+path is accepted. Read/save reject symbolic-link destinations. Save takes an
+exclusive `.programme-write.lock`, checks the current digest, writes a private
+file and atomically replaces the old version. A stale lock requires operator
+inspection after a crash; it is never silently removed while another writer may
+be active. Concurrent direct filesystem editors must coordinate writes; the lock
+coordinates core operations, not third-party editor behaviour.
+
+This is offline planning intent. It neither compiles project delivery plans nor
+calculates evidence-backed progress or programme milestones. Requirements text is
+never executed. Local installed CLI/core candidate acceptance is recorded in the
+private Studio 2 repository; public release/version pins remain unchanged.
+
+## Work hierarchy and integration identity
+
+Optional `kind` distinguishes epic, requirement, task and milestone; omitted kind
+retains legacy requirement semantics. `parentId` allows requirement → epic and
+task → requirement/epic. `milestoneId` references an independent milestone and
+`due` is an ISO calendar date. Invalid/self/unknown parent links are rejected.
+
+`area` references this programme ID, a named entry in `platforms`, or an entry in
+`projects`. Missing area means programme scope. `projectIds` supports additional
+cross-project links. Reference integrity prevents removing linked areas or items.
+`disposition` supports draft, ready, active, done and deferred; these are manually
+recorded intent states, not evidence-derived execution status. Ready/active/done
+requirements require owner, description and acceptance criteria.
+
+Optional `externalRefs` store system (jira/azure-devops), container, item ID and
+revision separately from local IDs. Duplicate remote identities are rejected.
+This metadata does not implement synchronisation, remote access, mapping rules,
+conflict resolution or remote deletion. Installed archives exercise round-trip
+preservation of these fields. Public package pins remain unchanged.
