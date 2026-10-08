@@ -1,4 +1,7 @@
-import { platformConfigurationSchema } from "./platform-schema.js";
+import {
+  platformConfigurationSchema,
+  platformProvider,
+} from "./platform-schema.js";
 import { z } from "zod";
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,79}$/);
 const projectId = z
@@ -29,6 +32,27 @@ export const programmeSchema = z
             id: projectId,
             name: short.min(1),
             platformId: id.optional(),
+            targets: z
+              .array(
+                z
+                  .object({
+                    provider: platformProvider,
+                    responsibilities: z
+                      .array(
+                        z.enum([
+                          "ingestion",
+                          "transformation",
+                          "presentation",
+                          "orchestration",
+                        ]),
+                      )
+                      .min(1)
+                      .max(4),
+                  })
+                  .strict(),
+              )
+              .max(3)
+              .optional(),
             template: z.literal("full-data-product/v1").optional(),
           })
           .strict(),
@@ -152,6 +176,26 @@ export const programmeSchema = z
     doc.projects.forEach((p, i) => {
       if (p.platformId && !platforms.has(p.platformId))
         fail("Choose a registered platform", ["projects", i, "platformId"]);
+      const targets = p.targets ?? [];
+      const available =
+        doc.platforms?.find((v) => v.id === p.platformId)?.configuration
+          ?.targets ?? [];
+      if (new Set(targets.map((t) => t.provider)).size !== targets.length)
+        fail("Choose distinct project targets", ["projects", i, "targets"]);
+      for (const t of targets) {
+        if (!available.some((v) => v.provider === t.provider))
+          fail("Configure the target on the shared platform first", [
+            "projects",
+            i,
+            "targets",
+          ]);
+        if (new Set(t.responsibilities).size !== t.responsibilities.length)
+          fail("Choose distinct target responsibilities", [
+            "projects",
+            i,
+            "targets",
+          ]);
+      }
     });
     const items = new Map(doc.requirements.map((r) => [r.id, r]));
     const external = new Set<string>();

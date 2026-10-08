@@ -166,9 +166,44 @@ export const platformTargetSchema = z
     }
   });
 export const platformConfigurationSchema = z
-  .object({ targets: z.array(platformTargetSchema).max(3) })
+  .object({
+    targets: z.array(platformTargetSchema).max(3),
+    environments: z
+      .array(
+        z
+          .object({
+            name: environmentName,
+            purpose: z.enum(["development", "test", "production"]),
+          })
+          .strict(),
+      )
+      .max(20)
+      .optional(),
+  })
   .strict()
   .superRefine((v, ctx) => {
+    if (v.environments) {
+      if (
+        new Set(v.environments.map((e) => e.name)).size !==
+        v.environments.length
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Shared environment names must be unique",
+        });
+      for (const target of v.targets)
+        for (const env of target.environments) {
+          if (
+            !v.environments.some(
+              (e) => e.name === env.name && e.purpose === env.purpose,
+            )
+          )
+            ctx.addIssue({
+              code: "custom",
+              message: "Target bindings must match a shared environment",
+            });
+        }
+    }
     if (new Set(v.targets.map((t) => t.provider)).size !== v.targets.length)
       ctx.addIssue({
         code: "custom",

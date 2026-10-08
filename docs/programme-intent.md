@@ -119,3 +119,20 @@ These choices are authoring intent. Applying them to project definitions is plan
 so the review always reports that binding separately from existing provider support.
 The shared defaults do not alter planner behaviour, replace reviewed flow/source
 semantics, override project policy or silently fall back from a planned option.
+
+## Shared environments and project target responsibilities
+
+Platform configuration may declare a common `environments` catalogue containing
+name/purpose pairs. Each target keeps its resource, authentication and secret-reference
+bindings; when a catalogue exists, bindings must match it. Older per-target-only
+configuration remains readable without an automatic migration.
+
+Programme project references may include `targets`, each with a configured platform
+provider and distinct ingestion, transformation, presentation or orchestration
+responsibilities. Core rejects unknown or duplicate providers, missing profiles and
+invalid responsibilities. Several targets may participate in the same layer.
+
+This is persisted planning intent. It does not modify project compiler configuration,
+apply overrides, regenerate WBS dependencies when a project changes platform, or
+provision resources. Installed candidate acceptance belongs to Studio's multi-target
+workflow evidence; public core dependency pins are unchanged.
