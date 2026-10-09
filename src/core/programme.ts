@@ -83,6 +83,15 @@ export function saveProgramme(
       "CONFLICT",
       "Programme changed since it was opened. Reload before saving.",
     );
+    for (const previous of current.document?.projects ?? []) {
+      if (!previous.compilerId) continue;
+      check(
+        document.projects.find((project) => project.id === previous.id)
+          ?.compilerId === previous.compilerId,
+        "CONFLICT",
+        "Registered project identities cannot be removed or reassigned",
+      );
+    }
     writeFileSync(temp, raw, { flag: "wx", mode: 0o600 });
     const out = openSync(temp, "r");
     try {

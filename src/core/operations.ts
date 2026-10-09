@@ -20,6 +20,11 @@ import {
 } from "./programme-schema.js";
 import { readProgramme, saveProgramme } from "./programme.js";
 import {
+  inspectProgrammeDefinition,
+  proposeProgrammeRegistration,
+  programmeRegistrationSchema,
+} from "./programme-definition.js";
+import {
   buildRetainSchema,
   buildRetainedSchema,
   retainBuild,
@@ -142,6 +147,8 @@ export const operationSchemas = {
   connection_flows_review: sourceFlowsSchema,
   programme_project_template: programmeProjectTemplateSchema,
   programme_read: programmeReadSchema,
+  programme_definition_inspect: programmeReadSchema,
+  programme_registration_propose: programmeRegistrationSchema,
   programme_save: programmeSaveSchema,
   delivery_plan_check: z
     .object({
@@ -643,6 +650,12 @@ export function execute(
                 items: reviewGeneration(t),
               })),
           );
+        break;
+      case "programme_definition_inspect":
+        result = inspectProgrammeDefinition(root, args.id);
+        break;
+      case "programme_registration_propose":
+        result = proposeProgrammeRegistration(root, args);
         break;
       case "programme_save":
         write();

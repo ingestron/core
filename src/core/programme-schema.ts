@@ -14,6 +14,12 @@ const projectId = z
   );
 const short = z.string().trim().max(200);
 const text = z.string().trim().max(4000);
+export const compilerProjectId = z
+  .string()
+  .regex(/^[A-Za-z_][A-Za-z0-9_-]{0,79}$/)
+  .refine(
+    (value) => !["__proto__", "constructor", "prototype"].includes(value),
+  );
 export const programmeSchema = z
   .object({
     apiVersion: z.literal("ingestron.programme/v1"),
@@ -32,6 +38,7 @@ export const programmeSchema = z
           .object({
             id: projectId,
             name: short.min(1),
+            compilerId: compilerProjectId.optional(),
             platformId: id.optional(),
             targets: z
               .array(
@@ -179,6 +186,11 @@ export const programmeSchema = z
     if (new Set(keys).size !== keys.length)
       fail("Duplicate work item key", ["requirements"]);
     const projects = new Set(doc.projects.map((p) => p.id));
+    const compilerIds = doc.projects.flatMap((p) =>
+      p.compilerId ? [p.compilerId] : [],
+    );
+    if (new Set(compilerIds).size !== compilerIds.length)
+      fail("Compiler project IDs must be distinct", ["projects"]);
     const platforms = new Set((doc.platforms ?? []).map((p) => p.id));
     if (platforms.size !== (doc.platforms ?? []).length)
       fail("Duplicate platform ID", ["platforms"]);
