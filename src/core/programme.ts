@@ -1,52 +1,22 @@
 import { withWorkItemKeys } from "./programme-keys.js";
-import {
-  openSync,
-  closeSync,
-  readFileSync,
-  writeFileSync,
-  renameSync,
-  unlinkSync,
-  existsSync,
-  lstatSync,
-  fsyncSync,
-} from "node:fs";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
-import { check, digest } from "./errors.js";
+import { check, canonical } from "./errors.js";
 import { programmeSchema, type Programme } from "./programme-schema.js";
-const maxBytes = 512 * 1024;
-/** Programme intent has its own explicitly registered root; no project or provider is loaded. */
+import {
+  loadProgrammeStorage,
+  programmeYamlFiles,
+  programmeLimit,
+  programmeBytes,
+} from "./programme-storage.js";
+import {
+  assertProgrammeReadable,
+  withProgrammeWrite,
+  programmeTransaction,
+} from "./programme-transaction.js";
+/** Storage does not change the resolved operation model or authorised root. */
 export function readProgramme(root: string, id: string) {
-  const file = join(root, "programme.json");
-  if (!existsSync(file)) {
-    // Broken symlinks also must not become write targets.
-    try {
-      check(
-        !lstatSync(file).isSymbolicLink(),
-        "PATH",
-        "Programme file cannot be a symbolic link",
-      );
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-    }
-    return { document: null, digest: null };
-  }
-  const stat = lstatSync(file);
-  check(
-    stat.isFile() && !stat.isSymbolicLink() && stat.size <= maxBytes,
-    "PATH",
-    "Programme file must be a bounded regular file",
-  );
-  const raw = readFileSync(file);
-  const document = withWorkItemKeys(
-    programmeSchema.parse(JSON.parse(raw.toString("utf8"))),
-  );
-  check(
-    document.id === id,
-    "PROGRAMME",
-    "Programme identity does not match the registered folder",
-  );
-  return { document, digest: digest(raw) };
+  assertProgrammeReadable(root);
+  const { document, digest } = loadProgrammeStorage(root, id);
+  return { document, digest };
 }
 export function saveProgramme(
   root: string,
@@ -60,24 +30,8 @@ export function saveProgramme(
     "PROGRAMME",
     "Programme identity cannot be changed",
   );
-  const raw = JSON.stringify(document, null, 2) + "\n";
-  check(
-    Buffer.byteLength(raw) <= maxBytes,
-    "LIMIT",
-    "Programme document exceeds 512 KiB",
-  );
-  const lock = join(root, ".programme-write.lock");
-  let fd: number;
-  try {
-    fd = openSync(lock, "wx", 0o600);
-  } catch {
-    throw new Error(
-      "Programme is being saved; retry after the other writer completes",
-    );
-  }
-  const temp = join(root, `.programme-${randomUUID()}.tmp`);
-  try {
-    const current = readProgramme(root, id);
+  return withProgrammeWrite(root, () => {
+    const current = loadProgrammeStorage(root, id);
     check(
       current.digest === expectedDigest,
       "CONFLICT",
@@ -92,18 +46,37 @@ export function saveProgramme(
         "Registered project identities cannot be removed or reassigned",
       );
     }
-    writeFileSync(temp, raw, { flag: "wx", mode: 0o600 });
-    const out = openSync(temp, "r");
-    try {
-      fsyncSync(out);
-    } finally {
-      closeSync(out);
-    }
-    renameSync(temp, join(root, "programme.json"));
-    return { document, digest: digest(raw) };
-  } finally {
-    if (existsSync(temp)) unlinkSync(temp);
-    closeSync(fd);
-    unlinkSync(lock);
-  }
+    const files =
+      current.format === "yaml"
+        ? programmeYamlFiles(document, current)
+        : { "programme.json": JSON.stringify(document, null, 2) + "\n" };
+    check(
+      Object.values(files).reduce((n, raw) => n + Buffer.byteLength(raw), 0) <=
+        programmeLimit,
+      "LIMIT",
+      "Programme document exceeds 512 KiB",
+    );
+    const before: Record<string, string | null> = { ...current.files },
+      after: Record<string, string | null> = { ...files };
+    for (const name of Object.keys(files))
+      if (!Object.hasOwn(before, name)) {
+        check(
+          programmeBytes(root, name) === null,
+          "OWNER",
+          "New programme definition would overwrite an existing file",
+        );
+        before[name] = null;
+      }
+    for (const name of Object.keys(current.files))
+      if (!Object.hasOwn(files, name)) after[name] = null;
+    programmeTransaction(root, before, after, () => {
+      check(
+        canonical(loadProgrammeStorage(root, id).document) ===
+          canonical(document),
+        "PROGRAMME",
+        "Saved programme did not round-trip; original files restored",
+      );
+    });
+    return readProgramme(root, id);
+  });
 }

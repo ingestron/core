@@ -1,4 +1,17 @@
 import {
+  programmeManifestSchema,
+  platformDefinitionSchema,
+  platformEnvironmentSchema,
+  requirementsDefinitionSchema,
+} from "./programme-storage-schema.js";
+import {
+  programmeMigrationSchema,
+  programmeMigrationApplySchema,
+  inspectProgrammeStorage,
+  reviewProgrammeMigration,
+  applyProgrammeMigration,
+} from "./programme-migration.js";
+import {
   buildReviewSchema,
   buildApplySchema,
   reviewBuild,
@@ -32,6 +45,7 @@ import {
 import {
   programmeReadSchema,
   programmeSaveSchema,
+  programmeSchema,
 } from "./programme-schema.js";
 import { readProgramme, saveProgramme } from "./programme.js";
 import {
@@ -165,6 +179,9 @@ export const operationSchemas = {
   connection_flows_review: sourceFlowsSchema,
   programme_project_template: programmeProjectTemplateSchema,
   programme_read: programmeReadSchema,
+  programme_storage_inspect: programmeReadSchema,
+  programme_migration_review: programmeMigrationSchema,
+  programme_migration_apply: programmeMigrationApplySchema,
   programme_definition_inspect: programmeReadSchema,
   programme_registration_propose: programmeRegistrationSchema,
   programme_save: programmeSaveSchema,
@@ -397,6 +414,11 @@ export const operationSchemas = {
   schema: z
     .object({
       name: z.enum([
+        "programme",
+        "programme-manifest",
+        "platform-definition",
+        "platform-environment",
+        "requirements-definition",
         "project",
         "source",
         "flow",
@@ -659,6 +681,16 @@ export function execute(
         break;
       case "programme_project_template":
         result = programmeProjectTemplate(args);
+        break;
+      case "programme_storage_inspect":
+        result = inspectProgrammeStorage(root, args.id);
+        break;
+      case "programme_migration_review":
+        result = reviewProgrammeMigration(root, args);
+        break;
+      case "programme_migration_apply":
+        write();
+        result = applyProgrammeMigration(root, args);
         break;
       case "programme_read":
         result = readProgramme(root, args.id);
@@ -1121,6 +1153,11 @@ export function execute(
         result = z.toJSONSchema(
           (
             {
+              programme: programmeSchema,
+              "programme-manifest": programmeManifestSchema,
+              "platform-definition": platformDefinitionSchema,
+              "platform-environment": platformEnvironmentSchema,
+              "requirements-definition": requirementsDefinitionSchema,
               project: projectSchema,
               source: workflows.sourceSchema,
               flow: flowSchema,

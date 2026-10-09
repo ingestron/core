@@ -1,18 +1,13 @@
 import { z } from "zod";
-import { relative, dirname, resolve, isAbsolute, join } from "node:path";
-import {
-  existsSync,
-  readFileSync,
-  openSync,
-  closeSync,
-  unlinkSync,
-} from "node:fs";
+import { relative, dirname, resolve, isAbsolute } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import addFormats from "ajv-formats";
 import { parseDocument, stringify, visit } from "yaml";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
 import { canonical, check, digest } from "./errors.js";
 import { readProgramme } from "./programme.js";
+import { withProgrammeWrite } from "./programme-transaction.js";
 import { compilerProjectId } from "./programme-schema.js";
 import { platformProvider } from "./platform-schema.js";
 import { projectSchema } from "./schema.js";
@@ -523,16 +518,7 @@ export function applyPlatformBinding(
     "Review belongs to another programme root",
   );
   // Serialise against programme saves while the project transaction verifies and applies.
-  const lock = join(programme.root, ".programme-write.lock");
-  let fd: number;
-  try {
-    fd = openSync(lock, "wx", 0o600);
-  } catch {
-    throw new Error(
-      "Programme is being saved; retry after the other writer completes",
-    );
-  }
-  try {
+  return withProgrammeWrite(programme.root, () => {
     const current = source(programme);
     check(
       review.programmeId === programme.id &&
@@ -552,10 +538,7 @@ export function applyPlatformBinding(
       "Binding review inputs changed or the proposal was altered; review again",
     );
     return apply(root, fresh.proposal as Proposal);
-  } finally {
-    closeSync(fd);
-    unlinkSync(lock);
-  }
+  });
 }
 export function verifyBuildBindings(
   root: string,

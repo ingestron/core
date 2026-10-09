@@ -99,3 +99,69 @@ Direct `build` remains supported and uses the same renderer. The new operations
 prove offline generation only; neither operation authorises deployment, source
 access or execution. User interfaces should retain the complete proposal in their
 trusted host and expose only an expiring, project/environment-scoped review token.
+
+## Optional split YAML storage (local candidate 0.12.60)
+
+Legacy `programme.json` remains readable and writable without migration. The
+optional `programme.yaml` manifest uses `ingestron.programme/v2`, with explicit
+`requirements: {$resolve: ./planning/requirements.yaml}` and platform entries
+`{id: PLAT-1, definition: ./platforms/PLAT-1/platform.yaml}`. Project registrations
+remain inline logical IDs and compiler IDs; they do not grant access to project
+folders. The registered programme root does not move.
+
+The requirements file wraps the complete existing list in
+`{apiVersion: ingestron.requirements/v1, requirements: [...]}`. Each platform uses
+`ingestron.platform/v1` with its existing `id`, `name` and optional `configuration`.
+The configuration retains the shared environment catalogue and target settings.
+Each target's `environments` becomes an array of `{$resolve: ./environments/<provider>/<name>.yaml}`.
+Each referenced profile uses `ingestron.platform-environment/v1`, its `provider`,
+and the existing profile fields. Shared catalogues do not create missing target
+profiles or project environments. Only secret references enter these documents.
+
+`programme_read`, `programme_save`, definition inspection, platform configuration,
+bindings and generation still consume the canonical v1 document. YAML saves use a
+digest over all referenced paths and raw file hashes, so editing any fragment
+invalidates a stale save. No-op saves preserve raw bytes; edited saves reconcile
+YAML document nodes to retain comments and ordering on surviving fields. Deleting
+an item deletes its associated comments. Existing reference paths are retained;
+new profile paths derive from stable platform/provider/environment identities.
+
+All references must be explicit local `./` YAML paths beneath the registered root.
+Traversal, remote references, symbolic links (including dangling links), duplicate
+file identities, duplicate mapping keys, aliases, anchors and explicit tags are
+rejected. The aggregate definition limit is 512 KiB, with bounded references and
+structure. Unsupported legacy fields fail validation; they are never silently
+removed during migration. Competing JSON/YAML authorities or `programme.yml` fail
+with `AMBIGUOUS`.
+
+### Review, apply and exact rollback
+
+Run these through `ingestron --project <programme-root> --json --no-input operation
+<operation>`, passing the input JSON on stdin. Only apply requires `--allow-write`.
+
+- `programme_storage_inspect {id}` lists active files, their digests, the storage
+  format and eligible rollback receipts.
+- `programme_migration_review {id, direction: "to-yaml"}` returns an
+  `ingestron.programme-migration-review/v1` proposal. It lists preserved IDs and
+  work-item count, file changes, input hashes, minimum core version and backup path.
+- `programme_migration_apply {id, proposal}` re-derives and compares the complete
+  review under the programme write lock, stages all writes, checks current bytes,
+  applies the changes and verifies the resolved document is unchanged.
+- `programme_migration_review {id, direction: "restore-json", migration: <source-hash>}`
+  reviews restoration of the exact original JSON bytes. Apply this proposal through
+  the same operation. Rollback refuses to discard any later YAML edit, including
+  comments or whitespace. Use Git to deliberately reconcile later edits.
+
+The original is retained at `.programme-migrations/<source-hash>/programme.json`
+alongside a receipt. Commit both with the migrated definitions. A caught I/O failure
+restores changed files, and readers reject another process's active write lock.
+This is not a crash-recovery journal: process termination or persistent filesystem
+failure requires operator recovery from the backup/Git and inspection of the lock.
+Do not claim cross-process filesystem atomicity against arbitrary external editors.
+
+A storage-only migration preserves the canonical digest used by platform bindings.
+A logical shared-definition edit still makes those bindings stale. Studio must hold
+raw proposals in its trusted host, bind one-use tokens to the programme/editor,
+and refuse to migrate an unsaved draft. Existing CLI installations need core
+0.12.60 or later to read this YAML; do not migrate shared repositories before their
+other editors and automation are upgraded. Public dependency pins are unchanged.

@@ -190,6 +190,44 @@ function setup(t: any) {
   };
 }
 
+test("programme YAML migration leaves reviewed binding digests current and later platform edits make them stale", (t) => {
+  const f = setup(t);
+  assert.equal(f.apply(f.review()).ok, true);
+  const shared = (operation: string, args: any, allowWrite = false) =>
+    execute({ root: f.programme.root, allowWrite }, operation, args);
+  const before = readFileSync(join(f.root, "project.yaml"));
+  const proposal = shared("programme_migration_review", {
+    id: f.programme.id,
+    direction: "to-yaml",
+  });
+  assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  const migrated = shared(
+    "programme_migration_apply",
+    { id: f.programme.id, proposal: proposal.result },
+    true,
+  );
+  assert.equal(migrated.ok, true, JSON.stringify(migrated));
+  assert.doesNotThrow(() => verifyBuildBindings(f.root, "dev", f.programme));
+  const read = shared("programme_read", { id: f.programme.id }).result;
+  read.document.platforms[0].configuration.targets[0].environments[0].configuration.workspaceUrl =
+    "https://changed.invalid";
+  const saved = shared(
+    "programme_save",
+    {
+      id: f.programme.id,
+      expectedDigest: read.digest,
+      document: read.document,
+    },
+    true,
+  );
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  assert.throws(
+    () => verifyBuildBindings(f.root, "dev", f.programme),
+    /changed|stale/i,
+  );
+  assert.deepEqual(readFileSync(join(f.root, "project.yaml")), before);
+});
+
 test("explicit project dev to shared test binding preserves other environments and shared intent", (t) => {
   const f = setup(t),
     before = readFileSync(
