@@ -425,3 +425,21 @@ test("altered review writes and provider cache changes are refused before materi
   );
   assert.equal(f.apply(proposal).diagnostics[0]?.code, "STALE");
 });
+
+test("copying environment bindings cannot reuse another environment's reviewed provider during a build", (t) => {
+  const f = setup(t);
+  assert.equal(f.apply(f.review()).ok, true);
+  const raw = parse(readFileSync(join(f.root, "project.yaml"), "utf8"));
+  raw.flows = [{ $resolve: "./flows/source/flow.yaml" }];
+  raw.defaults.provider = "warehouse_dev";
+  f.put("project.yaml", raw);
+  const copied = parse(
+    readFileSync(join(f.root, "environments/dev.yaml"), "utf8"),
+  );
+  copied.environment = "uat";
+  f.put("environments/uat.yaml", copied);
+  assert.throws(
+    () => buildProject(f.root, "uat", { programme: f.programme }),
+    /reviewed for dev, not uat/,
+  );
+});

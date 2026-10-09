@@ -1,5 +1,8 @@
 /** One build path: native compilation and connector preparation feed provider assembly. */
-import { verifyBuildBindings } from "./platform-binding.js";
+import {
+  verifyBuildBindings,
+  assertBindingEnvironments,
+} from "./platform-binding.js";
 import { existsSync, readFileSync } from "node:fs";
 import { dataProducts } from "./governance.js";
 import {
@@ -402,6 +405,7 @@ export function buildProject(root: string, environment: string, args: any) {
   );
   // The existing planner owns native standards, resources, handovers and dependency validation.
   const targetNames = new Set(flows.filter((f) => wanted.has(f.id)).map(owner));
+  assertBindingEnvironments(project, environment, targetNames);
   const candidates = new Set(
     flows
       .filter(
@@ -475,6 +479,7 @@ export function buildProject(root: string, environment: string, args: any) {
   const configurations = [
     ...new Set(flows.filter((f) => wanted.has(f.id)).map(owner)),
   ].sort();
+  assertBindingEnvironments(project, environment, configurations);
   check(
     !(
       args.flow ||

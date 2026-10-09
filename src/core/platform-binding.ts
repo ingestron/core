@@ -599,3 +599,19 @@ export function verifyBuildBindings(
       );
   }
 }
+
+/** A copied environment does not inherit another environment's reviewed provider authority. */
+export function assertBindingEnvironments(
+  project: z.infer<typeof projectSchema>,
+  environment: string,
+  configurations: Iterable<string>,
+) {
+  const selected = new Set(configurations);
+  for (const binding of Object.values(project.platformBindings ?? {}))
+    if (selected.has(binding.configuration))
+      check(
+        binding.projectEnvironment === environment,
+        "BINDING",
+        `Provider configuration ${binding.configuration} was reviewed for ${binding.projectEnvironment}, not ${environment}; review a separate binding for this environment`,
+      );
+}

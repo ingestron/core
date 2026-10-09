@@ -26,7 +26,7 @@ write locking still apply.
 
 ## Reviewed platform bindings
 
-Local candidate 0.12.57 adds three operations. Each uses the selected compiler
+Local candidate 0.12.58 adds three operations. Each uses the selected compiler
 project root and environment from the operation context. `programme: {id, root}`
 is an explicit, absolute authorised shared root supplied by the CLI user or host;
 project YAML cannot grant access to another folder.
@@ -74,3 +74,7 @@ platform definitions to YAML, deploy resources, resolve credentials or execute
 cloud work. The Databricks candidate supports explicit CLI authentication and
 non-production bindings without secret references; other authentication methods,
 production settings and secret adapters fail closed until implemented.
+
+A copied environment cannot build with a provider configuration reviewed for a
+different project environment. Each selected configuration needs a binding for
+that environment; matching or copied resource references do not transfer consent.
