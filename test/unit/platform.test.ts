@@ -98,7 +98,11 @@ test("platform schema preserves provider-specific configuration and rejects unsa
     assert.equal(save(document).ok, true);
     assert.deepEqual(
       execute({ root }, "programme_read", { id: "retail" }).result.document,
-      document,
+      {
+        ...document,
+        nextWorkItemNumber: 1,
+        requirements: document.requirements.map((r) => ({ ...r, key: r.id })),
+      },
     );
     const catalogue = execute({ root }, "programme_platform_catalogue", {
       id: "retail",

@@ -170,7 +170,11 @@ test("programme work hierarchy, milestones, areas and external IDs preserve sync
     assert.equal(first.ok, true, JSON.stringify(first));
     assert.deepEqual(
       execute({ root }, "programme_read", { id: "retail" }).result.document,
-      document,
+      {
+        ...document,
+        nextWorkItemNumber: 1,
+        requirements: document.requirements.map((r) => ({ ...r, key: r.id })),
+      },
     );
     for (const patch of [
       { parentId: "TASK-1" },
@@ -225,7 +229,11 @@ test("programme project references accept opaque workspace identities", () => {
     assert.equal(saved.ok, true, JSON.stringify(saved));
     assert.deepEqual(
       execute({ root }, "programme_read", { id: doc.id }).result.document,
-      document,
+      {
+        ...document,
+        nextWorkItemNumber: 1,
+        requirements: document.requirements.map((r) => ({ ...r, key: r.id })),
+      },
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

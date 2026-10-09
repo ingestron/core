@@ -1,3 +1,4 @@
+import { withWorkItemKeys } from "./programme-keys.js";
 import {
   openSync,
   closeSync,
@@ -37,7 +38,9 @@ export function readProgramme(root: string, id: string) {
     "Programme file must be a bounded regular file",
   );
   const raw = readFileSync(file);
-  const document = programmeSchema.parse(JSON.parse(raw.toString("utf8")));
+  const document = withWorkItemKeys(
+    programmeSchema.parse(JSON.parse(raw.toString("utf8"))),
+  );
   check(
     document.id === id,
     "PROGRAMME",
@@ -51,7 +54,7 @@ export function saveProgramme(
   expectedDigest: string | null,
   input: Programme,
 ) {
-  const document = programmeSchema.parse(input);
+  const document = withWorkItemKeys(programmeSchema.parse(input));
   check(
     document.id === id,
     "PROGRAMME",

@@ -1,3 +1,4 @@
+import { withWorkItemKeys } from "./programme-keys.js";
 import { z } from "zod";
 import { programmeSchema, type Programme } from "./programme-schema.js";
 import { digest, check } from "./errors.js";
@@ -140,13 +141,16 @@ export function programmeProjectTemplate(
         doc.requirements.some(
           (r) =>
             r.id === id &&
+            (!r.area ||
+              r.area.kind === "programme" ||
+              (r.area.kind === "platform" && r.area.id === platform.id)) &&
             ["requirement", "policy", "standard"].includes(
               r.kind ?? "requirement",
             ),
         ),
       ),
     "PROGRAMME",
-    "Select existing requirements, policies and standards",
+    "Select programme requirements or requirements owned by this platform",
   );
   const product = add(
     projectArea,
@@ -268,5 +272,8 @@ export function programmeProjectTemplate(
     [deployment],
     "deployment",
   );
-  return { document: programmeSchema.parse(doc), digest: null };
+  return {
+    document: withWorkItemKeys(programmeSchema.parse(doc)),
+    digest: null,
+  };
 }

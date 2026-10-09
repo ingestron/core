@@ -136,3 +136,27 @@ This is persisted planning intent. It does not modify project compiler configura
 apply overrides, regenerate WBS dependencies when a project changes platform, or
 provision resources. Installed candidate acceptance belongs to Studio's multi-target
 workflow evidence; public core dependency pins are unchanged.
+
+## Scoped starter requirements and human keys
+
+`programme_requirements_template` is a read-only proposal operation. It accepts
+`id`, `document`, `area` (`kind` and `id`), `owner` and `selected` starter IDs. Empty
+selection returns the available `requirementStarters` catalogue. Explicit selection
+adds draft requirements with acceptance criteria, current owner and scope; the
+existing programme save operation persists the result with optimistic concurrency.
+Repeated selection of a starter in the same scope is idempotent.
+
+Programme starters cover outcomes and governance. Platform starters cover shared
+technical obligations and selected target policies/standards. Project starters cover
+data-product acceptance and implementation choices for assigned targets. Shared
+policies are not copied into project ownership. Provider-specific starters carry
+optional `targetProvider` applicability. Existing reviewed records are not rewritten
+when target settings change, and no compliance or execution evidence is inferred.
+
+Programme documents can contain `nextWorkItemNumber`; work items can contain a short
+`key`. Read/save/template operations allocate missing keys without changing internal
+IDs, parent/dependency references or external tracker IDs. Existing short IDs retain
+their labels. Allocation is deterministic for an unchanged document and persisted
+on the next write. Project-plan selection rejects obligations from unrelated project
+or platform scopes; selected obligations retain their original identity and become
+basis links on proposed delivery tasks.

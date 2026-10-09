@@ -20,6 +20,7 @@ export const programmeSchema = z
     id,
     name: short.min(1),
     objective: text,
+    nextWorkItemNumber: z.number().int().positive().optional(),
     sponsor: short,
     people: z.array(short.min(1)).max(200).optional(),
     stakeholders: z
@@ -76,6 +77,11 @@ export const programmeSchema = z
           .object({
             id,
             title: short.min(1),
+            targetProvider: platformProvider.optional(),
+            key: z
+              .string()
+              .regex(/^[A-Za-z][A-Za-z0-9_-]{0,19}$/)
+              .optional(),
             kind: z
               .enum([
                 "epic",
@@ -169,6 +175,9 @@ export const programmeSchema = z
         seen.add(item.id);
       });
     }
+    const keys = doc.requirements.map((r) => r.key).filter(Boolean);
+    if (new Set(keys).size !== keys.length)
+      fail("Duplicate work item key", ["requirements"]);
     const projects = new Set(doc.projects.map((p) => p.id));
     const platforms = new Set((doc.platforms ?? []).map((p) => p.id));
     if (platforms.size !== (doc.platforms ?? []).length)

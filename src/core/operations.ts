@@ -1,3 +1,7 @@
+import {
+  requirementsTemplateSchema,
+  requirementsTemplate,
+} from "./requirements-catalogue.js";
 import { reviewGeneration } from "./platform-generation.js";
 import { platformCatalogue } from "./platform-catalogue.js";
 import {
@@ -105,6 +109,7 @@ import * as workflows from "./workflows.js";
 import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
+  programme_requirements_template: requirementsTemplateSchema,
   programme_platform_catalogue: z.object({ id: z.string() }).strict(),
   programme_secret_status: platformSecretSchema,
   programme_secret_set: platformSecretSetSchema,
@@ -620,6 +625,9 @@ export function execute(
       case "programme_secret_set":
         write();
         result = platformSecretSet(root, args);
+        break;
+      case "programme_requirements_template":
+        result = requirementsTemplate(args);
         break;
       case "programme_project_template":
         result = programmeProjectTemplate(args);
