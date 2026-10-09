@@ -1,4 +1,10 @@
 import {
+  buildReviewSchema,
+  buildApplySchema,
+  reviewBuild,
+  applyBuild,
+} from "./build-review.js";
+import {
   programmeSourceSchema,
   bindingInspectSchema,
   bindingProposeSchema,
@@ -366,6 +372,8 @@ export const operationSchemas = {
     })
     .strict(),
   flow_show: z.object({ id: workflows.identifier }).strict(),
+  build_review: buildReviewSchema,
+  build_apply: buildApplySchema,
   build: z
     .object({
       programme: programmeSourceSchema.optional(),
@@ -985,6 +993,13 @@ export function execute(
       case "platform_binding_apply":
         write();
         result = applyPlatformBinding(root, args.programme, args.proposal);
+        break;
+      case "build_review":
+        result = reviewBuild(root, environment, args);
+        break;
+      case "build_apply":
+        write();
+        result = applyBuild(root, environment, args);
         break;
       case "build": {
         write();

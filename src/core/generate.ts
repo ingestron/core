@@ -141,6 +141,7 @@ export function writeOutput(
   plan: Pick<Plan, "project" | "environment" | "selection" | "digest">,
   files: Files,
   ownership: "managed" | "team" = "managed",
+  beforeWrite?: () => void,
 ) {
   directory = resolve(directory);
   check(
@@ -150,10 +151,11 @@ export function writeOutput(
   );
   return withBuildGuard(directory, () => {
     assertBuildIdle(directory);
+    beforeWrite?.();
     return writeOutputOwned(directory, plan, files, ownership);
   });
 }
-function writeOutputOwned(
+export function inspectOutputOwnership(
   directory: string,
   plan: Pick<Plan, "project" | "environment" | "selection" | "digest">,
   files: Files,
@@ -165,10 +167,11 @@ function writeOutputOwned(
     "PATH",
     "Output directory cannot be a symlink",
   );
-  mkdirSync(directory, { recursive: true });
-  directory = realpathSync(directory);
   check(
-    !readdirSync(directory).includes(".ingestron-retained-build.json"),
+    !(
+      existsSync(directory) &&
+      readdirSync(directory).includes(".ingestron-retained-build.json")
+    ),
     "OWNER",
     "Retained baselines cannot be regenerated; select the working build directory",
   );
@@ -184,7 +187,7 @@ function writeOutputOwned(
   if (ownership === "team") {
     check(
       !previous &&
-        readdirSync(directory).every(
+        (existsSync(directory) ? readdirSync(directory) : []).every(
           (name) => name === ".ingestron-generate.lock",
         ),
       "OWNER",
@@ -223,6 +226,23 @@ function writeOutputOwned(
       "OWNER",
       `Refusing to overwrite unowned file ${name}`,
     );
+  return { previous, files };
+}
+function writeOutputOwned(
+  directory: string,
+  plan: Pick<Plan, "project" | "environment" | "selection" | "digest">,
+  inputFiles: Files,
+  ownership: "managed" | "team" = "managed",
+) {
+  const { previous, files } = inspectOutputOwnership(
+    directory,
+    plan,
+    inputFiles,
+    ownership,
+  );
+  mkdirSync(directory, { recursive: true });
+  directory = realpathSync(directory);
+  const manifestFile = outputPath(directory, manifestName);
   // Output directories own exactly one generation scope. Remove only unchanged owned files.
   const merged = Object.fromEntries(
     Object.entries(files).map(([name, text]) => [

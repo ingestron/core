@@ -78,3 +78,24 @@ production settings and secret adapters fail closed until implemented.
 A copied environment cannot build with a provider configuration reviewed for a
 different project environment. Each selected configuration needs a binding for
 that environment; matching or copied resource references do not transfer consent.
+
+## Reviewed local generation
+
+`build_review` accepts the same authorised programme source and selected environment
+as `build`, with optional flow, provider and profile selection. It renders through
+the shared project compiler without writing output. Its versioned review lists
+included flows, data contracts, pinned packages, file changes and digests. Empty
+projects fail with `BUILD`; they do not produce a successful empty deliverable.
+
+`build_apply` requires write permission, the entire returned proposal and the
+host-supplied programme source again. Programme root authority is never taken from
+the review. Apply re-renders and rejects changed definitions, compiler, packages,
+environment, root or output. It checks output again under the generation guard,
+then uses the existing managed-output ownership and rollback path. Edited,
+unowned, retained and team-maintained output remains protected. The review reads
+at most 12,000 output entries and 32 MiB and rejects symlinks and special files.
+
+Direct `build` remains supported and uses the same renderer. The new operations
+prove offline generation only; neither operation authorises deployment, source
+access or execution. User interfaces should retain the complete proposal in their
+trusted host and expose only an expiring, project/environment-scoped review token.

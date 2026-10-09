@@ -330,7 +330,11 @@ function transformationOutputQuality(
   );
 }
 
-export function buildProject(root: string, environment: string, args: any) {
+export function renderProjectBuild(
+  root: string,
+  environment: string,
+  args: any,
+) {
   verifyBuildBindings(root, environment, args.programme);
   const inspected = inspectProject(root, environment, args);
   const { project, reader, profile } = inspected;
@@ -766,27 +770,40 @@ export function buildProject(root: string, environment: string, args: any) {
   };
   files["ingestron-project.json"] = JSON.stringify(metadata, null, 2) + "\n";
   validateGeneratedFiles(files);
-  const output = writeOutput(
-    fence(root, args.out),
-    {
+  return {
+    files,
+    metadata,
+    plan: {
       project: project.id,
       environment,
       selection,
       digest: digest(canonical(metadata)),
     },
-    files,
-    args.ownership,
-  );
+    result: {
+      nodes:
+        selectedNative.nodes.length +
+        flows.filter(
+          (f) => wanted.has(f.id) && isPortableConnection(project, f),
+        ).length,
+      packages: packages.map((p) => p.configuration),
+      scope: selection,
+      evidence:
+        "Project assets generated locally; no deployment or source execution",
+    },
+  };
+}
+
+/** Direct and reviewed builds share this exact renderer and output ownership path. */
+export function buildProject(root: string, environment: string, args: any) {
+  const rendered = renderProjectBuild(root, environment, args);
   return {
-    ...output,
+    ...writeOutput(
+      fence(root, args.out),
+      rendered.plan,
+      rendered.files,
+      args.ownership,
+    ),
     directory: args.out,
-    nodes:
-      selectedNative.nodes.length +
-      flows.filter((f) => wanted.has(f.id) && isPortableConnection(project, f))
-        .length,
-    packages: packages.map((p) => p.configuration),
-    scope: selection,
-    evidence:
-      "Project assets generated locally; no deployment or source execution",
+    ...rendered.result,
   };
 }
