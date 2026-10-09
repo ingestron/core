@@ -1,4 +1,12 @@
 import {
+  flowEditorCreateSchema,
+  createFlowEditor,
+  flowEditorReadSchema,
+  flowEditorReviewSchema,
+  readFlowEditor,
+  reviewFlowEditor,
+} from "./flow-editor.js";
+import {
   programmeManifestSchema,
   platformDefinitionSchema,
   platformEnvironmentSchema,
@@ -388,6 +396,9 @@ export const operationSchemas = {
       contract: z.string().optional(),
     })
     .strict(),
+  flow_editor_create: flowEditorCreateSchema,
+  flow_editor_read: flowEditorReadSchema,
+  flow_editor_review: flowEditorReviewSchema,
   flow_show: z.object({ id: workflows.identifier }).strict(),
   build_review: buildReviewSchema,
   build_apply: buildApplySchema,
@@ -1009,6 +1020,15 @@ export function execute(
         break;
       case "flow_create":
         result = workflows.flowCreate(root, environment, args);
+        break;
+      case "flow_editor_create":
+        result = createFlowEditor(root, environment, args);
+        break;
+      case "flow_editor_read":
+        result = readFlowEditor(root, args.flow);
+        break;
+      case "flow_editor_review":
+        result = reviewFlowEditor(root, args);
         break;
       case "flow_show": {
         const state = inspectProject(root, environment, { draft: true });

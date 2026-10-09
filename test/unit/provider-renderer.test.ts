@@ -90,3 +90,21 @@ test("provider planning is isolated, synchronous and structurally bounded", () =
   ])
     assert.throws(() => expandProvider(code, {}));
 });
+
+test("separate provider phases keep validated input and bound runaway validation", () => {
+  assert.deepEqual(
+    executeProvider(
+      'export function validate(p){p.reviewed=true} export function render(p){if(!p.reviewed)throw Error("unreviewed");return {"ok.txt":{format:"text",value:"reviewed"}}}',
+      {},
+    ),
+    { "ok.txt": { format: "text", value: "reviewed" } },
+  );
+  assert.throws(
+    () =>
+      executeProvider(
+        "export function validate(){while(true){}} export function render(){return {}}",
+        {},
+      ),
+    /interrupted/,
+  );
+});
