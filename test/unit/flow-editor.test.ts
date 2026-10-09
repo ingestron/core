@@ -140,3 +140,94 @@ test("editor cannot follow an escaping logic link", (t) => {
   f.put("flows/result/flow.yaml", flow);
   assert.throws(() => readFlowEditor(f.root, "result"), /leaves the project/);
 });
+
+test("contract metadata round-trips without losing other owners, team roles, descriptions or field annotations", (t) => {
+  const f = setup(t),
+    path = "flows/source/contracts/orders.yaml";
+  const contract = parse(readFileSync(join(f.root, path), "utf8"));
+  contract.description = {
+    purpose: "Source orders",
+    limitations: "Synthetic only",
+  };
+  contract.team = {
+    name: "Retail",
+    members: [
+      {
+        username: "Commercial",
+        role: "owner",
+        description: "Existing accountability",
+      },
+      { username: "Quality", role: "steward" },
+    ],
+  };
+  f.put(path, contract);
+  const s = readFlowEditor(f.root, "result").selected!;
+  assert.equal(
+    s.readiness.find((r) => r.id.endsWith(":identity"))?.ready,
+    false,
+  );
+  const c = s.contracts[0];
+  const edit = {
+    flow: s.id,
+    revision: s.revision,
+    description: s.description,
+    values: {},
+    logic: {},
+    contracts: [
+      {
+        id: c.id,
+        fields: c.fields,
+        metadata: {
+          contractId: "retail.reviewed-orders",
+          name: "Reviewed orders",
+          purpose: "Identify missing orders",
+          owners: ["Commercial", "Operations"],
+        },
+      },
+    ],
+  };
+  assert.throws(
+    () =>
+      reviewFlowEditor(f.root, {
+        ...edit,
+        contracts: [
+          {
+            ...edit.contracts[0],
+            metadata: {
+              ...edit.contracts[0].metadata,
+              contractId: "customers",
+            },
+          },
+        ],
+      }),
+    /already uses/,
+  );
+  apply(f.root, reviewFlowEditor(f.root, edit));
+  const after = parse(readFileSync(join(f.root, path), "utf8"));
+  assert.deepEqual(after.schema, contract.schema);
+  assert.equal(after.id, "retail.reviewed-orders");
+  assert.equal(after.description.limitations, "Synthetic only");
+  assert.equal(after.description.purpose, "Identify missing orders");
+  assert.equal(after.team.name, "Retail");
+  assert.deepEqual(after.team.members.slice(0, 2), contract.team.members);
+  assert.deepEqual(after.team.members[2], {
+    username: "Operations",
+    role: "owner",
+  });
+  assert.equal(
+    after.schema[0].properties[0].description,
+    "Owner-reviewed identifier",
+  );
+  assert.deepEqual(
+    readFlowEditor(f.root, "result").selected!.contracts[0].metadata.owners,
+    ["Commercial", "Operations"],
+  );
+});
+
+test("legacy provider rendering standards do not imply supported flow creation", (t) => {
+  const f = setup(t);
+  const provider = readFlowEditor(f.root).providers[0];
+  assert.equal(provider.available, false);
+  assert.deepEqual(provider.standards, []);
+  assert.deepEqual(provider.kinds, []);
+});

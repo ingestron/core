@@ -191,6 +191,15 @@ export const providerPackageSchema = z
     quality: qualityDeclarationSchema.optional(),
     authoring: z
       .object({
+        flows: z
+          .object({
+            apiVersion: z.literal("ingestron.flow-authoring/v1"),
+            kinds: z.array(z.enum(["ingestion", "transformation"])).min(1),
+            ingestionStandards: z.array(z.string()),
+            prerequisites: z.array(z.string().max(500)).max(20),
+          })
+          .strict()
+          .optional(),
         transformationSettingsSchema: z.record(z.string(), z.unknown()),
       })
       .strict()

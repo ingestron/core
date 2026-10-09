@@ -1,7 +1,7 @@
 import { parseDocument } from "yaml";
 import { flowCreate } from "./workflows.js";
 import { providerReference } from "../plugins/authoring.js";
-import { configuredPackageReference } from "./packages.js";
+import { configuredPackageReference, resolvePackage } from "./packages.js";
 import { projectPackages } from "./project-packages.js";
 import { projectSchema } from "./schema.js";
 import { relative } from "node:path";
@@ -10,6 +10,7 @@ import { z } from "zod";
 import { editableProject, preview } from "./authoring.js";
 import { canonical, check, digest } from "./errors.js";
 import { flowSchema } from "./schema.js";
+import { contractGovernance } from "./governance.js";
 import { contractColumns } from "./contracts.js";
 const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]{0,79}$/);
 const key = z.string().regex(/^[a-f0-9]{64}$/);
@@ -33,6 +34,15 @@ export const flowEditorReviewSchema = z
         z
           .object({
             id: key,
+            metadata: z
+              .object({
+                contractId: z.string().trim().min(1).max(160),
+                name: z.string().trim().min(1).max(160),
+                purpose: z.string().max(4000),
+                owners: z.array(z.string().trim().min(1).max(160)).max(30),
+              })
+              .strict()
+              .optional(),
             fields: z
               .array(
                 z
@@ -71,7 +81,17 @@ function editor(root: string, id: string) {
   }[] = [];
   const logic: { id: string; name: string; language: string; text: string }[] =
     [];
-  const contracts: { id: string; name: string; fields: any[] }[] = [];
+  const contracts: {
+    id: string;
+    name: string;
+    metadata: {
+      contractId: string;
+      name: string;
+      purpose: string;
+      owners: string[];
+    };
+    fields: any[];
+  }[] = [];
   const targets = new Map<string, Location>(),
     files = new Map<string, string>();
   const writable = (location: Location) => {
@@ -203,6 +223,12 @@ function editor(root: string, id: string) {
       contracts.push({
         id: token(location),
         name,
+        metadata: {
+          contractId: value.id,
+          name: value.name ?? value.id,
+          purpose: value.description?.purpose ?? "",
+          owners: contractGovernance(value).owners,
+        },
         fields: value.schema[0].properties.map((f: any) => ({
           original: f.name,
           name: f.name,
@@ -225,7 +251,35 @@ function editor(root: string, id: string) {
       });
     }
   }
-  w.reader.load();
+  const project = w.reader.load();
+  const allContracts = project.flows.flatMap((f: any) =>
+    [
+      ...Object.values<any>(f.tables ?? {}),
+      ...Object.values<any>(f.publishes ?? {}),
+    ].map((o) => o.contract),
+  );
+  const readiness = contracts.flatMap((c) => [
+    {
+      id: `${c.id}:identity`,
+      ready:
+        allContracts.filter((o: any) => o?.id === c.metadata.contractId)
+          .length === 1,
+      message: `${c.name} · Distinct identity`,
+      panel: "contract",
+    },
+    {
+      id: `${c.id}:purpose`,
+      ready: !!c.metadata.purpose.trim(),
+      message: `${c.name} · Business purpose`,
+      panel: "contract",
+    },
+    {
+      id: `${c.id}:owner`,
+      ready: c.metadata.owners.length > 0,
+      message: `${c.name} · Accountable owner`,
+      panel: "contract",
+    },
+  ]);
   writable(selected);
   return {
     w,
@@ -241,6 +295,7 @@ function editor(root: string, id: string) {
       values,
       logic,
       contracts,
+      readiness,
     },
   };
 }
@@ -270,12 +325,19 @@ export function readFlowEditor(root: string, flow?: string) {
           const reference = configuredPackageReference(
             projectPackages(projectSchema.parse(project))[config.package],
           );
-          const { manifest } = providerReference(root, reference);
+          const { manifest } = providerReference(
+            root,
+            resolvePackage(root, reference).reference,
+          );
           const schema: any = manifest.authoring?.transformationSettingsSchema;
           return {
             id,
-            available: !!manifest.lifecycle,
-            standards: manifest.standards ?? [],
+            available: !!manifest.lifecycle && !!manifest.authoring?.flows,
+            kinds: manifest.authoring?.flows?.kinds ?? [],
+            prerequisites: manifest.authoring?.flows?.prerequisites ?? [],
+            standards: (manifest.standards ?? []).filter((s) =>
+              manifest.authoring?.flows?.ingestionStandards.includes(s.id),
+            ),
             settings: Object.entries<any>(schema?.properties ?? {})
               .filter(([, p]) => p.type === "string")
               .map(([name, p]) => ({
@@ -286,7 +348,14 @@ export function readFlowEditor(root: string, flow?: string) {
               })),
           };
         } catch {
-          return { id, available: false, standards: [], settings: [] };
+          return {
+            id,
+            available: false,
+            kinds: [],
+            prerequisites: [],
+            standards: [],
+            settings: [],
+          };
         }
       },
     ),
@@ -336,7 +405,12 @@ export function reviewFlowEditor(
   for (const update of args.contracts) {
     const original = snapshot.contracts.find((c) => c.id === update.id);
     check(original, "AUTHORING", "Unknown output contract");
-    if (canonical(original.fields) === canonical(update.fields)) continue;
+    if (
+      canonical(original.fields) === canonical(update.fields) &&
+      (!update.metadata ||
+        canonical(original.metadata) === canonical(update.metadata))
+    )
+      continue;
     const target = targets.get(update.id)!;
     const node: any = w.document(target.file).getIn(target.prefix, true);
     const value = target.prefix.length
@@ -358,14 +432,75 @@ export function reviewFlowEditor(
     });
     const updated = structuredClone(value);
     updated.schema[0].properties = properties;
+    if (update.metadata) {
+      const m = update.metadata;
+      if (m.contractId !== original.metadata.contractId) {
+        const existing = w.reader
+          .load()
+          .flows.flatMap((f: any) => [
+            ...Object.values<any>(f.tables ?? {}),
+            ...Object.values<any>(f.publishes ?? {}),
+          ]);
+        check(
+          !existing.some((o: any) => o.contract?.id === m.contractId),
+          "CONTRACT_ID",
+          "Another output already uses this contract identity",
+        );
+        check(
+          !args.contracts.some(
+            (c) =>
+              c.id !== update.id && c.metadata?.contractId === m.contractId,
+          ),
+          "CONTRACT_ID",
+          "Choose distinct contract identities",
+        );
+      }
+      updated.id = m.contractId;
+      updated.name = m.name;
+      updated.description = { ...updated.description, purpose: m.purpose };
+      if (canonical(m.owners) !== canonical(original.metadata.owners)) {
+        check(
+          new Set(m.owners).size === m.owners.length,
+          "GOVERNANCE",
+          "Choose each owner once",
+        );
+        const members = Array.isArray(updated.team)
+          ? updated.team
+          : (updated.team?.members ?? []);
+        // Preserve other roles, historical members and retained owner metadata.
+        const current = new Set(original.metadata.owners);
+        const retained = members.filter(
+          (member: any) =>
+            !(
+              /owner/i.test(member.role ?? "") && current.has(member.username)
+            ) || m.owners.includes(member.username),
+        );
+        for (const username of m.owners)
+          if (!current.has(username))
+            retained.push({ username, role: "owner" });
+        updated.team = Array.isArray(updated.team)
+          ? retained
+          : { ...updated.team, members: retained };
+      }
+      for (const name of ["id", "name", "description", "team"])
+        if (
+          updated[name] !== undefined &&
+          canonical(updated[name]) !== canonical(value[name] ?? null)
+        )
+          set(
+            { file: target.file, prefix: [...target.prefix, name] },
+            updated[name],
+          );
+    }
     contractColumns(updated);
-    set(
-      {
-        file: target.file,
-        prefix: [...target.prefix, "schema", 0, "properties"],
-      },
-      properties,
-    );
+    if (canonical(original.fields) !== canonical(update.fields))
+      set(
+        {
+          file: target.file,
+          prefix: [...target.prefix, "schema", 0, "properties"],
+        },
+        properties,
+      );
   }
   for (const file of changed)
     replacements[relative(w.reader.root, file)] = w.document(file).toString();
@@ -402,6 +537,21 @@ export function createFlowEditor(
     "INPUT",
     "Choose an output dataset name for ingestion only",
   );
+  const provider = readFlowEditor(root).providers.find(
+    (p) => p.id === args.provider,
+  );
+  check(
+    provider?.available && provider.kinds.includes(args.kind),
+    "CAPABILITY",
+    "Install a provider that declares support for this flow kind",
+  );
+  check(
+    args.kind !== "ingestion" ||
+      (!!args.standard &&
+        provider.standards.some((s) => s.id === args.standard)),
+    "CAPABILITY",
+    "Choose a declared ingestion authoring standard",
+  );
   const proposal = flowCreate(root, environment, options);
   if (args.kind === "transformation") return proposal;
   const file = `flows/${args.id}/flow.yaml`;
@@ -417,7 +567,7 @@ export function createFlowEditor(
   const contract = {
     apiVersion: "v3.1.0",
     kind: "DataContract",
-    id: output!,
+    id: `${editableProject(root).reader.load().id}.${args.id}.${output}`,
     name: output!,
     version: "1.0.0",
     status: "draft",

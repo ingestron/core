@@ -3,6 +3,7 @@ import { check } from "../core/errors.js";
 /** All provider entry points use one legacy ABI check. App semver resets must
  * not make authoring work while planning or command dispatch rejects the package. */
 export const hostFeatures = [
+  "flow-authoring-capabilities",
   "programme-platform-binding",
   "transformation-authoring-settings",
   "python-source-artifacts",
@@ -83,6 +84,14 @@ export function checkProviderCompatibility(manifest: {
   };
 }) {
   const required = manifest.compatibility?.requiredFeatures ?? [];
+  check(
+    !manifest.authoring ||
+      typeof manifest.authoring !== "object" ||
+      !Object.hasOwn(manifest.authoring, "flows") ||
+      required.includes("flow-authoring-capabilities"),
+    "COMPATIBILITY",
+    "Flow authoring declarations require flow-authoring-capabilities",
+  );
   check(
     !manifest.platformBinding ||
       required.includes("programme-platform-binding"),

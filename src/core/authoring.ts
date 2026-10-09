@@ -427,6 +427,24 @@ export function addFlow(
   const config = resolved.providers.configurations[configuration];
   check(config, "PROVIDER", "Select a provider configuration for this flow");
   const pkg = projectPackages(projectSchema.parse(resolved))[config.package];
+  const declared = providerReference(
+    root,
+    resolvePackage(root, configuredPackageReference(pkg)).reference,
+  ).manifest.authoring?.flows;
+  if (declared) {
+    check(
+      declared.kinds.includes(options.kind),
+      "CAPABILITY",
+      "Provider does not declare authoring for this flow kind",
+    );
+    check(
+      options.kind !== "ingestion" ||
+        !options.standard ||
+        declared.ingestionStandards.includes(options.standard),
+      "CAPABILITY",
+      "Provider does not declare authoring for this ingestion standard",
+    );
+  }
   if (options.transformationSettings !== undefined || options.outputContract) {
     check(
       options.kind === "transformation",
