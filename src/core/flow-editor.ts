@@ -537,6 +537,19 @@ export function createFlowEditor(
     "INPUT",
     "Choose an output dataset name for ingestion only",
   );
+  const project = editableProject(root).reader.load();
+  const contractId = `${project.id}.${args.id}.${output}`;
+  if (args.kind === "ingestion")
+    check(
+      !project.flows.some((flow: any) =>
+        [
+          ...Object.values<any>(flow.tables ?? {}),
+          ...Object.values<any>(flow.publishes ?? {}),
+        ].some((entry: any) => entry.contract?.id === contractId),
+      ),
+      "CONTRACT_ID",
+      "Another output already uses this contract identity",
+    );
   const provider = readFlowEditor(root).providers.find(
     (p) => p.id === args.provider,
   );
@@ -567,7 +580,7 @@ export function createFlowEditor(
   const contract = {
     apiVersion: "v3.1.0",
     kind: "DataContract",
-    id: `${editableProject(root).reader.load().id}.${args.id}.${output}`,
+    id: contractId,
     name: output!,
     version: "1.0.0",
     status: "draft",

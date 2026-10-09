@@ -7,6 +7,7 @@ import { fixture } from "../support/project.js";
 import {
   readFlowEditor,
   reviewFlowEditor,
+  createFlowEditor,
 } from "../../src/core/flow-editor.js";
 import { apply } from "../../src/core/authoring.js";
 
@@ -230,4 +231,23 @@ test("legacy provider rendering standards do not imply supported flow creation",
   assert.equal(provider.available, false);
   assert.deepEqual(provider.standards, []);
   assert.deepEqual(provider.kinds, []);
+});
+
+test("ingestion creation refuses a prospective identity already assigned to another output", (t) => {
+  const f = setup(t);
+  const path = "flows/source/contracts/customers.yaml";
+  const contract = parse(readFileSync(join(f.root, path), "utf8"));
+  contract.id = "retail.new_stock.stock";
+  f.put(path, contract);
+  assert.throws(
+    () =>
+      createFlowEditor(f.root, "dev", {
+        id: "new_stock",
+        kind: "ingestion",
+        provider: "engineering",
+        standard: "append-only@v1",
+        output: "stock",
+      }),
+    /already uses this contract identity/,
+  );
 });
