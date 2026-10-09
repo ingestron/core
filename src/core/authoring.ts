@@ -1159,7 +1159,7 @@ export function configureFlow(
   });
 }
 
-function editableProject(root: string) {
+export function editableProject(root: string) {
   const reader = new Configuration(root);
   const documents = new Map<string, ReturnType<typeof parseDocument>>();
   const document = (file: string) => {

@@ -1,4 +1,13 @@
 import {
+  programmeSourceSchema,
+  bindingInspectSchema,
+  bindingProposeSchema,
+  bindingApplySchema,
+  inspectPlatformBindings,
+  proposePlatformBinding,
+  applyPlatformBinding,
+} from "./platform-binding.js";
+import {
   requirementsTemplateSchema,
   requirementsTemplate,
 } from "./requirements-catalogue.js";
@@ -114,6 +123,9 @@ import * as workflows from "./workflows.js";
 import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
+  platform_binding_inspect: bindingInspectSchema,
+  platform_binding_propose: bindingProposeSchema,
+  platform_binding_apply: bindingApplySchema,
   programme_requirements_template: requirementsTemplateSchema,
   programme_platform_catalogue: z.object({ id: z.string() }).strict(),
   programme_secret_status: platformSecretSchema,
@@ -356,6 +368,7 @@ export const operationSchemas = {
   flow_show: z.object({ id: workflows.identifier }).strict(),
   build: z
     .object({
+      programme: programmeSourceSchema.optional(),
       provider: z.string().optional(),
       delivery: z.boolean().default(false),
       flow: z.string().optional(),
@@ -963,6 +976,16 @@ export function execute(
         check(result, "SELECT", `Unknown flow ${args.id}`);
         break;
       }
+      case "platform_binding_inspect":
+        result = inspectPlatformBindings(root, environment, args);
+        break;
+      case "platform_binding_propose":
+        result = proposePlatformBinding(root, environment, args);
+        break;
+      case "platform_binding_apply":
+        write();
+        result = applyPlatformBinding(root, args.programme, args.proposal);
+        break;
       case "build": {
         write();
         result = buildProject(root, environment, args);

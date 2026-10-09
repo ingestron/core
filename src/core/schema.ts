@@ -1,3 +1,4 @@
+import { platformBindingSchema } from "./platform-binding-schema.js";
 import { scheduleSchema } from "./schedule-schema.js";
 import { z } from "zod";
 import { policySchema } from "./policy-schema.js";
@@ -32,6 +33,7 @@ export const packageReferenceSchema = z.preprocess(
 export const projectSchema = z
   .object({
     apiVersion: z.literal("ingestron.project/v1"),
+    platformBindings: z.record(id, platformBindingSchema).optional(),
     id,
     policy: policySchema.optional(),
     description: z.string().optional(),

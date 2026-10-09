@@ -1,4 +1,5 @@
 /** One build path: native compilation and connector preparation feed provider assembly. */
+import { verifyBuildBindings } from "./platform-binding.js";
 import { existsSync, readFileSync } from "node:fs";
 import { dataProducts } from "./governance.js";
 import {
@@ -327,6 +328,7 @@ function transformationOutputQuality(
 }
 
 export function buildProject(root: string, environment: string, args: any) {
+  verifyBuildBindings(root, environment, args.programme);
   const inspected = inspectProject(root, environment, args);
   const { project, reader, profile } = inspected;
   let flows = inspected.flows;

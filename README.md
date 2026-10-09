@@ -104,3 +104,7 @@ resolution, truncation, capped skipped-slot details, and the host time-zone data
 version. Occurrence IDs bind the definition digest, database version and instant.
 They do not authorise execution or replace reviewed project/plan identity.
 Portable overlap, missed-run dispatch and durable recovery remain separate work.
+
+Reviewed programme-to-project resource bindings are described in
+[programme definitions](docs/programme-definitions.md). They preserve explicit
+project/shared environment mappings and verify pinned inputs before a build.

@@ -3,6 +3,7 @@ import { check } from "../core/errors.js";
 /** All provider entry points use one legacy ABI check. App semver resets must
  * not make authoring work while planning or command dispatch rejects the package. */
 export const hostFeatures = [
+  "programme-platform-binding",
   "transformation-authoring-settings",
   "python-source-artifacts",
   "published-transformation-quality",
@@ -61,6 +62,7 @@ export function checkPluginCompatibility(
 export function checkProviderCompatibility(manifest: {
   compatibility?: { minimumCli: string; requiredFeatures?: string[] };
   projectAssembly?: unknown;
+  platformBinding?: unknown;
   execution?: {
     resources?: unknown;
     acknowledgement?: unknown;
@@ -81,6 +83,12 @@ export function checkProviderCompatibility(manifest: {
   };
 }) {
   const required = manifest.compatibility?.requiredFeatures ?? [];
+  check(
+    !manifest.platformBinding ||
+      required.includes("programme-platform-binding"),
+    "COMPATIBILITY",
+    "Platform binding requires programme-platform-binding",
+  );
   check(
     !manifest.capabilities?.typedTransformationLanguages ||
       required.includes("typed-transformation-outputs"),

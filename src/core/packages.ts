@@ -166,6 +166,13 @@ export const providerPackageSchema = z
           .strict(),
       )
       .optional(),
+    platformBinding: z
+      .object({
+        apiVersion: z.literal("ingestron.platform-binding-authoring/v1"),
+        resourcesSchema: z.record(z.string(), z.unknown()),
+      })
+      .strict()
+      .optional(),
     configurationSchema: z
       .union([z.string(), z.record(z.string(), z.unknown())])
       .optional(),
