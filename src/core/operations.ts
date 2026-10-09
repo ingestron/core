@@ -1,4 +1,11 @@
 import {
+  workspaceInitialisationSchema,
+  workspaceInitialisationApplySchema,
+  inspectWorkspace,
+  reviewWorkspaceInitialisation,
+  applyWorkspaceInitialisation,
+} from "./workspace-initialisation.js";
+import {
   flowEditorCreateSchema,
   createFlowEditor,
   flowEditorReadSchema,
@@ -186,6 +193,9 @@ export const operationSchemas = {
   connection_flow_review: sourceFlowSchema,
   connection_flows_review: sourceFlowsSchema,
   programme_project_template: programmeProjectTemplateSchema,
+  workspace_inspect: z.object({}).strict(),
+  workspace_initialisation_review: workspaceInitialisationSchema,
+  workspace_initialisation_apply: workspaceInitialisationApplySchema,
   programme_read: programmeReadSchema,
   programme_storage_inspect: programmeReadSchema,
   programme_migration_review: programmeMigrationSchema,
@@ -702,6 +712,16 @@ export function execute(
       case "programme_migration_apply":
         write();
         result = applyProgrammeMigration(root, args);
+        break;
+      case "workspace_inspect":
+        result = inspectWorkspace(root);
+        break;
+      case "workspace_initialisation_review":
+        result = reviewWorkspaceInitialisation(root, args);
+        break;
+      case "workspace_initialisation_apply":
+        write();
+        result = applyWorkspaceInitialisation(root, args);
         break;
       case "programme_read":
         result = readProgramme(root, args.id);

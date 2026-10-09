@@ -248,6 +248,43 @@ function validProjectIdentifier(value: string) {
   );
 }
 
+/** Provider-neutral initial definitions, also used by workspace onboarding. */
+export function initialProjectFiles(id: string, environments: string[]) {
+  check(validProjectIdentifier(id), "PROJECT", "Invalid project ID");
+  check(
+    environments.length > 0 &&
+      new Set(environments).size === environments.length &&
+      environments.every(validProjectIdentifier),
+    "ENVIRONMENT",
+    "Use distinct environment identifiers",
+  );
+  const files: Record<string, string> = {
+    "project.yaml": stringify({
+      apiVersion: "ingestron.project/v1",
+      id: id,
+      packages: {},
+      providers: { configurations: {} },
+      defaults: {},
+      environments: Object.fromEntries(
+        environments.map((name) => [
+          name,
+          { $resolve: `./environments/${name}.yaml` },
+        ]),
+      ),
+      flows: [],
+    }),
+    ".gitignore": "build/\n.ingestron/\n.local/\n",
+  };
+  for (const name of environments)
+    files[`environments/${name}.yaml`] = stringify({
+      apiVersion: "ingestron.environment/v1",
+      environment: name,
+      values: {},
+      bindings: {},
+    });
+  return files;
+}
+
 export function initialise(
   root: string,
   options: { id: string; provider?: string; environments?: string[] },
@@ -263,30 +300,7 @@ export function initialise(
   );
   mkdirSync(root, { recursive: true });
   if (!options.provider) {
-    const files: Record<string, string> = {
-      "project.yaml": stringify({
-        apiVersion: "ingestron.project/v1",
-        id: options.id,
-        packages: {},
-        providers: { configurations: {} },
-        defaults: {},
-        environments: Object.fromEntries(
-          environments.map((name) => [
-            name,
-            { $resolve: `./environments/${name}.yaml` },
-          ]),
-        ),
-        flows: [],
-      }),
-      ".gitignore": "build/\n.ingestron/\n.local/\n",
-    };
-    for (const name of environments)
-      files[`environments/${name}.yaml`] = stringify({
-        apiVersion: "ingestron.environment/v1",
-        environment: name,
-        values: {},
-        bindings: {},
-      });
+    const files = initialProjectFiles(options.id, environments);
     for (const name of Object.keys(files))
       check(
         !existsSync(resolve(root, name)),
