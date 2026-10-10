@@ -52,7 +52,7 @@ export const presentationReviewSchema = z
     lineage,
   })
   .strict();
-const receiptSchema = z
+export const presentationReceiptSchema = z
   .object({
     apiVersion: z.string().min(1).max(100),
     status: z.literal("Succeeded"),
@@ -77,7 +77,9 @@ const receiptSchema = z
   .passthrough();
 function snapshot(root: string, path: string, verify = false) {
   const reader = new Configuration(root, {});
-  const receipt = receiptSchema.parse(JSON.parse(reader.text(path)));
+  const receipt = presentationReceiptSchema.parse(
+    JSON.parse(reader.text(path)),
+  );
   auditSecrets(receipt, "receipt");
   check(
     new Set(receipt.files.map((f) => f.path)).size === receipt.files.length &&

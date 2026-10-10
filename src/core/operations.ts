@@ -1,4 +1,10 @@
 import {
+  snapshotImportReviewSchema,
+  snapshotImportApplySchema,
+  reviewSnapshotImport,
+  applySnapshotImport,
+} from "./presentation-snapshot.js";
+import {
   executionProfilesReadSchema,
   executionProfilesReviewSchema,
   readExecutionProfiles,
@@ -672,6 +678,8 @@ export const operationSchemas = {
   platform_reuse_read: platformReuseReadSchema,
   platform_reuse_review: platformReuseReviewSchema,
   platform_reuse_apply: platformReuseApplySchema,
+  presentation_snapshot_review: snapshotImportReviewSchema,
+  presentation_snapshot_apply: snapshotImportApplySchema,
   presentation_catalogue: z.object({}).strict(),
   presentation_review: presentationReviewSchema,
   package_library: z.object({}).strict(),
@@ -1634,6 +1642,13 @@ export function execute(
       case "platform_reuse_apply":
         write();
         result = applyPlatformReuse(root, args.programme, args.review);
+        break;
+      case "presentation_snapshot_review":
+        result = reviewSnapshotImport(root, args);
+        break;
+      case "presentation_snapshot_apply":
+        write();
+        result = applySnapshotImport(root, args);
         break;
       case "presentation_catalogue":
         result = inspectPresentations(root, environment);
