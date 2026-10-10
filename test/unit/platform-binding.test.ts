@@ -318,6 +318,72 @@ test("binding refuses absent registration, target, profile and resource override
   assert.equal(f.run("platform_binding_propose", f.args).ok, false);
 });
 
+test("binding inspection identifies exact unsupported constraints without weakening them", (t) => {
+  const f = setup(t);
+  const target = f.document.platforms[0].configuration.targets[0];
+  target.policies = {
+    "retention-required": "enabled",
+    "owner-required": "inherit",
+  };
+  target.capabilities = { lakeflow: "disabled" };
+  target.generation = {
+    qualityFailure: "block",
+    silver: "materialized-view",
+    overrides: "review",
+  };
+  f.saveSource();
+  const before = readFileSync(join(f.programme.root, "programme.json"));
+  const inspection = f.run("platform_binding_inspect", {
+    programme: f.programme,
+    project: "PLAN-1",
+  });
+  assert.equal(inspection.ok, true, JSON.stringify(inspection));
+  const [constraints] = inspection.result.constraints;
+  assert.deepEqual(
+    constraints.blockers.map((b: any) => b.setting),
+    [
+      "policies.retention-required",
+      "capabilities.lakeflow",
+      "generation.overrides",
+    ],
+  );
+  assert.equal(
+    constraints.preferences.find((p: any) => p.setting === "generation.silver")
+      .mapping,
+    "materialized-view@v1",
+  );
+  assert.match(
+    constraints.preferences.find(
+      (p: any) => p.setting === "generation.qualityFailure",
+    ).reason,
+    /current resource binding/,
+  );
+  const rejected = f.run("platform_binding_propose", f.args);
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.diagnostics[0].code, "POLICY");
+  assert.match(
+    rejected.diagnostics[0].message,
+    /policies.retention-required=enabled/,
+  );
+  assert.deepEqual(
+    readFileSync(join(f.programme.root, "programme.json")),
+    before,
+  );
+  assert.equal(existsSync(join(f.root, "platform-bindings")), false);
+  target.policies = { "owner-required": "inherit" };
+  target.capabilities = { lakeflow: "inherit" };
+  delete target.generation.overrides;
+  f.saveSource();
+  assert.deepEqual(
+    f.run("platform_binding_inspect", {
+      programme: f.programme,
+      project: "PLAN-1",
+    }).result.constraints[0].blockers,
+    [],
+  );
+  assert.equal(f.run("platform_binding_propose", f.args).ok, true);
+});
+
 test("review checks changed programme and project inputs, supports explicit refresh, and locks source writes", (t) => {
   const f = setup(t),
     proposed = f.review();

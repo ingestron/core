@@ -9,7 +9,9 @@ import { canonical, check, digest } from "./errors.js";
 import { readProgramme } from "./programme.js";
 import { withProgrammeWrite } from "./programme-transaction.js";
 import { compilerProjectId } from "./programme-schema.js";
-import { platformProvider } from "./platform-schema.js";
+import { platformProvider, platformTargetSchema } from "./platform-schema.js";
+import { platformCatalogue } from "./platform-catalogue.js";
+import { reviewGeneration } from "./platform-generation.js";
 import { projectSchema } from "./schema.js";
 import {
   platformBindingSchema,
@@ -56,6 +58,35 @@ export const bindingProposeSchema = bindingInspectSchema
 export const bindingApplySchema = z
   .object({ programme: programmeSourceSchema, proposal: z.unknown() })
   .strict();
+/** Shared by inspection and proposal validation; inspection never grants execution authority. */
+function bindingConstraints(target: z.infer<typeof platformTargetSchema>) {
+  const catalogue = platformCatalogue.find((p) => p.id === target.provider)!;
+  const blockers: {
+    setting: string;
+    label: string;
+    value: string;
+    reason: string;
+  }[] = (["policies", "capabilities"] as const).flatMap((group) =>
+    Object.entries(target[group])
+      .filter(([, value]) => value !== "inherit")
+      .map(([setting, value]) => ({
+        setting: `${group}.${setting}`,
+        label: catalogue[group].find((c) => c.id === setting)?.label ?? setting,
+        value,
+        reason:
+          "This explicit constraint has no binding enforcement adapter. Keep the requirement recorded; binding needs adapter support or a separately reviewed policy decision.",
+      })),
+  );
+  if (target.generation?.overrides)
+    blockers.push({
+      setting: "generation.overrides",
+      label: "Project overrides",
+      value: target.generation.overrides,
+      reason:
+        "Project exception policy has no binding enforcement adapter. Keep the policy recorded until enforcement is available or a policy decision is reviewed.",
+    });
+  return { target: target.provider, blockers };
+}
 function source(programme: z.infer<typeof programmeSourceSchema>) {
   const saved = readProgramme(programme.root, programme.id);
   check(saved.document, "PROGRAMME", "Save the registered programme first");
@@ -157,6 +188,24 @@ export function inspectPlatformBindings(
     sharedEnvironments: platform.configuration?.environments ?? [],
     targets: selected.targets ?? [],
     targetProfiles: platform.configuration?.targets ?? [],
+    constraints: (platform.configuration?.targets ?? [])
+      .filter((t) => selected.targets?.some((s) => s.provider === t.provider))
+      .map((t) => ({
+        ...bindingConstraints(t),
+        preferences: reviewGeneration(t)
+          .filter((i) => i.support !== "unset")
+          .map((i) => ({
+            setting: `generation.${i.setting}`,
+            label: i.label,
+            value: i.selection,
+            mapping: i.mapping,
+            reason:
+              i.setting === "qualityFailure" &&
+              t.generation?.qualityFailure === "block"
+                ? "A current resource binding prevents the project from choosing report-only quality handling. Provider support for individual checks is verified during generation."
+                : "Resource binding does not apply this preference. Review the concrete flow, contract and installed provider before generation.",
+          })),
+      })),
     providers: installedProviders(root)
       .filter(
         (p) =>
@@ -243,16 +292,11 @@ export function proposePlatformBinding(
     "ENVIRONMENT",
     "Select a declared project environment",
   );
+  const constraints = bindingConstraints(target);
   check(
-    Object.values(target.policies).every((v) => v === "inherit") &&
-      Object.values(target.capabilities).every((v) => v === "inherit"),
+    !constraints.blockers.length,
     "POLICY",
-    "Explicit platform policy/capability constraints need an enforcement adapter; they cannot be ignored or weakened",
-  );
-  check(
-    !target.generation?.overrides,
-    "POLICY",
-    "Platform exception policy requires an enforcement adapter",
+    `Resource binding needs enforcement support for ${constraints.blockers.map((b) => `${b.setting}=${b.value}`).join(", ")}. Keep these constraints recorded; review adapter support or an explicit policy decision before binding.`,
   );
   const installed = providerReference(root, args.reference);
   check(
