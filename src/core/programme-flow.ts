@@ -287,5 +287,7 @@ export function verifyFlowPreferences(
     "PREFERENCE",
     `Resolve shared preferences before generation: ${conflicts.join("; ")}`,
   );
-  return { sourceDigest: state.sourceDigest, flows: reviews };
+  return reviews.some((r) => r.items.length)
+    ? { sourceDigest: state.sourceDigest, flows: reviews }
+    : undefined;
 }

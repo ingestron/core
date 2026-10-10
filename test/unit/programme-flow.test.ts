@@ -9,6 +9,7 @@ import { installPackage } from "../../src/core/packages.js";
 import { execute } from "../../src/core/operations.js";
 import { readFlowEditor } from "../../src/core/flow-editor.js";
 import { Configuration } from "../../src/core/config.js";
+import { bindExecutionProfile } from "../../src/core/execution-profiles.js";
 import { verifyFlowPreferences } from "../../src/core/programme-flow.js";
 
 function setup(t: any) {
@@ -314,6 +315,14 @@ test("missing installed mapping stays unapplied and unassigned projects keep dra
   const unassigned = f.review();
   assert.deepEqual(unassigned.preferences.items, []);
   assert.equal(
+    verifyFlowPreferences(
+      f.root,
+      f.programme,
+      new Configuration(f.root, {}).load().flows,
+    ),
+    undefined,
+  );
+  assert.equal(
     f.run(
       "programme_flow_apply",
       { programme: f.programme, review: unassigned },
@@ -338,4 +347,47 @@ test("shared quality handling compares the actual compiler default and blocks we
       .diagnostics[0].code,
     "PREFERENCE",
   );
+});
+
+test("preference comparison follows the resolved alternative provider", (t) => {
+  const f = setup(t),
+    origin = join(f.root, "fixture-origin"),
+    path = join(origin, "plugin/provider.yaml");
+  const manifest = parse(readFileSync(path, "utf8"));
+  manifest.id = "fixture-local";
+  manifest.platform = "local";
+  manifest.version = "1.2.0";
+  writeFileSync(path, stringify(manifest));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: origin, encoding: "utf8" });
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "Declare alternate target",
+  );
+  const reference = `example/fixture/plugin/provider.yaml@${git("rev-parse", "HEAD").trim()}`;
+  installPackage(f.root, reference, { fromGit: origin });
+  f.project.providers.packages.local = reference;
+  f.project.providers.configurations.local = {
+    package: "local",
+    binding: "lakehouse",
+  };
+  f.put("project.yaml", f.project);
+  f.target.generation.changes = "append";
+  f.source();
+  const native = new Configuration(f.root, {}).load().flows[0];
+  assert.throws(
+    () => verifyFlowPreferences(f.root, f.programme, [native]),
+    /expects append-only/,
+  );
+  native.executionProfiles = {
+    local_test: { provider: "local", ingestion: {}, source: {} },
+  };
+  const local = bindExecutionProfile(native, "local_test");
+  assert.equal(verifyFlowPreferences(f.root, f.programme, [local]), undefined);
 });
