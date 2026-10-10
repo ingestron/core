@@ -1,3 +1,4 @@
+import { sharedConnectionBindingSchema } from "./platform-reuse-schema.js";
 import { platformBindingSchema } from "./platform-binding-schema.js";
 import { scheduleSchema } from "./schedule-schema.js";
 import { z } from "zod";
@@ -65,6 +66,9 @@ export const projectSchema = z
       .default({ naming: {}, with: {} }),
     environments: z.record(id, environmentSchema),
     modelPacks: z.record(id, packageReferenceSchema).default({}),
+    sharedConnections: z
+      .record(z.string(), sharedConnectionBindingSchema)
+      .optional(),
     connections: z
       .record(
         id,

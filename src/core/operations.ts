@@ -1,4 +1,18 @@
 import {
+  sharedConnectionReviewSchema,
+  sharedConnectionApplySchema,
+  reviewSharedConnection,
+  applySharedConnection,
+} from "./platform-reuse.js";
+import {
+  platformReuseReadSchema,
+  platformReuseReviewSchema,
+  platformReuseApplySchema,
+  inspectPlatformReuse,
+  reviewPlatformReuse,
+  applyPlatformReuse,
+} from "./platform-reuse.js";
+import {
   presentationReviewSchema,
   inspectPresentations,
   reviewPresentation,
@@ -643,6 +657,11 @@ export const operationSchemas = {
   apply: z.object({ proposal: z.unknown() }).strict(),
   target_setup_review: targetSetupSchema,
   target_setup_apply: targetSetupApplySchema,
+  shared_connection_review: sharedConnectionReviewSchema,
+  shared_connection_apply: sharedConnectionApplySchema,
+  platform_reuse_read: platformReuseReadSchema,
+  platform_reuse_review: platformReuseReviewSchema,
+  platform_reuse_apply: platformReuseApplySchema,
   presentation_catalogue: z.object({}).strict(),
   presentation_review: presentationReviewSchema,
   package_library: z.object({}).strict(),
@@ -1579,6 +1598,23 @@ export function execute(
       case "target_setup_apply":
         write();
         result = applyTargetSetup(root, args);
+        break;
+      case "shared_connection_review":
+        result = reviewSharedConnection(root, environment, args);
+        break;
+      case "shared_connection_apply":
+        write();
+        result = applySharedConnection(root, args.programme, args.review);
+        break;
+      case "platform_reuse_read":
+        result = inspectPlatformReuse(root, environment, args);
+        break;
+      case "platform_reuse_review":
+        result = reviewPlatformReuse(root, environment, args);
+        break;
+      case "platform_reuse_apply":
+        write();
+        result = applyPlatformReuse(root, args.programme, args.review);
         break;
       case "presentation_catalogue":
         result = inspectPresentations(root, environment);

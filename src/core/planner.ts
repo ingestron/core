@@ -38,15 +38,7 @@ import { Ajv2020 as Ajv } from "ajv/dist/2020.js";
 import { compilerFingerprint } from "./fingerprint.js";
 import { version } from "../version.js";
 import { checkProviderCompatibility } from "../plugins/compatibility.js";
-const secretFields = new Set([
-  "password",
-  "auth_token",
-  "token",
-  "accessToken",
-  "clientSecret",
-  "accountKey",
-  "sasToken",
-]);
+import { secretFields } from "./secret-fields.js";
 export const auditSecrets = (value: any, path: string) => {
   if (Array.isArray(value)) {
     value.forEach((child, index) => auditSecrets(child, `${path}[${index}]`));

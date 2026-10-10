@@ -1,3 +1,4 @@
+import { platformReuseSchema } from "./platform-reuse-schema.js";
 import {
   platformConfigurationSchema,
   platformProvider,
@@ -73,6 +74,7 @@ export const programmeSchema = z
             id,
             name: short.min(1),
             configuration: platformConfigurationSchema.optional(),
+            reuse: platformReuseSchema.optional(),
           })
           .strict(),
       )
@@ -217,6 +219,27 @@ export const programmeSchema = z
             "targets",
           ]);
       }
+    });
+    doc.platforms?.forEach((platform, i) => {
+      for (const key of ["packages", "connections"] as const)
+        for (const [j, definition] of (platform.reuse?.[key] ?? []).entries()) {
+          if (
+            definition.consumers.some(
+              (consumer) =>
+                !doc.projects.some(
+                  (p) => p.id === consumer && p.platformId === platform.id,
+                ),
+            )
+          )
+            fail("Shared consumers must belong to this platform", [
+              "platforms",
+              i,
+              "reuse",
+              key,
+              j,
+              "consumers",
+            ]);
+        }
     });
     const items = new Map(doc.requirements.map((r) => [r.id, r]));
     const external = new Set<string>();

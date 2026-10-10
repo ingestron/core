@@ -1,3 +1,4 @@
+import { platformReuseSchema } from "./platform-reuse-schema.js";
 import { z } from "zod";
 import { programmeSchema } from "./programme-schema.js";
 import {
@@ -28,6 +29,7 @@ export const platformDefinitionSchema = z
     apiVersion: z.literal("ingestron.platform/v1"),
     id: platformIdentity,
     name: z.string().trim().min(1).max(200),
+    reuse: platformReuseSchema.optional(),
     configuration: z
       .object({
         environments: platformConfigurationSchema.shape.environments,
