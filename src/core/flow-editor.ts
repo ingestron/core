@@ -12,6 +12,12 @@ import { canonical, check, digest } from "./errors.js";
 import { flowSchema } from "./schema.js";
 import { contractGovernance } from "./governance.js";
 import { contractColumns } from "./contracts.js";
+import {
+  editableQualitySchema,
+  readEditableQuality,
+  applyEditableQuality,
+  type EditableQuality,
+} from "./quality-editor.js";
 const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]{0,79}$/);
 const key = z.string().regex(/^[a-f0-9]{64}$/);
 const scalar = z.union([
@@ -34,6 +40,7 @@ export const flowEditorReviewSchema = z
         z
           .object({
             id: key,
+            quality: editableQualitySchema.optional(),
             metadata: z
               .object({
                 contractId: z.string().trim().min(1).max(160),
@@ -91,6 +98,7 @@ function editor(root: string, id: string) {
       owners: string[];
     };
     fields: any[];
+    quality: EditableQuality;
   }[] = [];
   const targets = new Map<string, Location>(),
     files = new Map<string, string>();
@@ -223,6 +231,7 @@ function editor(root: string, id: string) {
       contracts.push({
         id: token(location),
         name,
+        quality: readEditableQuality(value),
         metadata: {
           contractId: value.id,
           name: value.name ?? value.id,
@@ -407,6 +416,8 @@ export function reviewFlowEditor(
     check(original, "AUTHORING", "Unknown output contract");
     if (
       canonical(original.fields) === canonical(update.fields) &&
+      (!update.quality ||
+        canonical(original.quality) === canonical(update.quality)) &&
       (!update.metadata ||
         canonical(original.metadata) === canonical(update.metadata))
     )
@@ -431,7 +442,10 @@ export function reviewFlowEditor(
       return { ...previous, ...field };
     });
     const updated = structuredClone(value);
-    updated.schema[0].properties = properties;
+    updated.schema[0].properties =
+      canonical(original.fields) === canonical(update.fields)
+        ? structuredClone(old)
+        : properties;
     if (update.metadata) {
       const m = update.metadata;
       if (m.contractId !== original.metadata.contractId) {
@@ -492,14 +506,29 @@ export function reviewFlowEditor(
             updated[name],
           );
     }
+    if (update.quality) {
+      applyEditableQuality(updated, update.quality, update.fields);
+      for (const [path, rules, before] of [
+        [
+          ["schema", 0, "quality"],
+          updated.schema[0].quality,
+          value.schema[0].quality,
+        ],
+      ] as const)
+        if (canonical(rules) !== canonical(before ?? []))
+          set(
+            { file: target.file, prefix: [...target.prefix, ...path] },
+            rules,
+          );
+    }
     contractColumns(updated);
-    if (canonical(original.fields) !== canonical(update.fields))
+    if (canonical(old) !== canonical(updated.schema[0].properties))
       set(
         {
           file: target.file,
           prefix: [...target.prefix, "schema", 0, "properties"],
         },
-        properties,
+        updated.schema[0].properties,
       );
   }
   for (const file of changed)

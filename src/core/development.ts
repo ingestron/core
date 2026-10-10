@@ -137,6 +137,19 @@ export function exportProviderArtifacts(
 ) {
   const reader = new Configuration(root),
     envelope = JSON.parse(reader.text(path));
+  return preview(
+    root,
+    providerArtifactFiles(root, envelope, directory),
+    reader.files,
+  );
+}
+
+/** Shared validation for saved exports and the presentation review workflow. */
+export function providerArtifactFiles(
+  root: string,
+  envelope: any,
+  directory: string,
+) {
   check(
     envelope.apiVersion === "ingestron.provider-command-result/v1" &&
       envelope.execution === "offline-json",
@@ -180,5 +193,5 @@ export function exportProviderArtifacts(
     }
     files[target] = value as string;
   }
-  return preview(root, files);
+  return files;
 }

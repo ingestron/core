@@ -1,4 +1,26 @@
 import {
+  presentationReviewSchema,
+  inspectPresentations,
+  reviewPresentation,
+} from "./presentation.js";
+import {
+  packageInstallReviewSchema,
+  packageInstallApplySchema,
+  packageConfigureSchema,
+  inspectPackageLibrary,
+  reviewPackageInstall,
+  applyPackageInstall,
+  reviewPackageConfiguration,
+} from "./package-library.js";
+import { sourceJourneySchema, inspectSourceJourney } from "./source-journey.js";
+import { inspectEngineering } from "./engineering-workbench.js";
+import {
+  connectionEditorReadSchema,
+  connectionEditorReviewSchema,
+  readConnectionEditor,
+  reviewConnectionEditor,
+} from "./connection-editor.js";
+import {
   buildStatusSchema,
   buildFileSchema,
   inspectBuild,
@@ -208,6 +230,7 @@ export const operationSchemas = {
   schedule_inspect: z.object({ flow: workflows.identifier }).strict(),
   governance_check: z.object({ flow: z.string().optional() }).strict(),
   policy_propose: z.object({ policy: policySchema }).strict(),
+  connection_journey: sourceJourneySchema,
   connection_flow_review: sourceFlowSchema,
   connection_flows_review: sourceFlowsSchema,
   programme_project_template: programmeProjectTemplateSchema,
@@ -357,6 +380,9 @@ export const operationSchemas = {
       tagPrefix: z.string().optional(),
     })
     .strict(),
+  engineering_inspect: z.object({}).strict(),
+  connection_editor_read: connectionEditorReadSchema,
+  connection_editor_review: connectionEditorReviewSchema,
   source_list: z.object({}).strict(),
   source_show: z.object({ id: workflows.identifier }).strict(),
   source_add: workflows.sourceSchema.omit({
@@ -617,6 +643,12 @@ export const operationSchemas = {
   apply: z.object({ proposal: z.unknown() }).strict(),
   target_setup_review: targetSetupSchema,
   target_setup_apply: targetSetupApplySchema,
+  presentation_catalogue: z.object({}).strict(),
+  presentation_review: presentationReviewSchema,
+  package_library: z.object({}).strict(),
+  package_install_review: packageInstallReviewSchema,
+  package_install_apply: packageInstallApplySchema,
+  package_configure_review: packageConfigureSchema,
   provider_install_review: providerInstallSchema,
   provider_install_apply: providerInstallApplySchema,
   packages_install: z
@@ -873,6 +905,9 @@ export function execute(
       case "connection_flows_review":
         result = proposeSourceFlows({ ...context, root, environment }, args);
         break;
+      case "connection_journey":
+        result = inspectSourceJourney({ ...context, root, environment }, args);
+        break;
       case "connection_flow_review":
         result = proposeSourceFlow({ ...context, root, environment }, args);
         break;
@@ -1002,6 +1037,15 @@ export function execute(
         if (args.fromGit && !context.allowNetwork)
           args.fromGit = fence(root, args.fromGit);
         result = providerVersions(args.provider, args.fromGit, args.tagPrefix);
+        break;
+      case "engineering_inspect":
+        result = inspectEngineering(root, environment);
+        break;
+      case "connection_editor_read":
+        result = readConnectionEditor(root, environment, args);
+        break;
+      case "connection_editor_review":
+        result = reviewConnectionEditor(root, environment, args);
         break;
       case "source_list":
         result = workflows.sourceList(root, environment);
@@ -1535,6 +1579,33 @@ export function execute(
       case "target_setup_apply":
         write();
         result = applyTargetSetup(root, args);
+        break;
+      case "presentation_catalogue":
+        result = inspectPresentations(root, environment);
+        break;
+      case "presentation_review":
+        result = reviewPresentation(root, environment, args);
+        break;
+      case "package_library":
+        result = inspectPackageLibrary(root);
+        break;
+      case "package_configure_review":
+        result = reviewPackageConfiguration(root, args);
+        break;
+      case "package_install_review":
+      case "package_install_apply":
+        if (operation === "package_install_apply") write();
+        check(
+          context.allowNetwork || args.fromGit,
+          "PERMISSION",
+          "Package access requires explicit package-network permission",
+        );
+        if (args.fromGit && !context.allowNetwork)
+          args.fromGit = fence(root, args.fromGit);
+        result =
+          operation === "package_install_review"
+            ? reviewPackageInstall(root, args)
+            : applyPackageInstall(root, args);
         break;
       case "provider_install_review":
       case "provider_install_apply":

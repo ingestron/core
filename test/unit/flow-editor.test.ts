@@ -53,6 +53,116 @@ function setup(t: any) {
   f.put("project.yaml", f.project);
   return f;
 }
+test("quality authoring preserves custom rules, follows field renames and rejects invalid rules", (t) => {
+  const f = setup(t);
+  const path = "flows/source/contracts/orders.yaml";
+  const contract = parse(readFileSync(join(f.root, path), "utf8"));
+  contract.schema[0].properties[1].quality = [
+    {
+      id: "custom-expectation",
+      type: "custom",
+      engine: "fixture",
+      severity: "warning",
+      implementation: { nested: { preserved: true } },
+    },
+  ];
+  f.put(path, contract);
+  const snapshot = readFlowEditor(f.root, "result").selected!;
+  const output = snapshot.contracts[0];
+  const original = output.fields[0].name;
+  const quality = {
+    ...output.quality,
+    table: JSON.stringify([
+      {
+        id: "rows",
+        type: "library",
+        metric: "rowCount",
+        mustBeGreaterThan: 0,
+        severity: "error",
+      },
+    ]),
+    fields: {
+      ...output.quality.fields,
+      [original]: JSON.stringify([
+        {
+          id: "no-nulls",
+          type: "library",
+          metric: "nullValues",
+          mustBe: 0,
+          severity: "warning",
+        },
+      ]),
+    },
+  };
+  const fields = output.fields.map((field: any, i: number) =>
+    i === 0 ? { ...field, name: "renamed_id" } : field,
+  );
+  const args = {
+    flow: "result",
+    revision: snapshot.revision,
+    description: snapshot.description,
+    values: {},
+    logic: {},
+    contracts: [{ id: output.id, fields, quality }],
+  };
+  const before = readFileSync(join(f.root, path), "utf8");
+  const proposal = reviewFlowEditor(f.root, args);
+  assert.equal(readFileSync(join(f.root, path), "utf8"), before);
+  for (const invalid of [
+    "{}",
+    JSON.stringify([{ type: "library", metric: "made-up", mustBe: 0 }]),
+    JSON.stringify([
+      { id: "same", type: "text" },
+      { id: "same", type: "text" },
+    ]),
+  ])
+    assert.throws(() =>
+      reviewFlowEditor(f.root, {
+        ...args,
+        contracts: [
+          { id: output.id, fields, quality: { ...quality, table: invalid } },
+        ],
+      }),
+    );
+  assert.throws(
+    () =>
+      reviewFlowEditor(f.root, {
+        ...args,
+        contracts: [
+          {
+            id: output.id,
+            fields,
+            quality: { ...quality, fields: { unknown: "[]" } },
+          },
+        ],
+      }),
+    /unknown field/,
+  );
+  apply(f.root, proposal);
+  const saved = parse(readFileSync(join(f.root, path), "utf8"));
+  assert.deepEqual(
+    saved.schema[0].properties[1].quality,
+    contract.schema[0].properties[1].quality,
+  );
+  assert.equal(saved.schema[0].quality[0].metric, "rowCount");
+  assert.equal(saved.schema[0].properties[0].name, "renamed_id");
+  assert.equal(saved.schema[0].properties[0].quality[0].metric, "nullValues");
+  assert.equal(
+    saved.schema[0].properties[0].description,
+    "Owner-reviewed identifier",
+  );
+  const reopened = readFlowEditor(f.root, "result").selected!;
+  assert.ok(reopened.contracts[0].quality.fields.renamed_id);
+  const unchanged = reviewFlowEditor(f.root, {
+    flow: "result",
+    revision: reopened.revision,
+    description: reopened.description,
+    values: {},
+    logic: {},
+    contracts: [reopened.contracts[0]],
+  });
+  assert.equal(unchanged.changes.length, 0);
+});
 test("editor preserves unknown contract fields and SQL; reviews without writes and rejects stale logic", (t) => {
   const f = setup(t),
     snapshot = readFlowEditor(f.root, "result").selected!;

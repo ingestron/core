@@ -431,6 +431,23 @@ export async function performSourceAccess(
           mode: 0o600,
           flag: "wx",
         });
+      writeFileSync(
+        fence(root, `${out}/selection.json`),
+        JSON.stringify({
+          apiVersion: "ingestron.source-selection/v1",
+          connection: args.connection,
+          environment: def.environment,
+          fingerprint: def.fingerprint,
+          receipt: args.receipt,
+          tables: drafts.map(({ id, name, file, contract }: any) => ({
+            id,
+            name,
+            file,
+            fields: contract.schema[0].properties.length,
+          })),
+        }),
+        { mode: 0o600, flag: "wx" },
+      );
     } catch (error) {
       rmSync(fence(root, out), { recursive: true, force: true });
       throw error;
@@ -806,3 +823,5 @@ async function draftSourceSelection(
     throw error;
   }
 }
+
+export { response as sourceAccessResponseSchema };

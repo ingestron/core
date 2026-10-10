@@ -304,21 +304,52 @@ export function pluginConfigure(root: string, args: any) {
     `Package key ${name} already exists`,
   );
   const environmentNames = Object.keys(raw.environments);
-  const files = providerAuthor(
-    root,
-    args.reference,
-    {
-      operation: "initialise",
-      options: {
-        id: raw.id,
-        provider: args.reference,
-        environments: environmentNames,
-      },
-    },
-    (n) =>
-      ["project.yaml", "README.md", ".gitignore"].includes(n) ||
-      /^environments\/[\w-]+\.yaml$/.test(n),
-  );
+  const files: Record<string, string> = selected.manifest.lifecycle
+    ? providerAuthor(
+        root,
+        args.reference,
+        {
+          operation: "initialise",
+          options: {
+            id: raw.id,
+            provider: args.reference,
+            environments: environmentNames,
+          },
+        },
+        (n) =>
+          ["project.yaml", "README.md", ".gitignore"].includes(n) ||
+          /^environments\/[\w-]+\.yaml$/.test(n),
+      )
+    : (() => {
+        // Offline command providers do not own infrastructure or need a project generator.
+        check(
+          selected.manifest.commands?.execution === "offline-json" &&
+            !selected.manifest.planner &&
+            !selected.manifest.renderer &&
+            !selected.manifest.platformBinding &&
+            !selected.manifest.configurationSchema,
+          "PROVIDER",
+          "This provider needs lifecycle authoring or guided target setup",
+        );
+        return {
+          "project.yaml": stringify({
+            providers: {
+              configurations: {
+                command: { package: "command", binding: "command" },
+              },
+            },
+            defaults: { provider: "command" },
+          }),
+          ...Object.fromEntries(
+            environmentNames.map((env) => [
+              `environments/${env}.yaml`,
+              stringify({
+                bindings: { command: { kind: selected.manifest.platform } },
+              }),
+            ]),
+          ),
+        };
+      })();
   const skeleton = parseDocument(files["project.yaml"]).toJS();
   const defaults =
     skeleton.providers.configurations[skeleton.defaults.provider];

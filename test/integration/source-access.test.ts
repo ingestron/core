@@ -1143,3 +1143,60 @@ test("explicit source cancellation remains interrupted and cleans private task f
   assert.equal(receipt.status, "interrupted");
   assert.equal(receipt.result, undefined);
 });
+
+test("saved discovery resumes only current metadata and its isolated contract selection without execution", async (t) => {
+  const f = setup(t);
+  const ctx = {
+    root: f.root,
+    environment: "dev",
+    allowWrite: true,
+    allowExecute: true,
+  };
+  const metadata = await executeAsync(ctx, "connection_metadata", {
+    connection: "sales",
+    tables: [{ schema: "dbo", table: "Orders" }],
+    envFile: ".private.env",
+  });
+  assert.equal(metadata.ok, true, JSON.stringify(metadata));
+  const drafts = await executeAsync(ctx, "connection_contracts", {
+    connection: "sales",
+    receipt: metadata.result.receipt,
+    tables: [{ id: metadata.result.tables[0].id, name: "Orders" }],
+  });
+  assert.equal(drafts.ok, true, JSON.stringify(drafts));
+  const resume = () =>
+    execute({ root: f.root, environment: "dev" }, "connection_journey", {
+      connection: "sales",
+    });
+  const saved = resume();
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  assert.equal(saved.result.receipt, metadata.result.receipt);
+  assert.equal(saved.result.drafts[0].file, drafts.result.tables[0].file);
+  assert.equal(saved.result.tables[0].source.table, "Orders");
+  assert.equal(saved.result.receipts.length, 1);
+  const selectionFile = resolve(
+    f.root,
+    drafts.result.tables[0].file.replace(/[^/]+$/, "selection.json"),
+  );
+  const selectionText = readFileSync(selectionFile, "utf8");
+  const malformed = JSON.parse(selectionText);
+  malformed.tables[0].fields = { unsafe: "synthetic-untrusted-payload" };
+  writeFileSync(selectionFile, JSON.stringify(malformed));
+  assert.deepEqual(resume().result.drafts, []);
+  writeFileSync(selectionFile, selectionText);
+
+  assert.doesNotMatch(JSON.stringify(saved), /synthetic-only/);
+  f.project.connections.sales.settings.host = "changed.invalid";
+  f.put("project.yaml", f.project);
+  const stale = resume();
+  assert.equal(stale.ok, true, JSON.stringify(stale));
+  assert.equal(stale.result.receipt, "");
+  assert.deepEqual(stale.result.drafts, []);
+  assert.equal(
+    execute({ root: f.root, environment: "dev" }, "connection_journey", {
+      connection: "sales",
+      receipt: metadata.result.receipt,
+    }).diagnostics[0].code,
+    "STALE",
+  );
+});

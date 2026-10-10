@@ -1480,3 +1480,104 @@ test("indexed preparation keeps one hundred complete contracts while its isolate
   );
   assert.match(prepared.diagnostics[0].message, /unapplied artifact proposal/);
 });
+
+import {
+  readConnectionEditor,
+  reviewConnectionEditor,
+} from "../../src/core/connection-editor.js";
+import { apply } from "../../src/core/authoring.js";
+test("connection editor reviews schema fields and secret names without overriding environment ownership", (t) => {
+  const f = setup(t, true);
+  f.put("project.yaml", f.project);
+  const existing = readConnectionEditor(f.root, "dev", {
+    package: "source",
+    connection: "sales",
+  });
+  const secret = existing.fields.find((field) => field.type === "secret")!;
+  assert.equal(secret.value, "SALES_PASSWORD");
+  assert.equal(secret.inherited, true);
+  assert.throws(
+    () =>
+      reviewConnectionEditor(f.root, "dev", {
+        package: "source",
+        connection: "sales",
+        id: "sales",
+        sourceId: "erp",
+        tenantId: "nz",
+        revision: existing.revision,
+        values: { [secret.id]: "OTHER_PASSWORD" },
+      }),
+    /inherited/,
+  );
+  const start = readConnectionEditor(f.root, "dev", { package: "source" });
+  const values = Object.fromEntries(
+    start.fields.map((field) => [
+      field.id,
+      field.type === "secret" ? "WAREHOUSE_PASSWORD" : "warehouse.invalid",
+    ]),
+  );
+  const request = {
+    package: "source",
+    id: "warehouse",
+    sourceId: "warehouse",
+    tenantId: "nz",
+    revision: start.revision,
+    values,
+  };
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  const proposal = reviewConnectionEditor(f.root, "dev", request);
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  apply(f.root, proposal);
+  const saved = readConnectionEditor(f.root, "dev", {
+    package: "source",
+    connection: "warehouse",
+  });
+  assert.equal(
+    saved.fields.find((field) => field.type === "secret")!.value,
+    "WAREHOUSE_PASSWORD",
+  );
+  assert.throws(
+    () => reviewConnectionEditor(f.root, "dev", request),
+    /changed/,
+  );
+  assert.throws(
+    () =>
+      reviewConnectionEditor(f.root, "dev", {
+        ...request,
+        connection: "warehouse",
+        revision: saved.revision,
+        values: { [secret.id]: "literal password!" },
+      }),
+    /variable name/,
+  );
+});
+
+test("connection review does not expose literal credentials from sibling environment bindings", (t) => {
+  const f = setup(t, true);
+  f.project.environments.prod = {
+    ...structuredClone(f.project.environments.dev),
+    environment: "prod",
+    bindings: { unsafe: { password: "synthetic-forbidden-value" } },
+  };
+  f.put("project.yaml", f.project);
+  const form = readConnectionEditor(f.root, "dev", { package: "source" });
+  assert.throws(
+    () =>
+      reviewConnectionEditor(f.root, "dev", {
+        package: "source",
+        id: "new_source",
+        sourceId: "warehouse",
+        tenantId: "nz",
+        revision: form.revision,
+        values: Object.fromEntries(
+          form.fields.map((field) => [
+            field.id,
+            field.type === "secret"
+              ? "WAREHOUSE_PASSWORD"
+              : "warehouse.invalid",
+          ]),
+        ),
+      }),
+    /runtime.*secret reference/,
+  );
+});

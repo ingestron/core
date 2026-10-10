@@ -6,6 +6,7 @@ import { projectPackages } from "./project-packages.js";
 import { Configuration } from "./config.js";
 import { check, digest, canonical } from "./errors.js";
 import { preview } from "./authoring.js";
+import { auditSecrets } from "./planner.js";
 import { contractColumns } from "./contracts.js";
 import {
   fence,
@@ -91,6 +92,8 @@ export function proposeSourceFlow(
   };
   metadata(args.receipt);
   const parsed = def.project;
+  auditSecrets(parsed.connections, "connections");
+  auditSecrets(parsed.environments, "environments");
   check(
     !parsed.flows.some((flow: any) => flow.id === args.id),
     "OWNER",
@@ -153,6 +156,7 @@ export function proposeSourceFlow(
     );
   }
   if (args.target) {
+    auditSecrets(args.target, "target");
     const config = parsed.providers.configurations[args.target.provider];
     check(config, "PROVIDER", "Choose a configured target provider");
     const pkg = projectPackages(parsed)[config.package];
