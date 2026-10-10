@@ -167,6 +167,9 @@ export function inspectBuild(
         ? "conflict"
         : "unavailable",
       diagnostic,
+      ...(error instanceof Problem && error.reason === "SOURCE_CONSISTENCY"
+        ? { reason: error.reason }
+        : {}),
     };
   }
 }

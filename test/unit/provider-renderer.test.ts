@@ -4,6 +4,29 @@ import {
   executeProvider,
   expandProvider,
 } from "../../src/plugins/provider-renderer.js";
+test("only supported public reason identifiers cross the provider boundary", () => {
+  for (const reason of [
+    "SOURCE_CONSISTENCY",
+    "synthetic-private-value",
+    { message: "private" },
+  ]) {
+    assert.throws(
+      () =>
+        executeProvider(
+          `export function validate() { throw Object.assign(new Error("private provider detail"), {reason: ${JSON.stringify(reason)}}); } export function render() { return {}; }`,
+          {},
+        ),
+      (error: any) => {
+        assert.equal(error.code, "PROVIDER");
+        assert.equal(
+          error.reason,
+          reason === "SOURCE_CONSISTENCY" ? reason : undefined,
+        );
+        return true;
+      },
+    );
+  }
+});
 test("provider ES module runs with deterministic JSON assets only", () => {
   const code =
     'export function validate(p) { if(p.id !== "demo") throw new Error("wrong input"); } export function render(p) { return {"README.md":{format:"text",value:p.id}}; }';

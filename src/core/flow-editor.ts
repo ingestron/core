@@ -34,6 +34,22 @@ export const flowEditorReviewSchema = z
     revision: key,
     description: z.string().max(4000),
     values: z.record(key, scalar).default({}),
+    sourceAdditions: z
+      .record(
+        z
+          .string()
+          .regex(/^[A-Za-z_][A-Za-z0-9_]{0,79}$/)
+          .refine(
+            (name) =>
+              !/password|secret|token|credential|connectionstring|__proto__|prototype|constructor/i.test(
+                name,
+              ),
+            "Use the connection editor for credentials; reserved keys are not source settings",
+          ),
+        scalar,
+      )
+      .refine((value) => Object.keys(value).length <= 30)
+      .optional(),
     logic: z.record(key, z.string().max(65536)).default({}),
     contracts: z
       .array(
@@ -386,6 +402,46 @@ export function reviewFlowEditor(
     w.document(location.file).setIn(location.prefix, value);
     changed.add(location.file);
   };
+  const additions = flowEditorReviewSchema.shape.sourceAdditions.parse(
+    args.sourceAdditions,
+  );
+  if (additions && Object.keys(additions).length) {
+    const document = w.document(selected.file);
+    const flow: any = document.getIn(selected.prefix, true)?.toJSON();
+    const source = flow?.defaults?.source;
+    check(
+      snapshot.kind === "ingestion" &&
+        source &&
+        typeof source === "object" &&
+        !Array.isArray(source) &&
+        !source.$resolve,
+      "AUTHORING",
+      "Add source settings only to a local ingestion source definition",
+    );
+    visit(document, {
+      Alias() {
+        check(
+          false,
+          "AUTHORING",
+          "Edit shared YAML aliases in their source definition before adding settings",
+        );
+      },
+    });
+    for (const [name, value] of Object.entries(additions)) {
+      check(
+        !Object.hasOwn(source, name),
+        "AUTHORING",
+        "Edit existing source settings in their current fields",
+      );
+      set(
+        {
+          file: selected.file,
+          prefix: [...selected.prefix, "defaults", "source", name],
+        },
+        value,
+      );
+    }
+  }
   if (args.description !== snapshot.description)
     set(
       { file: selected.file, prefix: [...selected.prefix, "description"] },

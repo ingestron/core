@@ -1,5 +1,21 @@
 # Integrating core
 
+## Local generation-recovery candidate
+
+`flow_editor_review` accepts optional `sourceAdditions`: up to 30 named scalar
+settings for the selected ingestion flow's local `defaults.source`. Existing keys,
+credential names, reserved keys, nested values and source references are rejected.
+The normal revision, review and apply boundaries remain required. Added fields
+appear in subsequent editor reads. This repairs omitted settings without exposing
+client-controlled file paths or silently changing an existing value. Provider
+validation still governs generation; saving a draft does not qualify it.
+
+Provider errors may include the public identifier `reason: SOURCE_CONSISTENCY`.
+The VM and host discard other reason values. `build_status` retains this identifier
+when generation validation fails, while preserving saved-file access. Clients can
+show fixed guidance without forwarding arbitrary provider messages or values.
+Older providers retain their existing generic diagnostic behaviour.
+
 Use `@ingestron/core` in a trusted Node 22.12 or newer host such as a CLI, service worker or
 editor backend. Use `@ingestron/core/schemas` for structural validation of unsaved
 editor buffers; it does not load the filesystem or runtime plugin host.

@@ -10,6 +10,58 @@ import {
   createFlowEditor,
 } from "../../src/core/flow-editor.js";
 import { apply } from "../../src/core/authoring.js";
+test("missing source settings use reviewed additions with stale and ownership protection", (t) => {
+  const f = fixture(t);
+  const snapshot = readFlowEditor(f.root, "source").selected!;
+  const before = readFileSync(join(f.root, "flows/source/flow.yaml"), "utf8");
+  const edit = {
+    flow: "source",
+    revision: snapshot.revision,
+    description: snapshot.description,
+    values: {},
+    logic: {},
+    contracts: [],
+    sourceAdditions: { consistency: "frozen-extract" },
+  };
+  const proposal = reviewFlowEditor(f.root, edit);
+  assert.equal(
+    readFileSync(join(f.root, "flows/source/flow.yaml"), "utf8"),
+    before,
+  );
+  apply(f.root, proposal);
+  const flow = parse(
+    readFileSync(join(f.root, "flows/source/flow.yaml"), "utf8"),
+  );
+  assert.equal(flow.defaults.source.consistency, "frozen-extract");
+  assert.equal(flow.defaults.source.binding, "files");
+  assert.deepEqual(flow.tables, parse(before).tables);
+  assert.throws(() => reviewFlowEditor(f.root, edit), /changed/);
+  const current = readFlowEditor(f.root, "source").selected!;
+  assert.ok(
+    current.values.some(
+      (v) => v.name === "consistency" && v.value === "frozen-extract",
+    ),
+  );
+  assert.throws(
+    () => reviewFlowEditor(f.root, { ...edit, revision: current.revision }),
+    /existing source/,
+  );
+  for (const sourceAdditions of [
+    { password: "synthetic" },
+    { $resolve: "../escape" },
+    { __proto__: null, constructor: "bad" },
+    { nested: {} },
+    { consistency: null },
+  ]) {
+    assert.throws(() =>
+      reviewFlowEditor(f.root, {
+        ...edit,
+        revision: current.revision,
+        sourceAdditions,
+      } as any),
+    );
+  }
+});
 
 function setup(t: any) {
   const f = fixture(t);

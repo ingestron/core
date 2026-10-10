@@ -33,7 +33,10 @@ try {
     if (result.error) {
       const message = context.dump(result.error);
       result.error.dispose();
-      throw new Error(message.message ?? String(message));
+      throw Object.assign(new Error(message.message ?? String(message)), {
+        reason:
+          message.reason === "SOURCE_CONSISTENCY" ? message.reason : undefined,
+      });
     }
     const value = context.dump(result.value);
     result.value.dispose();
@@ -119,6 +122,10 @@ try {
     JSON.stringify({
       ok: false,
       error: error instanceof Error ? error.message : String(error),
+      reason:
+        (error as any)?.reason === "SOURCE_CONSISTENCY"
+          ? "SOURCE_CONSISTENCY"
+          : undefined,
     }),
   );
 }
