@@ -1,3 +1,9 @@
+import {
+  executionProfilesReadSchema,
+  executionProfilesReviewSchema,
+  readExecutionProfiles,
+  reviewExecutionProfile,
+} from "./execution-profile-editor.js";
 import { deliverySchemas, performDelivery } from "./delivery-workflow.js";
 import {
   sharedConnectionReviewSchema,
@@ -467,6 +473,8 @@ export const operationSchemas = {
     })
     .strict(),
   flow_editor_create: flowEditorCreateSchema,
+  flow_profiles_read: executionProfilesReadSchema,
+  flow_profiles_review: executionProfilesReviewSchema,
   flow_editor_read: flowEditorReadSchema,
   flow_editor_review: flowEditorReviewSchema,
   flow_show: z.object({ id: workflows.identifier }).strict(),
@@ -1135,6 +1143,12 @@ export function execute(
         break;
       case "flow_editor_create":
         result = createFlowEditor(root, environment, args);
+        break;
+      case "flow_profiles_read":
+        result = readExecutionProfiles(root, args);
+        break;
+      case "flow_profiles_review":
+        result = reviewExecutionProfile(root, args);
         break;
       case "flow_editor_read":
         result = readFlowEditor(root, args.flow);
