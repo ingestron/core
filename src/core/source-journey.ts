@@ -89,6 +89,14 @@ export function inspectSourceJourney(
   if (selected)
     selected.result = sourceAccessResponseSchema.parse(selected.result);
   const drafts: any[] = [];
+  const eligible = records.slice(0, 20);
+  if (selected && !eligible.includes(selected)) {
+    eligible.unshift(selected);
+    eligible.pop();
+  }
+  const metadata = new Map(
+    eligible.map((r) => [r.id, sourceAccessResponseSchema.parse(r.result)]),
+  );
   const draftRoot = `contracts/discovery/${def.environment}/${args.connection}`;
   if (selected && existsSync(fence(context.root, draftRoot))) {
     const folders = readdirSync(fence(context.root, draftRoot)).filter((n) =>
@@ -99,14 +107,19 @@ export function inspectSourceJourney(
       "LIMIT",
       "Archive old discovery drafts before continuing",
     );
-    for (const folder of folders) {
+    const ordered = folders.sort(
+      (a, b) =>
+        statSync(fence(context.root, `${draftRoot}/${b}`)).mtimeMs -
+        statSync(fence(context.root, `${draftRoot}/${a}`)).mtimeMs,
+    );
+    for (const folder of ordered) {
       const path = `${draftRoot}/${folder}/selection.json`;
       if (!existsSync(fence(context.root, path))) continue;
       const s = read(path);
       if (
         s.apiVersion !== "ingestron.source-selection/v1" ||
         !matches(s) ||
-        s.receipt !== selected.id ||
+        !metadata.has(s.receipt) ||
         !Array.isArray(s.tables)
       )
         continue;
@@ -120,11 +133,18 @@ export function inspectSourceJourney(
           t.fields > 100000 ||
           !/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/.test(t.name) ||
           t.file !== `${draftRoot}/${folder}/${t.name}.odcs.yaml` ||
-          !selected.result.tables.some((o: any) => o.id === t.id) ||
+          !metadata.get(s.receipt)!.tables.some((o: any) => o.id === t.id) ||
           !existsSync(fence(context.root, t.file))
         )
           continue;
-        drafts.push({ id: t.id, name: t.name, file: t.file, fields: t.fields });
+        if (!drafts.some((d) => d.id === t.id))
+          drafts.push({
+            id: t.id,
+            name: t.name,
+            file: t.file,
+            fields: t.fields,
+            receipt: s.receipt,
+          });
       }
     }
   }
@@ -139,16 +159,22 @@ export function inspectSourceJourney(
           configuredPackageReference(packages[config.package]),
         ).file,
       );
+      const authoring = manifest.authoring?.flows;
+      const standards = (manifest.standards ?? []).filter(
+        (s: any) => !authoring || authoring.ingestionStandards?.includes(s.id),
+      );
       if (
         manifest.platform !== "local" &&
-        !manifest.authoring?.flows?.kinds?.includes("ingestion")
+        (authoring
+          ? !authoring.kinds?.includes("ingestion")
+          : !standards.length)
       )
         return [];
       return [
         {
           id,
           platform: manifest.platform,
-          standards: manifest.standards ?? [],
+          standards,
         },
       ];
     } catch {
@@ -164,7 +190,9 @@ export function inspectSourceJourney(
       objects: r.result.tables.length,
     })),
     tables: selected?.result.tables ?? [],
-    drafts,
+    drafts: drafts.slice(0, 500),
     providers,
+    sourceKind: def.unsupported ? "" : def.manifest.id,
+    draftsTruncated: drafts.length > 500,
   };
 }

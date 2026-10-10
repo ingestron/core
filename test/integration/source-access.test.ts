@@ -570,6 +570,14 @@ test("one reviewed source flow keeps target delivery and local testing on identi
     binding: "platform",
   };
   f.put("project.yaml", f.project);
+  const journey = execute(ctx, "connection_journey", { connection: "sales" });
+  assert.equal(journey.ok, true, JSON.stringify(journey));
+  assert.equal(
+    journey.result.providers.find((p: any) => p.id === "target")?.standards[0]
+      ?.id,
+    "snapshot@v1",
+    "Legacy native providers remain available through declared ingestion standards",
+  );
   const request = {
     id: "shared",
     connection: "sales",
@@ -1199,4 +1207,38 @@ test("saved discovery resumes only current metadata and its isolated contract se
     }).diagnostics[0].code,
     "STALE",
   );
+});
+
+test("saved source journey combines distinct current metadata batches with their original receipt identities", async (t) => {
+  const f = setup(t),
+    ctx = {
+      root: f.root,
+      environment: "dev",
+      allowWrite: true,
+      allowExecute: true,
+    };
+  const receipts: string[] = [];
+  for (const name of ["Orders", "Customers"]) {
+    const meta = await executeAsync(ctx, "connection_metadata", {
+      connection: "sales",
+      tables: [{ schema: "dbo", table: name }],
+      envFile: ".private.env",
+    });
+    assert.equal(meta.ok, true, JSON.stringify(meta));
+    receipts.push(meta.result.receipt);
+    const draft = await executeAsync(ctx, "connection_contracts", {
+      connection: "sales",
+      receipt: meta.result.receipt,
+      tables: [{ id: meta.result.tables[0].id, name }],
+    });
+    assert.equal(draft.ok, true, JSON.stringify(draft));
+  }
+  const saved = execute(ctx, "connection_journey", { connection: "sales" });
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  assert.equal(saved.result.drafts.length, 2);
+  assert.deepEqual(
+    new Set(saved.result.drafts.map((d: any) => d.receipt)),
+    new Set(receipts),
+  );
+  assert.equal(saved.result.draftsTruncated, false);
 });
