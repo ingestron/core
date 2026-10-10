@@ -1,3 +1,4 @@
+import { deliverySchemas, performDelivery } from "./delivery-workflow.js";
 import {
   sharedConnectionReviewSchema,
   sharedConnectionApplySchema,
@@ -222,6 +223,7 @@ export const operationSchemas = {
   compiler_identity: z.object({}).strict(),
   build_retain: buildRetainSchema,
   build_retained: buildRetainedSchema,
+  ...deliverySchemas,
   ...executionSchemas,
   ...schedulerSchemas,
   ...workerSchemas,
@@ -989,6 +991,9 @@ export function execute(
       case "connection_metadata":
       case "connection_contracts":
       case "connection_drafts":
+      case "delivery_inspect":
+      case "delivery_execution_review":
+      case "delivery_execution_apply":
       case "runtime_prepare":
       case "run":
       case "scheduler_inspect":
@@ -1780,6 +1785,7 @@ export async function executeAsync(
   request: unknown = {},
 ): Promise<Result> {
   const asyncSchemas = {
+    ...deliverySchemas,
     ...executionSchemas,
     ...sourceAccessSchemas,
     ...schedulerSchemas,
@@ -1797,29 +1803,35 @@ export async function executeAsync(
         .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; ") ?? "Invalid execution request",
     );
-    const result = Object.hasOwn(workerSchemas, name)
-      ? await performSchedulerWorker(
+    const result = Object.hasOwn(deliverySchemas, name)
+      ? await performDelivery(
           context,
-          name as keyof typeof workerSchemas,
+          name as keyof typeof deliverySchemas,
           parsed.data,
         )
-      : Object.hasOwn(schedulerSchemas, name)
-        ? await performScheduler(
+      : Object.hasOwn(workerSchemas, name)
+        ? await performSchedulerWorker(
             context,
-            name as keyof typeof schedulerSchemas,
+            name as keyof typeof workerSchemas,
             parsed.data,
           )
-        : Object.hasOwn(sourceAccessSchemas, name)
-          ? await performSourceAccess(
+        : Object.hasOwn(schedulerSchemas, name)
+          ? await performScheduler(
               context,
-              name as keyof typeof sourceAccessSchemas,
+              name as keyof typeof schedulerSchemas,
               parsed.data,
             )
-          : await performExecution(
-              context,
-              name as keyof typeof executionSchemas,
-              parsed.data,
-            );
+          : Object.hasOwn(sourceAccessSchemas, name)
+            ? await performSourceAccess(
+                context,
+                name as keyof typeof sourceAccessSchemas,
+                parsed.data,
+              )
+            : await performExecution(
+                context,
+                name as keyof typeof executionSchemas,
+                parsed.data,
+              );
     return {
       apiVersion: "ingestron.operation/v1",
       operation,
