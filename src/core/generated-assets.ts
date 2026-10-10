@@ -5,6 +5,7 @@ import { z } from "zod";
 import { check, digest, Problem } from "./errors.js";
 import { fence } from "./packages.js";
 import { programmeSourceSchema } from "./platform-binding.js";
+import { inspectProject } from "./planner.js";
 import { reviewBuild } from "./build-review.js";
 
 const relativeFile = z
@@ -19,6 +20,14 @@ const relativeFile = z
 export const buildStatusSchema = z
   .object({
     programme: programmeSourceSchema.optional(),
+    flow: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/)
+      .optional(),
+    profile: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/)
+      .optional(),
     out: relativeFile.default("build/generated"),
   })
   .strict();
@@ -97,11 +106,26 @@ export function inspectBuild(
   input: unknown,
 ) {
   const args = buildStatusSchema.parse(input);
+  let selections: { flow: string; profile: string; provider: string }[] = [];
+  try {
+    selections = inspectProject(root, environment, { draft: true })
+      .flows.flatMap((f) =>
+        Object.entries(f.executionProfiles).map(([profile, p]) => ({
+          flow: f.id,
+          profile,
+          provider: p.provider,
+        })),
+      )
+      .slice(0, 1000);
+  } catch {
+    /* Saved files remain available with invalid definitions. */
+  }
   const base = {
     apiVersion: "ingestron.build-status/v1",
     environment,
     directory: args.out,
     deploymentExecuted: false,
+    selections,
   };
   let saved;
   try {

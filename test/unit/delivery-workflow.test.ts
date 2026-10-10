@@ -35,7 +35,7 @@ function setup(t: any, platform = "local") {
       apiVersion: "ingestron.execution/v1",
       transport: "local-python/v1",
       entryPoint: "execute.py",
-      actions: ["prepare", "run", "review"],
+      actions: ["prepare", "run", "review", "approve"],
       status: "receipt",
       retry: "same-run-id",
       cancellation: "interrupt",
@@ -206,5 +206,43 @@ test("reviewed execution rejects stale definitions, native targets and dependenc
       })
     ).diagnostics[0].code,
     "SCHEMA",
+  );
+});
+
+test("delivery mapping evidence is bounded metadata and approval binds its exact bytes", async (t) => {
+  const f = setup(t);
+  const mapping = {
+    status: "draft",
+    identity: "private identity",
+    selection: {
+      orders: {
+        name: "orders",
+        fields: {
+          id: { type: "integer", nullable: false, privateValue: "hidden" },
+        },
+      },
+    },
+    catalog: { sourceRows: ["hidden"] },
+  };
+  f.put("build/dev/flows/source/review.json", JSON.stringify(mapping));
+  const read = ok(
+    await f.run("delivery_inspect", { flow: "source", from: "build/dev" }),
+  );
+  assert.equal(read.evidence.mapping.tables[0].fields[0].source, "id");
+  assert.equal(read.evidence.mapping.status, "draft");
+  assert.equal(JSON.stringify(read).includes("hidden"), false);
+  const review = ok(
+    await f.run("delivery_execution_review", { ...f.input, action: "approve" }),
+  );
+  assert.equal(review.mapping.digest, read.evidence.mapping.digest);
+  mapping.selection.orders.fields.id.nullable = true;
+  f.put("build/dev/flows/source/review.json", JSON.stringify(mapping));
+  assert.equal(
+    (await f.run("delivery_execution_apply", { review })).diagnostics[0].code,
+    "STALE",
+  );
+  assert.equal(
+    (await f.run("delivery_inspect", { flow: "unknown" })).ok,
+    false,
   );
 });

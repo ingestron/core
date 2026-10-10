@@ -20,6 +20,8 @@ import {
 import { executionBoundary, performExecution } from "./execution.js";
 import { connectionSecretNames } from "./connection-settings.js";
 import { canonical, check, digest, Problem } from "./errors.js";
+import { deliveryMapping, deliveryResults } from "./delivery-evidence.js";
+import { buildCompilerCurrent } from "./compiler-identity.js";
 import type { Context } from "./operations.js";
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/);
 const path = z
@@ -62,7 +64,13 @@ const requestSchema = z
       });
   });
 export const deliverySchemas = {
-  delivery_inspect: z.object({}).strict(),
+  delivery_inspect: z
+    .object({
+      flow: id.optional(),
+      profile: id.optional(),
+      from: path.optional(),
+    })
+    .strict(),
   delivery_execution_review: requestSchema,
   delivery_execution_apply: z.object({ review: z.unknown() }).strict(),
 };
@@ -118,23 +126,34 @@ const summarySchema = z.object({
   qualityFailed: z.boolean(),
 });
 function summary(record: any) {
-  return summarySchema.parse({
-    id: record.id,
-    action: record.action,
-    status: record.status,
-    project: record.project,
-    environment: record.environment,
-    profile: record.profile ?? "",
-    configuration: record.configuration,
-    flows: record.flows,
-    attempt: record.attempt,
-    startedAt: record.startedAt,
-    finishedAt: record.finishedAt ?? null,
-    recoveryRequired: record.recoveryRequired === true,
-    qualityFailed: !!record.quality,
-  });
+  return {
+    ...summarySchema.parse({
+      id: record.id,
+      action: record.action,
+      status: record.status,
+      project: record.project,
+      environment: record.environment,
+      profile: record.profile ?? "",
+      configuration: record.configuration,
+      flows: record.flows,
+      attempt: record.attempt,
+      startedAt: record.startedAt,
+      finishedAt: record.finishedAt ?? null,
+      recoveryRequired: record.recoveryRequired === true,
+      qualityFailed: !!record.quality,
+    }),
+    fingerprint:
+      typeof record.fingerprint === "string" &&
+      /^[a-f0-9]{64}$/.test(record.fingerprint)
+        ? record.fingerprint
+        : null,
+    ...deliveryResults(record),
+  };
 }
-async function inventory(context: Context) {
+async function inventory(
+  context: Context,
+  input: { flow?: string; profile?: string; from?: string },
+) {
   const environment = context.environment ?? "dev",
     state = inspectProject(context.root, environment, { draft: true });
   check(
@@ -217,6 +236,40 @@ async function inventory(context: Context) {
     }
   }
   runs.sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
+  let evidence: any = null;
+  if (input.flow) {
+    check(
+      state.flows.some((f) => f.id === input.flow),
+      "FLOW",
+      "Select a saved flow",
+    );
+    try {
+      const boundary = executionBoundary(
+        context,
+        {
+          flow: input.flow,
+          profile: input.profile,
+          from: input.from ?? `build/${environment}`,
+        },
+        "execution_evidence",
+      );
+      check(
+        boundary.build.project === state.project.id &&
+          boundary.manifest.platform === "local",
+        "OWNER",
+        "Select this project's local build",
+      );
+      evidence = {
+        flow: input.flow,
+        profile: input.profile ?? "",
+        fingerprint: boundary.fingerprint,
+        current: buildCompilerCurrent(boundary.build),
+        mapping: deliveryMapping(boundary.packageRoot, input.flow),
+      };
+    } catch (error) {
+      issues.push({ subject: input.flow, code: code(error) });
+    }
+  }
   return {
     apiVersion: "ingestron.delivery-workspace/v1",
     project: state.project.id,
@@ -236,6 +289,7 @@ async function inventory(context: Context) {
     issues,
     deploymentExecuted: false,
     backgroundWorkerStarted: false,
+    evidence,
   };
 }
 async function reviewed(context: Context, input: unknown) {
@@ -327,6 +381,9 @@ async function reviewed(context: Context, input: unknown) {
     secretNames: [...secrets].sort(),
     networkDependencies: request.action === "prepare",
     sourceAccess: request.action !== "prepare",
+    mapping: ["approve", "run"].includes(request.action)
+      ? deliveryMapping(boundary.packageRoot, request.flow)
+      : null,
     deploymentExecuted: false,
   };
 }
@@ -335,7 +392,7 @@ export async function performDelivery(
   operation: keyof typeof deliverySchemas,
   input: any,
 ): Promise<any> {
-  if (operation === "delivery_inspect") return inventory(context);
+  if (operation === "delivery_inspect") return inventory(context, input);
   if (operation === "delivery_execution_review")
     return reviewed(context, input);
   check(
