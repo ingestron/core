@@ -1,4 +1,14 @@
 import {
+  programmeDeliveryReadSchema,
+  programmeDeliveryReviewSchema,
+  programmeDeliveryApplySchema,
+  programmeDeliveryBaselineSchema,
+  readProgrammeDelivery,
+  reviewProgrammeDelivery,
+  applyProgrammeDelivery,
+  reviewProgrammeDeliveryBaseline,
+} from "./programme-delivery.js";
+import {
   policyEditorReviewSchema,
   readPolicyEditor,
   reviewPolicyEditor,
@@ -279,6 +289,10 @@ export const operationSchemas = {
   programme_definition_inspect: programmeReadSchema,
   programme_registration_propose: programmeRegistrationSchema,
   programme_save: programmeSaveSchema,
+  programme_delivery_read: programmeDeliveryReadSchema,
+  programme_delivery_review: programmeDeliveryReviewSchema,
+  programme_delivery_apply: programmeDeliveryApplySchema,
+  programme_delivery_baseline_review: programmeDeliveryBaselineSchema,
   delivery_plan_check: z
     .object({
       path: z.string().default("delivery-plan.yaml"),
@@ -928,6 +942,19 @@ export function execute(
         break;
       case "policy_propose":
         result = author.configurePolicy(root, args.policy);
+        break;
+      case "programme_delivery_read":
+        result = readProgrammeDelivery(root, args);
+        break;
+      case "programme_delivery_review":
+        result = reviewProgrammeDelivery(root, args);
+        break;
+      case "programme_delivery_apply":
+        write();
+        result = applyProgrammeDelivery(root, args);
+        break;
+      case "programme_delivery_baseline_review":
+        result = reviewProgrammeDeliveryBaseline(root, args);
         break;
       case "delivery_plan_check":
         result = checkDeliveryPlan(root, args.path, args.baseline);

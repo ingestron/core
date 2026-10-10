@@ -1,4 +1,5 @@
 /** One build path: native compilation and connector preparation feed provider assembly. */
+import { verifyProgrammeDelivery } from "./programme-delivery.js";
 import {
   verifyBuildBindings,
   assertBindingEnvironments,
@@ -336,6 +337,7 @@ export function renderProjectBuild(
   args: any,
 ) {
   verifyBuildBindings(root, environment, args.programme);
+  const planningFiles = verifyProgrammeDelivery(root, args.programme);
   const inspected = inspectProject(root, environment, args);
   const { project, reader, profile } = inspected;
   let flows = inspected.flows;
@@ -763,7 +765,7 @@ export function renderProjectBuild(
     files: Object.fromEntries(
       Object.entries(files).map(([n, t]) => [n, digest(t)]),
     ),
-    sourceFiles: { ...reader.files, ...nativePlan.files },
+    sourceFiles: { ...reader.files, ...nativePlan.files, ...planningFiles },
     packageLockSha256: existsSync(fence(root, "packages.lock.yaml"))
       ? digest(readFileSync(fence(root, "packages.lock.yaml")))
       : undefined,
