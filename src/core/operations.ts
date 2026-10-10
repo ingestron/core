@@ -1,4 +1,9 @@
 import {
+  policyEditorReviewSchema,
+  readPolicyEditor,
+  reviewPolicyEditor,
+} from "./policy-editor.js";
+import {
   snapshotImportReviewSchema,
   snapshotImportApplySchema,
   reviewSnapshotImport,
@@ -257,6 +262,8 @@ export const operationSchemas = {
     .strict(),
   schedule_inspect: z.object({ flow: workflows.identifier }).strict(),
   governance_check: z.object({ flow: z.string().optional() }).strict(),
+  policy_editor_read: z.object({}).strict(),
+  policy_editor_review: policyEditorReviewSchema,
   policy_propose: z.object({ policy: policySchema }).strict(),
   connection_journey: sourceJourneySchema,
   connection_flow_review: sourceFlowSchema,
@@ -912,6 +919,12 @@ export function execute(
           }),
           args,
         );
+        break;
+      case "policy_editor_read":
+        result = readPolicyEditor(root);
+        break;
+      case "policy_editor_review":
+        result = reviewPolicyEditor(root, args);
         break;
       case "policy_propose":
         result = author.configurePolicy(root, args.policy);
