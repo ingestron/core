@@ -165,3 +165,18 @@ raw proposals in its trusted host, bind one-use tokens to the programme/editor,
 and refuse to migrate an unsaved draft. Existing CLI installations need core
 0.12.60 or later to read this YAML; do not migrate shared repositories before their
 other editors and automation are upgraded. Public dependency pins are unchanged.
+
+## Reviewed target profile parameter sets
+
+`programme_platform_catalogue` exposes `profileDefaults` version 1 for each target.
+The core catalogue owns workload suggestions, shared/project naming layouts and
+review-policy defaults. Clients may preview these values and submit the resulting
+ordinary target definition through `programme_save`; YAML uses the existing
+`generation`, `capabilities`, `policies` and `naming` fields, without a second format.
+
+Suggestions are shared planning intent. They do not discover tenant capabilities,
+install packages or activate enforcement. Source connectivity, change semantics,
+compute and access choices are deliberately not inferred. Preserve non-empty
+settings and environment bindings when filling defaults; explicitly disallowed
+capabilities must not be overwritten by a suggested workload. Shared definition
+changes retain the existing project-binding freshness checks.

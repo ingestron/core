@@ -1,3 +1,7 @@
+import {
+  platformProfileSets,
+  profileGovernanceDefaults,
+} from "./platform-profile-defaults.js";
 import { generationCatalogue } from "./platform-generation.js";
 /** Curated desired configuration; no remote settings are read or changed. */
 export const platformCatalogue = [
@@ -257,6 +261,34 @@ export const platformCatalogue = [
   },
 ].map((p) => ({
   ...p,
+  profileDefaults: {
+    version: 1,
+    governance: profileGovernanceDefaults,
+    workloads: [
+      ...platformProfileSets[p.id]!,
+      {
+        id: "custom",
+        label: "Decide workload later",
+        description:
+          "Start with naming and review policies; choose workload capabilities individually.",
+        generation: {},
+        capabilities: {},
+      },
+    ],
+    naming: [
+      { id: "shared", label: "Shared platform namespace", values: p.naming },
+      {
+        id: "project",
+        label: "Project-prefixed assets",
+        values: {
+          ...p.naming,
+          ...(p.id === "adf"
+            ? { linkedService: "ls_{project}_{source}" }
+            : { schema: "{project}_{layer}", table: "{dataset}" }),
+        },
+      },
+    ],
+  },
   generation: generationCatalogue[p.id]!,
   generationDefaults: {
     qualityFailure: "block",
