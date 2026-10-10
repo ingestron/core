@@ -1,4 +1,10 @@
 import {
+  buildStatusSchema,
+  buildFileSchema,
+  inspectBuild,
+  readBuildFile,
+} from "./generated-assets.js";
+import {
   targetSetupSchema,
   targetSetupApplySchema,
   reviewTargetSetup,
@@ -422,6 +428,8 @@ export const operationSchemas = {
   flow_editor_read: flowEditorReadSchema,
   flow_editor_review: flowEditorReviewSchema,
   flow_show: z.object({ id: workflows.identifier }).strict(),
+  build_status: buildStatusSchema,
+  build_file: buildFileSchema,
   build_review: buildReviewSchema,
   build_apply: buildApplySchema,
   build: z
@@ -1081,6 +1089,12 @@ export function execute(
       case "platform_binding_apply":
         write();
         result = applyPlatformBinding(root, args.programme, args.proposal);
+        break;
+      case "build_status":
+        result = inspectBuild(root, environment, args);
+        break;
+      case "build_file":
+        result = readBuildFile(root, environment, args);
         break;
       case "build_review":
         result = reviewBuild(root, environment, args);

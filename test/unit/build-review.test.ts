@@ -1,3 +1,4 @@
+import * as requireFs from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, writeFileSync, symlinkSync } from "node:fs";
@@ -115,4 +116,73 @@ test("reviewed generation keeps existing ownership and symlink protections", (t)
     run(f.root, "build_review", { out: "linked/generated" }).ok,
     false,
   );
+});
+
+test("saved assets survive reopening, distinguish changed inputs and remain readable with invalid definitions", (t) => {
+  const f = fixture(t);
+  const status = () => run(f.root, "build_status", {}).result;
+  assert.equal(status().status, "not-generated");
+  assert.equal(existsSync(join(f.root, "build")), false);
+  assert.equal(run(f.root, "build", {}, true).ok, true);
+  const first = status();
+  assert.equal(first.status, "current");
+  assert.deepEqual(status(), first);
+  const path = first.files.find((file: any) => file.previewable).path;
+  const content = run(f.root, "build_file", { path }).result.content;
+  assert.equal(
+    content,
+    readFileSync(join(f.root, "build/generated", path), "utf8"),
+  );
+  const project = readFileSync(join(f.root, "project.yaml"), "utf8");
+  f.put("project.yaml", project + "\n# Changed source\n");
+  assert.equal(status().status, "outdated");
+  f.put("project.yaml", "invalid: [");
+  assert.equal(status().status, "unavailable");
+  assert.deepEqual(status().files, first.files);
+  assert.equal(run(f.root, "build_file", { path }).result.content, content);
+  f.put("project.yaml", project);
+  f.put("build/generated/" + path, "Manual change\n");
+  assert.equal(status().status, "conflict");
+  assert.equal(
+    status().files.find((file: any) => file.path === path).state,
+    "modified",
+  );
+  assert.equal(
+    run(f.root, "build_file", { path }).result.content,
+    "Manual change\n",
+  );
+});
+
+test("saved file inspection rejects foreign environments, traversal, unowned files, oversized and symlink previews", (t) => {
+  const f = fixture(t);
+  assert.equal(run(f.root, "build", {}, true).ok, true);
+  const status = run(f.root, "build_status", {}).result;
+  const path = status.files.find((file: any) => file.previewable).path;
+  for (const request of [
+    { path: "../project.yaml" },
+    { path: "/project.yaml" },
+    { path: "x\\y" },
+    { path: "unknown.txt" },
+  ])
+    assert.equal(run(f.root, "build_file", request).ok, false);
+  assert.equal(run(f.root, "build_file", { path }, false, "test").ok, false);
+  f.put("build/generated/unowned.txt", "User file");
+  assert.equal(run(f.root, "build_file", { path: "unowned.txt" }).ok, false);
+  f.put("build/generated/" + path, "x".repeat(256 * 1024 + 1));
+  assert.equal(run(f.root, "build_file", { path }).ok, false);
+  const { unlinkSync } = requireFs;
+  unlinkSync(join(f.root, "build/generated", path));
+  assert.equal(
+    run(f.root, "build_status", {}).result.files.find(
+      (file: any) => file.path === path,
+    ).state,
+    "missing",
+  );
+  assert.equal(run(f.root, "build_file", { path }).ok, false);
+  symlinkSync(
+    join(f.root, "project.yaml"),
+    join(f.root, "build/generated", path),
+  );
+  assert.equal(run(f.root, "build_status", {}).result.status, "unavailable");
+  assert.equal(run(f.root, "build_file", { path }).ok, false);
 });
