@@ -6,6 +6,8 @@ export interface GenerationOption {
   description: string;
   mapping?: string;
   capability?: string;
+  /** Explicit standard identities; never derived from labels or display mappings. */
+  standards?: string[];
 }
 export interface GenerationSetting {
   id: string;
@@ -21,6 +23,7 @@ const option = (
   description: string,
   mapping?: string,
   capability?: string,
+  standards?: string[],
 ): GenerationOption => ({
   id,
   label,
@@ -28,6 +31,7 @@ const option = (
   description,
   ...(mapping ? { mapping } : {}),
   ...(capability ? { capability } : {}),
+  ...(standards ? { standards } : {}),
 });
 const setting = (
   id: string,
@@ -141,9 +145,14 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "auto-loader",
           "Auto Loader",
           "provider",
-          "Ingest immutable files from supported cloud storage.",
-          "append-only@v1",
+          "Ingest files from supported cloud storage under the selected delivery standard.",
+          "append-only@v1 / snapshot-with-history@v1 / change-feed-with-history@v1",
           "lakeflow",
+          [
+            "append-only@v1",
+            "snapshot-with-history@v1",
+            "change-feed-with-history@v1",
+          ],
         ),
         option(
           "lakeflow-connect",
@@ -152,6 +161,11 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Managed source ingestion for provider-declared connectors. Source-specific setup remains required.",
           "provider source catalogue / flow.ingestion",
           "lakeflow",
+          [
+            "query-ingestion@v1",
+            "sharepoint-ingestion@v1",
+            "saas-ingestion@v1",
+          ],
         ),
         option(
           "adf-bridge",
@@ -208,6 +222,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Immutable deliveries; no updates or deletes.",
           "append-only@v1",
           "lakeflow",
+          ["append-only@v1"],
         ),
         option(
           "snapshot-history",
@@ -216,6 +231,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Complete snapshots, stable keys and retained deliveries; AUTO CDC FROM SNAPSHOT.",
           "snapshot-with-history@v1",
           "lakeflow",
+          ["snapshot-with-history@v1"],
         ),
         option(
           "cdc-history",
@@ -224,6 +240,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Baseline plus full-row ordered change events; AUTO CDC.",
           "change-feed-with-history@v1",
           "lakeflow",
+          ["change-feed-with-history@v1"],
         ),
       ],
     ),
@@ -263,6 +280,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Provider supports bounded Azure SQL snapshot and watermark ingestion.",
           "copy-job-snapshot@v1 / copy-job-watermark-append@v1",
           "data-factory",
+          ["copy-job-snapshot@v1", "copy-job-watermark-append@v1"],
         ),
         option(
           "copy-pipeline",
@@ -271,6 +289,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Snapshot copy with supported quality checks.",
           "pipeline-quality-snapshot@v1",
           "data-factory",
+          ["pipeline-quality-snapshot@v1"],
         ),
         option(
           "mirroring",
@@ -363,6 +382,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Copy a complete source delivery to a landing location.",
           "snapshot-land@v1",
           "copy-activity",
+          ["snapshot-land@v1"],
         ),
         option(
           "watermark-copy",
@@ -371,6 +391,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Bounded append ingestion for eligible ordered sources.",
           "watermark-append-land@v1",
           "copy-activity",
+          ["watermark-append-land@v1"],
         ),
         option(
           "metadata-copy",
@@ -379,6 +400,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Reviewed source metadata drives a bounded snapshot copy.",
           "metadata-snapshot-land@v1",
           "copy-activity",
+          ["metadata-snapshot-land@v1"],
         ),
       ],
     ),
@@ -395,6 +417,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
           "Publish complete reviewed deliveries for downstream ingestion.",
           "snapshot-land@v1",
           "copy-activity",
+          ["snapshot-land@v1"],
         ),
       ],
     ),

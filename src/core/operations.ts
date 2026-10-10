@@ -1,4 +1,10 @@
 import {
+  programmeFlowReviewSchema,
+  programmeFlowApplySchema,
+  reviewProgrammeFlow,
+  applyProgrammeFlow,
+} from "./programme-flow.js";
+import {
   programmeDeliveryReadSchema,
   programmeDeliveryReviewSchema,
   programmeDeliveryApplySchema,
@@ -499,6 +505,8 @@ export const operationSchemas = {
       contract: z.string().optional(),
     })
     .strict(),
+  programme_flow_review: programmeFlowReviewSchema,
+  programme_flow_apply: programmeFlowApplySchema,
   flow_editor_create: flowEditorCreateSchema,
   flow_profiles_read: executionProfilesReadSchema,
   flow_profiles_review: executionProfilesReviewSchema,
@@ -1188,6 +1196,13 @@ export function execute(
         break;
       case "flow_create":
         result = workflows.flowCreate(root, environment, args);
+        break;
+      case "programme_flow_review":
+        result = reviewProgrammeFlow(root, environment, args);
+        break;
+      case "programme_flow_apply":
+        write();
+        result = applyProgrammeFlow(root, environment, args);
         break;
       case "flow_editor_create":
         result = createFlowEditor(root, environment, args);

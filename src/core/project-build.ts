@@ -1,3 +1,4 @@
+import { verifyFlowPreferences } from "./programme-flow.js";
 /** One build path: native compilation and connector preparation feed provider assembly. */
 import { verifyProgrammeDelivery } from "./programme-delivery.js";
 import {
@@ -474,6 +475,11 @@ export function renderProjectBuild(
         .forEach((p) => include(p.id));
     changed = before !== wanted.size;
   }
+  const sharedPreferences = verifyFlowPreferences(
+    root,
+    args.programme,
+    flows.filter((f) => wanted.has(f.id)),
+  );
   const nativeBody = {
     ...nativePlan,
     nodes: nativePlan.nodes.filter((n) => wanted.has(n.flow)),
@@ -766,6 +772,7 @@ export function renderProjectBuild(
       Object.entries(files).map(([n, t]) => [n, digest(t)]),
     ),
     sourceFiles: { ...reader.files, ...nativePlan.files, ...planningFiles },
+    ...(sharedPreferences ? { sharedPreferences } : {}),
     packageLockSha256: existsSync(fence(root, "packages.lock.yaml"))
       ? digest(readFileSync(fence(root, "packages.lock.yaml")))
       : undefined,
