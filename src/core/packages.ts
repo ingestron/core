@@ -608,6 +608,7 @@ export function installPackage(
     frozen?: boolean;
     tagPrefix?: string;
     kind?: "provider" | "connector";
+    reviewed?: { packageDigest: string; checkRevision(): void };
   } = {},
 ) {
   root = realpathSync(root);
@@ -627,6 +628,7 @@ export function installPackage(
   );
   if (
     previous &&
+    !options.reviewed &&
     !options.update &&
     existsSync(
       resolve(
@@ -662,6 +664,7 @@ export function installPackage(
   }
   const temp = mkdtempSync(resolve(tmpdir(), "ingestron-package-"));
   try {
+    options.reviewed?.checkRevision();
     const git = (args: string[], cwd: string) =>
       execFileSync("git", args, {
         cwd,
@@ -814,6 +817,14 @@ export function installPackage(
         root,
         `.ingestron/packages/${digest(parsed.repository)}/${commit}`,
       );
+    if (options.reviewed) {
+      check(
+        digest(canonical(entry)) === options.reviewed.packageDigest,
+        "STALE",
+        "Package content differs from the reviewed installation",
+      );
+      options.reviewed.checkRevision();
+    }
     mkdirSync(dirname(dest), { recursive: true });
     if (!existsSync(dest)) {
       const staging = dest + `-${process.pid}`;
@@ -840,6 +851,7 @@ export function installPackage(
         "PACKAGE",
         `Existing package cache is modified: ${name}`,
       );
+    options.reviewed?.checkRevision();
     lock.packages[reference] = entry;
     const temporary = resolve(root, `.packages-${process.pid}.yaml`);
     writeFileSync(temporary, stringify(lock), { flag: "wx" });

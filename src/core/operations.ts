@@ -1,4 +1,16 @@
 import {
+  targetSetupSchema,
+  targetSetupApplySchema,
+  reviewTargetSetup,
+  applyTargetSetup,
+} from "./target-setup.js";
+import {
+  providerInstallSchema,
+  providerInstallApplySchema,
+  reviewProviderInstall,
+  applyProviderInstall,
+} from "./provider-install.js";
+import {
   workspaceInitialisationSchema,
   workspaceInitialisationApplySchema,
   inspectWorkspace,
@@ -595,6 +607,10 @@ export const operationSchemas = {
   config_set: z.object({ path: z.string(), value: z.unknown() }).strict(),
   edit: z.object({ files: z.record(z.string(), z.string()) }).strict(),
   apply: z.object({ proposal: z.unknown() }).strict(),
+  target_setup_review: targetSetupSchema,
+  target_setup_apply: targetSetupApplySchema,
+  provider_install_review: providerInstallSchema,
+  provider_install_apply: providerInstallApplySchema,
   packages_install: z
     .object({
       reference: z.string(),
@@ -1498,6 +1514,28 @@ export function execute(
       case "apply":
         write();
         result = author.apply(root, args.proposal);
+        break;
+      case "target_setup_review":
+        result = reviewTargetSetup(root, args);
+        break;
+      case "target_setup_apply":
+        write();
+        result = applyTargetSetup(root, args);
+        break;
+      case "provider_install_review":
+      case "provider_install_apply":
+        if (operation === "provider_install_apply") write();
+        check(
+          context.allowNetwork || args.fromGit,
+          "PERMISSION",
+          "Provider package access requires explicit package-network permission",
+        );
+        if (args.fromGit && !context.allowNetwork)
+          args.fromGit = fence(root, args.fromGit);
+        result =
+          operation === "provider_install_review"
+            ? reviewProviderInstall(root, args)
+            : applyProviderInstall(root, args);
         break;
       case "packages_install":
         write();
