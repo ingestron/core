@@ -108,3 +108,12 @@ Portable overlap, missed-run dispatch and durable recovery remain separate work.
 Reviewed programme-to-project resource bindings are described in
 [programme definitions](docs/programme-definitions.md). They preserve explicit
 project/shared environment mappings and verify pinned inputs before a build.
+
+Reviewed native source handoff is available through `connection_flow_review` and
+`connection_flows_review`: an explicit `bridge` request composes a declared native
+landing source, an isolated publication configuration and a snapshot-history
+consumer. It preserves the metadata connection, requires reviewed required keys
+and a frozen-source declaration, and rejects conflicting or shared environment
+storage. The proposal uses the normal stale-input and apply guards. This authors
+local definitions only; provider validation and generated assets do not prove
+cloud deployment or data execution.

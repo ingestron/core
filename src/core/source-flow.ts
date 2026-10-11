@@ -1,3 +1,4 @@
+import { sourceBridgeSchema, attachSourceBridge } from "./source-bridge.js";
 import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { parseDocument, stringify, isSeq } from "yaml";
@@ -23,6 +24,7 @@ export const sourceFlowSchema = z
     id: identifier,
     connection: identifier,
     executor: z.string().min(1).optional(),
+    bridge: sourceBridgeSchema.optional(),
     receipt: z.string().uuid(),
     provider: identifier.optional(),
     runtime: z.string().min(1).optional(),
@@ -57,6 +59,15 @@ export function proposeSourceFlow(
   context: Context,
   args: z.infer<typeof sourceFlowSchema>,
 ) {
+  check(
+    !args.bridge ||
+      (args.target &&
+        !Object.keys(args.target.source).length &&
+        !args.provider &&
+        !args.runtime),
+    "PROFILE",
+    "A native bridge needs a target and does not create a local test profile",
+  );
   const root = resolve(context.root),
     reader = new Configuration(root);
   const def = sourceAccessDefinition(context, {
@@ -179,7 +190,9 @@ export function proposeSourceFlow(
     );
     const kind = args.target.source.kind;
     check(
-      !standard.sourceKinds || standard.sourceKinds.includes(kind as string),
+      !!args.bridge ||
+        !standard.sourceKinds ||
+        standard.sourceKinds.includes(kind as string),
       "STANDARD",
       "The target standard does not support the selected source kind",
     );
@@ -217,7 +230,14 @@ export function proposeSourceFlow(
     );
     const text = reader.text(selected.contract),
       contract = reader.load(selected.contract);
-    contractColumns(contract, selected.contract);
+    const columns = contractColumns(contract, selected.contract);
+    check(
+      !args.bridge ||
+        (columns.some((c) => c.key) &&
+          columns.filter((c) => c.key).every((c) => c.required)),
+      "ODCS",
+      "Snapshot publication needs explicitly reviewed, required primary keys on every selected contract",
+    );
     check(
       contract.schema.length === 1 &&
         contract.schema[0].name === selected.table,
@@ -272,7 +292,20 @@ export function proposeSourceFlow(
       : {}),
     tables,
   });
-  return preview(root, replacements, inputs);
+  const proposal = preview(root, replacements, inputs);
+  return args.bridge
+    ? attachSourceBridge(
+        root,
+        context.environment ?? "dev",
+        {
+          id: args.id,
+          connection: args.connection,
+          target: args.target!,
+          bridge: args.bridge,
+        },
+        proposal,
+      )
+    : proposal;
 }
 
 export const sourceFlowsSchema = sourceFlowSchema.extend({
@@ -285,6 +318,11 @@ export function proposeSourceFlows(
   context: Context,
   args: z.infer<typeof sourceFlowsSchema>,
 ) {
+  check(
+    !args.bridge || args.tables.length <= 100,
+    "LIMIT",
+    "Choose at most 100 contracts per reviewed bridge flow",
+  );
   const objects = [...args.tables].sort((a, b) =>
     a.table < b.table ? -1 : a.table > b.table ? 1 : 0,
   );

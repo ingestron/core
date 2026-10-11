@@ -175,6 +175,20 @@ export function inspectSourceJourney(
           id,
           platform: manifest.platform,
           standards,
+          snapshotBridgeConsumer:
+            ["snapshot-publication@v1", "snapshot-with-history@v1"].every(
+              (id) => manifest.standards?.some((s: any) => s.id === id),
+            ) && !!manifest.capabilities?.handovers?.includes("files"),
+          nativeSnapshotSources: Object.entries<any>(manifest.sources ?? {})
+            .filter(
+              ([, source]) =>
+                source.route === "native" &&
+                source.standards?.includes("snapshot-land@v1"),
+            )
+            .map(([kind, source]) => ({
+              kind,
+              bindingSchema: source.bindingSchema,
+            })),
         },
       ];
     } catch {
