@@ -1,3 +1,4 @@
+import { requireFlowTarget } from "./bridge-connections.js";
 /** Reviewed native bridge composition. Provider contracts own resource semantics. */
 import { z } from "zod";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -46,6 +47,7 @@ export function attachSourceBridge(
     "Use a bridge flow name of at most 64 characters",
   );
   auditSecrets(spec, "bridge");
+  requireFlowTarget(project, args.target.provider);
   const consumer = project.providers.configurations[args.target.provider];
   const landing = project.providers.configurations[spec.provider];
   check(

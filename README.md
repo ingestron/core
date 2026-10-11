@@ -117,3 +117,9 @@ and a frozen-source declaration, and rejects conflicting or shared environment
 storage. The proposal uses the normal stale-input and apply guards. This authors
 local definitions only; provider validation and generated assets do not prove
 cloud deployment or data execution.
+
+A configuration referenced as a bridge publisher is reserved for generated
+publication legs. Flow inventories label that purpose; source target and execution
+profile choices exclude it. Direct flow and source authoring also enforce the
+restriction. The classification follows the saved bridge connection, not a naming
+convention, and does not prevent native bridge generation.

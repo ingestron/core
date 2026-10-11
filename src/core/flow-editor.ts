@@ -1,3 +1,4 @@
+import { isBridgePublisher } from "./bridge-connections.js";
 import { parseDocument } from "yaml";
 import { flowCreate } from "./workflows.js";
 import { providerAuthor, providerReference } from "../plugins/authoring.js";
@@ -347,6 +348,19 @@ export function readFlowEditor(root: string, flow?: string) {
     datasets,
     providers: Object.entries<any>(project.providers?.configurations ?? {}).map(
       ([id, config]) => {
+        if (isBridgePublisher(project, id))
+          return {
+            id,
+            available: false,
+            purpose: "bridge-publication" as const,
+            kinds: [] as ("ingestion" | "transformation")[],
+            inputDatasets: [],
+            standards: [],
+            settings: [],
+            prerequisites: [
+              "This configuration publishes source handoffs. Choose the handoff's ingestion target to author a flow.",
+            ],
+          };
         try {
           const reference = configuredPackageReference(
             projectPackages(projectSchema.parse(project))[config.package],

@@ -1,3 +1,4 @@
+import { isBridgePublisher, requireFlowTarget } from "./bridge-connections.js";
 /** Reviewed alternative execution bindings retain the original dataset contracts. */
 import { relative } from "node:path";
 import { visit } from "yaml";
@@ -53,9 +54,9 @@ export function readExecutionProfiles(
     revision,
     defaultProvider: flow.provider ?? project.defaults.provider,
     profiles,
-    providers: Object.entries(project.providers.configurations).map(
-      ([id, p]) => ({ id, package: p.package }),
-    ),
+    providers: Object.entries(project.providers.configurations)
+      .filter(([id]) => !isBridgePublisher(project, id))
+      .map(([id, p]) => ({ id, package: p.package })),
     connections: Object.keys(project.connections),
   };
 }
@@ -85,6 +86,7 @@ export function reviewExecutionProfile(
     "This flow already has 100 profiles",
   );
   if (input.definition) {
+    requireFlowTarget(project, input.definition.provider);
     check(
       JSON.stringify(input.definition).length <= 65536,
       "LIMIT",

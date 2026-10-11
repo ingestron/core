@@ -1,3 +1,4 @@
+import { requireFlowTarget } from "./bridge-connections.js";
 import { sourceBridgeSchema, attachSourceBridge } from "./source-bridge.js";
 import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -167,6 +168,7 @@ export function proposeSourceFlow(
     );
   }
   if (args.target) {
+    requireFlowTarget(parsed, args.target.provider);
     auditSecrets(args.target, "target");
     const config = parsed.providers.configurations[args.target.provider];
     check(config, "PROVIDER", "Choose a configured target provider");

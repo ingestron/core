@@ -1,3 +1,4 @@
+import { isBridgePublisher } from "./bridge-connections.js";
 /** Resume current metadata and contract selections without executing a source. */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { z } from "zod";
@@ -152,6 +153,7 @@ export function inspectSourceJourney(
   const providers = Object.entries<any>(
     def.project.providers.configurations,
   ).flatMap(([id, config]) => {
+    if (isBridgePublisher(def.project, id)) return [];
     try {
       const manifest = packageYaml(
         resolvePackage(

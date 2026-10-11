@@ -1,3 +1,4 @@
+import { requireFlowTarget } from "./bridge-connections.js";
 import { scheduleSchema, type Schedule } from "./schedule-schema.js";
 import { friendlyReference } from "./package-references.js";
 import { providerAuthor, providerReference } from "../plugins/authoring.js";
@@ -438,6 +439,7 @@ export function addFlow(
     `Flow ${options.id} already exists`,
   );
   const configuration = options.provider ?? resolved.defaults.provider;
+  requireFlowTarget(resolved, configuration);
   const config = resolved.providers.configurations[configuration];
   check(config, "PROVIDER", "Select a provider configuration for this flow");
   const pkg = projectPackages(projectSchema.parse(resolved))[config.package];

@@ -1,3 +1,7 @@
+import {
+  readExecutionProfiles,
+  reviewExecutionProfile,
+} from "../../src/core/execution-profile-editor.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -6,7 +10,9 @@ import { execFileSync } from "node:child_process";
 import { parse, stringify } from "yaml";
 import { fixture } from "../support/project.js";
 import { installPackage } from "../../src/core/packages.js";
-import { preview, apply } from "../../src/core/authoring.js";
+import { readFlowEditor } from "../../src/core/flow-editor.js";
+import { isBridgePublisher } from "../../src/core/bridge-connections.js";
+import { preview, apply, addFlow } from "../../src/core/authoring.js";
 import {
   attachSourceBridge,
   sourceBridgeSchema,
@@ -161,6 +167,42 @@ test("bridge review preserves source/configurations, scopes resources and reject
   assert.equal(flow.ingestion.connection, "bridge_bridge");
   assert.equal(flow.defaults.source, undefined);
   apply(f.root, p);
+  const publisher = readFlowEditor(f.root).providers.find(
+    (p) => p.id === "bridge_publisher",
+  )!;
+  assert.equal(publisher.available, false);
+  assert.equal(publisher.purpose, "bridge-publication");
+  assert.deepEqual(publisher.kinds, []);
+  assert.throws(
+    () =>
+      addFlow(f.root, {
+        id: "bad_target",
+        kind: "ingestion",
+        provider: "bridge_publisher",
+      }),
+    /reserved for source handoff publication/,
+  );
+  const profiles = readExecutionProfiles(f.root, { flow: "source" });
+  assert.ok(!profiles.providers.some((p) => p.id === "bridge_publisher"));
+  assert.throws(
+    () =>
+      reviewExecutionProfile(f.root, {
+        flow: "source",
+        name: "bad",
+        revision: profiles.revision,
+        definition: {
+          provider: "bridge_publisher",
+          source: {},
+          ingestion: {},
+        } as any,
+      }),
+    /reserved for source handoff publication/,
+  );
+  assert.equal(isBridgePublisher(doc, "engineering"), false);
+  assert.equal(
+    isBridgePublisher({ ...doc, connections: {} }, "bridge_publisher"),
+    false,
+  );
   assert.throws(() => apply(f.root, p));
   assert.throws(
     () => attachSourceBridge(f.root, "dev", f.args, f.make()),
