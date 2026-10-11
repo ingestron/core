@@ -231,7 +231,10 @@ export function inspectPlatformBindings(
       } catch {
         intact = false;
       }
+      if (binding.resources)
+        auditSecrets(binding.resources, "platform.resources");
       return {
+        ...(binding.resources ? { resources: binding.resources } : {}),
         configuration: binding.configuration,
         projectEnvironment: binding.projectEnvironment,
         sharedEnvironment: binding.sharedEnvironment,
@@ -424,6 +427,7 @@ export function proposePlatformBinding(
       digest: digest(canonical(installed.entry.files)),
     },
     source: saved,
+    resources,
     materialised: {
       packageAlias: args.configuration,
       bindingName,

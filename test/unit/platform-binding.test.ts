@@ -281,6 +281,28 @@ test("explicit project dev to shared test binding preserves other environments a
   assert.equal(inspected.ok, true, JSON.stringify(inspected));
   assert.equal(inspected.result.bindings[0].intact, true);
   assert.equal(inspected.result.bindings[0].stale, false);
+  assert.deepEqual(inspected.result.bindings[0].resources, {
+    workspaceUrl: "https://shared.invalid",
+    catalog: "retail_test",
+  });
+  // Retain authoring names rather than trying to reverse provider output (host).
+  assert.equal(inspected.result.bindings[0].resources.host, undefined);
+  const reopened = f.run("platform_binding_propose", {
+    ...f.args,
+    resources: inspected.result.bindings[0].resources,
+  });
+  assert.equal(reopened.ok, true, JSON.stringify(reopened));
+  const legacy = { ...resolved.platformBindings.warehouse_dev };
+  delete legacy.resources;
+  f.put("platform-bindings/warehouse_dev.yaml", legacy);
+  const legacyRead = f.run("platform_binding_inspect", {
+    programme: f.programme,
+    project: "PLAN-1",
+  });
+  assert.equal(legacyRead.ok, true, JSON.stringify(legacyRead));
+  assert.equal(legacyRead.result.bindings[0].resources, undefined);
+  assert.equal(legacyRead.result.bindings[0].intact, true);
+
   assert.throws(() => buildProject(f.root, "dev", {}), /authorised programme/);
   assert.doesNotThrow(() => verifyBuildBindings(f.root, "dev", f.programme));
   assert.doesNotThrow(() => verifyBuildBindings(f.root, "uat"));

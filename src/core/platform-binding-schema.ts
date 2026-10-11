@@ -23,6 +23,8 @@ export const platformBindingSchema = z
     source: z
       .object({ definitionDigest: sha, document: programmeSchema })
       .strict(),
+    // Original authoring values, never authority to reuse a previous review.
+    resources: z.record(z.string().max(80), z.string().max(300)).optional(),
     materialised: z
       .object({
         packageAlias: compilerProjectId,

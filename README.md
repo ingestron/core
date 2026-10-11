@@ -123,3 +123,9 @@ publication legs. Flow inventories label that purpose; source target and executi
 profile choices exclude it. Direct flow and source authoring also enforce the
 restriction. The classification follows the saved bridge connection, not a naming
 convention, and does not prevent native bridge generation.
+
+Platform binding inspection returns original resource inputs when the binding was
+saved by a supporting compiler. Editors may use these as a draft for a new review;
+current shared profiles, provider schemas, ownership and stale-write checks still
+govern saving. Older bindings without retained inputs remain readable and require
+project-specific values to be entered once when re-reviewed.
