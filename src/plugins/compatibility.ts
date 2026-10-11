@@ -4,6 +4,7 @@ import { check } from "../core/errors.js";
  * not make authoring work while planning or command dispatch rejects the package. */
 export const hostFeatures = [
   "flow-authoring-capabilities",
+  "flow-input-inspection",
   "programme-platform-binding",
   "transformation-authoring-settings",
   "python-source-artifacts",
@@ -91,6 +92,12 @@ export function checkProviderCompatibility(manifest: {
       required.includes("flow-authoring-capabilities"),
     "COMPATIBILITY",
     "Flow authoring declarations require flow-authoring-capabilities",
+  );
+  check(
+    !(manifest.authoring as any)?.flows?.transformationInputs ||
+      required.includes("flow-input-inspection"),
+    "COMPATIBILITY",
+    "Provider input inspection requires flow-input-inspection",
   );
   check(
     !manifest.platformBinding ||

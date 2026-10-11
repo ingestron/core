@@ -179,3 +179,20 @@ Run `scripts/connection-authoring-acceptance.mjs` against an installed private C
 A source runtime and its selected provider adapter must both explicitly declare `metadataDocuments: ingestron.metadata-documents/v1` to use indexed project tables. Core stores each complete resolved table (source, reviewed contract and compiled columns) in a content-addressed generated document. The project specification binds the complete index; source-boundary identity still excludes contract changes. Compilation receives only the source/column projection and the exact index. Core adds the original document bytes to the unapplied provider proposal and rejects provider collisions with those paths. Legacy runtimes retain inline tables. The existing 2 MB command limit is unchanged; each document is bounded to 2 MB, the collection to 100 documents / 7 MB. Native or installed runtime qualification is separate from this encoding capability.
 
 Indexed project assembly explicitly declares the same capability. Core keeps complete metadata documents outside the assembly command, then attaches their exact original bytes only at safe, separate provider-declared flow roots. The assembled connection assets must remain byte-identical; missing roots, changed runners, colliding document paths and path escapes are refused before managed output is written. Existing command and VM limits remain unchanged.
+
+## Provider-owned transformation inputs (local candidate)
+
+A provider may declare `authoring.flows.transformationInputs: provider/v1` and
+require the `flow-input-inspection` host feature. The compiler calls its existing
+isolated lifecycle author with `operation: flow_inputs`, the resolved project and
+selected configuration. It accepts only `inputs.json`, with
+`apiVersion: ingestron.flow-inputs/v1` and a bounded, unique `datasets` list drawn
+from the project's defined outputs. No proposal is applied and no files are written.
+`flow_editor_read` exposes the result as that provider's `inputDatasets`.
+
+An empty list is authoritative; an absent list means the installed provider has no
+inspection contract and input compatibility is checked during creation. Malformed
+or unknown outputs make that provider unavailable for authoring. Inspection is a
+definition-level compatibility check, not proof that data exists or native code ran.
+Providers should share selection logic between inspection and creation; reviewed
+creation remains authoritative after changes.

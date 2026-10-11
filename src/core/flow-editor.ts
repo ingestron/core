@@ -1,6 +1,6 @@
 import { parseDocument } from "yaml";
 import { flowCreate } from "./workflows.js";
-import { providerReference } from "../plugins/authoring.js";
+import { providerAuthor, providerReference } from "../plugins/authoring.js";
 import { configuredPackageReference, resolvePackage } from "./packages.js";
 import { projectPackages } from "./project-packages.js";
 import { projectSchema } from "./schema.js";
@@ -328,6 +328,14 @@ export function readFlowEditor(root: string, flow?: string) {
   const w = editableProject(root),
     project = w.reader.load();
   check(project.flows.length <= 1000, "LIMIT", "Too many flows");
+  const datasets = project.flows.flatMap((f: any) => [
+    ...Object.keys(f.tables ?? {}).map(
+      (name) => `${project.id}.${f.id}.${name}.current`,
+    ),
+    ...Object.keys(f.publishes ?? {}).map(
+      (name) => `${project.id}.${f.id}.${name}`,
+    ),
+  ]);
   return {
     apiVersion: "ingestron.flow-editor/v1",
     flows: project.flows.map((f: any) => ({
@@ -336,14 +344,7 @@ export function readFlowEditor(root: string, flow?: string) {
       description: f.description ?? "",
       provider: f.provider ?? project.defaults?.provider ?? "",
     })),
-    datasets: project.flows.flatMap((f: any) => [
-      ...Object.keys(f.tables ?? {}).map(
-        (name) => `${project.id}.${f.id}.${name}.current`,
-      ),
-      ...Object.keys(f.publishes ?? {}).map(
-        (name) => `${project.id}.${f.id}.${name}`,
-      ),
-    ]),
+    datasets,
     providers: Object.entries<any>(project.providers?.configurations ?? {}).map(
       ([id, config]) => {
         try {
@@ -355,8 +356,34 @@ export function readFlowEditor(root: string, flow?: string) {
             resolvePackage(root, reference).reference,
           );
           const schema: any = manifest.authoring?.transformationSettingsSchema;
+          let inputDatasets: string[] | undefined;
+          if (
+            manifest.authoring?.flows?.transformationInputs === "provider/v1"
+          ) {
+            const files = providerAuthor(
+              root,
+              reference,
+              { operation: "flow_inputs", project, configuration: id },
+              (name) => name === "inputs.json",
+            );
+            const result = z
+              .object({
+                apiVersion: z.literal("ingestron.flow-inputs/v1"),
+                datasets: z.array(z.string().max(500)).max(10000),
+              })
+              .strict()
+              .parse(JSON.parse(files["inputs.json"] ?? "null"));
+            check(
+              new Set(result.datasets).size === result.datasets.length &&
+                result.datasets.every((dataset) => datasets.includes(dataset)),
+              "PROVIDER",
+              "Provider returned unknown or duplicate transformation inputs",
+            );
+            inputDatasets = result.datasets;
+          }
           return {
             id,
+            ...(inputDatasets ? { inputDatasets } : {}),
             available: !!manifest.lifecycle && !!manifest.authoring?.flows,
             kinds: manifest.authoring?.flows?.kinds ?? [],
             prerequisites: manifest.authoring?.flows?.prerequisites ?? [],

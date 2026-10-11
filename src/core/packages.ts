@@ -196,6 +196,7 @@ export const providerPackageSchema = z
             apiVersion: z.literal("ingestron.flow-authoring/v1"),
             kinds: z.array(z.enum(["ingestion", "transformation"])).min(1),
             ingestionStandards: z.array(z.string()),
+            transformationInputs: z.literal("provider/v1").optional(),
             prerequisites: z.array(z.string().max(500)).max(20),
           })
           .strict()
