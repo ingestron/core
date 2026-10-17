@@ -3,10 +3,57 @@ import { externalActivitySchema, packageYaml } from "./packages.js";
 import { contractColumns, validateContract } from "./contracts.js";
 import { preview } from "./authoring.js";
 import { check, isMap } from "./errors.js";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { fence } from "./packages.js";
 import { stringify } from "yaml";
+import { providerReference } from "../plugins/authoring.js";
+import { digest } from "./errors.js";
+export function providerActivityInspect(
+  root: string,
+  reference: string,
+  activity: string,
+) {
+  const selected = providerReference(root, reference);
+  check(
+    Object.hasOwn(selected.manifest.activities, activity),
+    "SELECT",
+    "Choose an activity exported by the selected provider",
+  );
+  const path = selected.manifest.activities[activity];
+  check(path, "SELECT", "Choose an activity exported by the selected provider");
+  const file = fence(
+    selected.root,
+    relative(selected.root, resolve(dirname(selected.file), path)),
+  );
+  const inspected = activityInspect(
+    selected.root,
+    relative(selected.root, file),
+  );
+  check(
+    inspected.manifest.id === activity &&
+      inspected.manifest.platform === selected.manifest.platform,
+    "PACKAGE",
+    "Activity export identity or platform differs from provider",
+  );
+  const result = {
+    reference: selected.reference,
+    commit: selected.entry.commit,
+    ...inspected,
+    sourceDigests: {
+      ...inspected.sourceDigests,
+      [relative(selected.root, selected.file)]: digest(
+        readFileSync(selected.file),
+      ),
+    },
+  };
+  check(
+    Buffer.byteLength(JSON.stringify(result)) <= 1024 * 1024,
+    "LIMIT",
+    "Activity inspection exceeds 1 MiB; inspect the installed source locally",
+  );
+  return result;
+}
 export function activityInspect(root: string, path: string) {
   const reader = new Configuration(root),
     file = reader.path(path);
@@ -90,6 +137,19 @@ export function exportProviderArtifacts(
 ) {
   const reader = new Configuration(root),
     envelope = JSON.parse(reader.text(path));
+  return preview(
+    root,
+    providerArtifactFiles(root, envelope, directory),
+    reader.files,
+  );
+}
+
+/** Shared validation for saved exports and the presentation review workflow. */
+export function providerArtifactFiles(
+  root: string,
+  envelope: any,
+  directory: string,
+) {
   check(
     envelope.apiVersion === "ingestron.provider-command-result/v1" &&
       envelope.execution === "offline-json",
@@ -133,5 +193,5 @@ export function exportProviderArtifacts(
     }
     files[target] = value as string;
   }
-  return preview(root, files);
+  return files;
 }

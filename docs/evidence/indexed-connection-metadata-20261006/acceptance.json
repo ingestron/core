@@ -1,0 +1,67 @@
+{
+  "apiVersion": "ingestron.indexed-connection-acceptance/v1",
+  "date": "2026-10-06",
+  "status": "passed",
+  "completionState": "indexed-local-preparation-and-build-slice",
+  "candidate": {
+    "cli": "0.17.21",
+    "core": "0.12.55",
+    "provider": "0.4.18",
+    "files": "1.5.13"
+  },
+  "verification": {
+    "corePassed": 276,
+    "coreFullGate": "connection-documents-core-validate-v4.log",
+    "providerNodePassed": 19,
+    "providerPythonPassed": 21,
+    "providerFullGate": "connection-documents-provider-validate-v3.log",
+    "connectorNodePassed": 5,
+    "connectorPythonPassed": 303,
+    "connectorFullGate": "connection-documents-source-validate-v2.log",
+    "installedSDKGroups": 5,
+    "actualCLIValidationAndBuildParity": true,
+    "generatedFiles": 131,
+    "indexedSourceIdentityAndTamperRefusal": true,
+    "coreArchiveOwnerAndInstalledFileParity": 158,
+    "frozenPluginOwnerFileParity": 8
+  },
+  "measurements": {
+    "logicalBytes": 5465300,
+    "uniqueDocuments": 100,
+    "indexBytes": 20100,
+    "proposalBytes": 8289065
+  },
+  "scope": {
+    "tables": 100,
+    "fields": 20000,
+    "completeUnicodeMetadataAndKeysPreserved": true,
+    "unchangedAuthoredInputsAndSourceData": true,
+    "providerInputLimitsRaised": false,
+    "vmLimitsRaised": false,
+    "runtimePrepareDiscoverReviewApproveRun": false,
+    "sharedHostMountedInteraction": false,
+    "full16SourceCurrentCandidateQualification": false,
+    "nativeVendorQualification": false,
+    "enterpriseComplete": false
+  },
+  "repairs": [
+    "Initial indexed projection still exceeded the 2 MB connection request: installed v1 retained 2,163,201-byte refusal. Primary keys remain in complete documents and are excluded only from the unused compilation projection.",
+    "Installed v4 retained 8,289,077-byte project assembly refusal. Explicit assembly opt-in now transfers the index and preserves exact connection assets; Core attaches its original documents at safe separate declared roots. No limits are raised.",
+    "Intermediate harness command/root and archive staging errors are retained. Final installed v5 and CLI-build-v1 use actual supported CLI arguments and immutable production archives.",
+    "Initial source boundary file-ownership assertion included newly generated Python bytecode. Final v2 disables bytecode writes; exact generated metadata is restored after refusal and every file remains unchanged.",
+    "Core focused-v3 recorded stale compiler fingerprints while implementation changed. Final full-v4 passes 276 tests, build, installed exports, release/secret and formatting checks."
+  ],
+  "remaining": [
+    "Prioritise preparation/local-test UI clarity, unnecessary navigation, accurate unavailable actions and viewing saved results while operations run",
+    "Mounted browser lifecycle, keyboard, narrow-screen, long-path and independent engineer usability acceptance remain open under the existing browser policy refusal",
+    "Complete hundred-table runtime preparation/discovery/indexed review/exact approval/run and all shared clients without full-payload expansion",
+    "Fresh current-candidate sixteen-source, repeated-change/denial/recovery, native/cross-project/CDC/vendor and full enterprise ledger qualification"
+  ],
+  "authority": "Local private implementation and synthetic installed fixtures only. No public dependency pins/catalogue, release, cloud, paid, customer or Labs action.",
+  "installedReceipts": {
+    "sdk": "connection-documents-installed-v5.json.raw",
+    "cli": "connection-documents-cli-build-v1.json.raw",
+    "sourceBoundary": "connection-documents-source-boundary-v2.json.raw",
+    "archiveInputs": "connection-documents-archive-inputs-v6.json.raw"
+  }
+}

@@ -11,6 +11,28 @@
 import { check } from "./errors.js";
 import { flowSchema } from "./schema.js";
 
+/** Publication configurations are dedicated to generated bridge legs, not new user flows. */
+export function isBridgePublisher(
+  project: { connections?: Record<string, any> },
+  configuration: string,
+) {
+  return Object.values(project.connections ?? {}).some(
+    (connection) =>
+      connection?.route === "bridge" &&
+      connection.bridge?.publisher === configuration,
+  );
+}
+export function requireFlowTarget(
+  project: { connections?: Record<string, any> },
+  configuration: string,
+) {
+  check(
+    !isBridgePublisher(project, configuration),
+    "CAPABILITY",
+    "This configuration is reserved for source handoff publication; choose an ingestion or transformation target",
+  );
+}
+
 const clone = <T>(value: T): T => structuredClone(value);
 
 /** The land and publish flows a bridge adds, and the rewritten consumer. */

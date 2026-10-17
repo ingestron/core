@@ -1,12 +1,22 @@
 import { readFileSync } from "node:fs";
+import { connectorScheduleHandover } from "./connector-schedule.js";
 import { fence } from "./packages.js";
 import { connectorPackageSchema } from "./connector-package.js";
 import { sourceCapabilities } from "./sources.js";
 import { contractColumns } from "./contracts.js";
+import {
+  metadataDocumentsVersion,
+  projectTableDocuments,
+} from "./metadata-documents.js";
 import { resolveModelContracts } from "./model-packs.js";
 /** Project-owned configuration; schemas and runtime assets remain plugin-owned. */
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Configuration } from "./config.js";
+import {
+  resolveConnectionSettings,
+  rejectConnectionEnvironment,
+} from "./connection-settings.js";
+import { enforceProjectPolicy } from "./project-governance.js";
 import { bindExecutionProfile } from "./execution-profiles.js";
 import { projectSchema, flowSchema } from "./schema.js";
 import { projectPackages } from "./project-packages.js";
@@ -42,6 +52,9 @@ export function prepareConnection(
   // bridge connection that names a portable package is read through it on the
   // given local configuration.
   discovery?: { provider: string },
+  preserveDocuments?: (
+    documents: ReturnType<typeof projectTableDocuments>,
+  ) => void,
 ) {
   // Do not interpolate $env here: connection credentials must never enter compiler memory/output.
   const reader = new Configuration(root, {});
@@ -61,6 +74,8 @@ export function prepareConnection(
     );
   });
   resolveModelContracts(reader, project, flows);
+  if (!discovery)
+    enforceProjectPolicy({ reader, project, flows }, { flow: flowId });
   check(
     new Set(flows.map((f) => f.id)).size === flows.length,
     "FLOW",
@@ -156,35 +171,30 @@ export function prepareConnection(
     "CONNECTION",
     "Selected execution provider does not support this connector runtime",
   );
-  // A native or bridge connection's binding belongs to its platform route;
-  // discovery through the portable package uses the connection settings only.
-  const platformBinding =
-    connection.route === "native" || connection.route === "bridge";
-  const binding =
-    connection.binding && !platformBinding
-      ? profile.bindings[connection.binding]
-      : {};
-  check(binding, "CONNECTION", "Missing connection environment binding");
-  let settings = { ...connection.settings, ...binding };
-  const rejectEnvironment = (v: any): void => {
-    if (Array.isArray(v)) return v.forEach(rejectEnvironment);
-    if (!isMap(v)) return;
-    check(
-      !Object.hasOwn(v, "$env"),
-      "SECRET",
-      "Use runtime $secret references, not compiler $env values, in connections",
-    );
-    Object.values(v).forEach(rejectEnvironment);
-  };
-  rejectEnvironment(settings);
+  // A provider's native flow-calendar capability is not a connector opt-in.
+  // Discovery reads connection metadata independently of a flow's execution clock.
+  const schedule =
+    !discovery && flow.schedule
+      ? connectorScheduleHandover(flow.schedule, adapter.scheduling, {
+          project: project.id,
+          environment,
+          flow: flowId,
+          connection: String(ingestion.connection),
+        })
+      : undefined;
+  const settings = resolveConnectionSettings(
+    reader,
+    project,
+    environment,
+    connection,
+    descriptor.settingsSchema,
+  );
+  const rejectEnvironment = rejectConnectionEnvironment;
   const context = {
     env: environment,
     project: { id: project.id },
     values: profile.values,
   };
-  settings = reader.values(settings, context);
-  rejectEnvironment(settings);
-  validate(descriptor.settingsSchema, settings, "Connection settings");
   check(
     flow.tables && Object.keys(flow.tables).length > 0,
     "CONNECTION",
@@ -195,7 +205,7 @@ export function prepareConnection(
     Object.entries(flow.tables).map(([name, table]) => {
       const tableSource = { ...flow.defaults.source, ...table.source };
       const source = descriptor.tableSourceSchema
-        ? { ...tableSource, stream: name }
+        ? { ...tableSource, stream: tableSource.stream ?? name }
         : tableSource;
       if (descriptor.tableSourceSchema)
         validate(descriptor.tableSourceSchema, tableSource, `${name} source`);
@@ -325,6 +335,7 @@ export function prepareConnection(
     tables,
     execution,
     timeoutSeconds,
+    ...(schedule ? { schedule } : {}),
     sourcePackage: {
       reference: source.ref,
       commit: source.locked.entry.commit,
@@ -334,9 +345,18 @@ export function prepareConnection(
       commit: target.locked.entry.commit,
     },
   };
+  const documents =
+    connectorPackage.runtime.metadataDocuments === metadataDocumentsVersion &&
+    adapter.metadataDocuments === metadataDocumentsVersion
+      ? projectTableDocuments(tables)
+      : undefined;
+  const { tables: _tables, ...header } = specification;
+  const preparedSpecification = documents
+    ? { ...header, tableDocuments: documents.index }
+    : specification;
   const input = {
-    ...specification,
-    specificationSha256: digest(canonical(specification)),
+    ...preparedSpecification,
+    specificationSha256: digest(canonical(preparedSpecification)),
   };
   if (reviewFile) {
     const review = JSON.parse(reader.text(reviewFile));
@@ -375,8 +395,53 @@ export function prepareConnection(
     configuration:
       discovery?.provider ?? flow.provider ?? project.defaults.provider!,
     command: adapter.prepareCommand,
-    input: { ...input, runtimeAssets },
+    input: {
+      ...input,
+      runtimeAssets,
+      ...(documents
+        ? {
+            projectionTables: Object.fromEntries(
+              Object.entries(tables).map(([name, table]) => [
+                name,
+                {
+                  source: table.source,
+                  // Primary-key metadata stays in the complete document; this
+                  // provider projection consumes names, types and nullability.
+                  columns: table.columns.map(
+                    ({
+                      key: _key,
+                      ...column
+                    }: ReturnType<typeof contractColumns>[number]) => column,
+                  ),
+                  ...(table.contract ? { contract: true } : {}),
+                },
+              ]),
+            ),
+          }
+        : {}),
+    },
   });
+  if (documents && !validateOnly) {
+    const prepared: any = result.result;
+    check(
+      isMap(prepared) &&
+        prepared.apiVersion === "ingestron.artifact-proposal/v1" &&
+        prepared.applied === false &&
+        isMap(prepared.artifacts),
+      "PROVIDER",
+      "Indexed preparation requires an unapplied artifact proposal",
+    );
+    for (const path of Object.keys(documents.artifacts))
+      check(
+        !Object.hasOwn(prepared.artifacts, path),
+        "PROVIDER",
+        "Provider cannot replace compiler-owned metadata documents",
+      );
+    prepared.artifacts = { ...prepared.artifacts, ...documents.artifacts };
+    // Internal assembly receives ownership without duplicating documents in
+    // the public SDK/CLI result.
+    preserveDocuments?.(documents);
+  }
   return validateOnly
     ? {
         valid: true,

@@ -1,0 +1,584 @@
+
+> @ingestron/provider-local@0.4.18 validate /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local
+> pnpm format:check && pnpm build && pnpm test && pnpm docs:check && pnpm secrets:check
+
+
+> @ingestron/provider-local@0.4.18 format:check /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> @ingestron/provider-local@0.4.18 build /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local
+> node scripts/build.mjs
+
+
+> @ingestron/provider-local@0.4.18 test /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local
+> node --test test/*.test.mjs && python3 -m unittest discover -s test -p "test_*.py"
+
+TAP version 13
+# Subtest: project preparation embeds only references, projection and immutable input provenance
+ok 1 - project preparation embeds only references, projection and immutable input provenance
+  ---
+  duration_ms: 1.749167
+  type: 'test'
+  ...
+# Subtest: direct command rejects plaintext credentials, unsupported options and empty projection
+ok 2 - direct command rejects plaintext credentials, unsupported options and empty projection
+  ---
+  duration_ms: 0.424792
+  type: 'test'
+  ...
+# Subtest: ODCS columns derive the runtime projection; unsupported types fail explicitly
+ok 3 - ODCS columns derive the runtime projection; unsupported types fail explicitly
+  ---
+  duration_ms: 0.316333
+  type: 'test'
+  ...
+# Subtest: runtime capability accepts a source unknown to the engine and rejects another ABI
+ok 4 - runtime capability accepts a source unknown to the engine and rejects another ABI
+  ---
+  duration_ms: 0.152875
+  type: 'test'
+  ...
+# Subtest: incremental execution requires a policy on every reviewed table
+ok 5 - incremental execution requires a policy on every reviewed table
+  ---
+  duration_ms: 1.32125
+  type: 'test'
+  ...
+# Subtest: local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+ok 6 - local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+  ---
+  duration_ms: 0.379792
+  type: 'test'
+  ...
+# Subtest: wide multilingual metadata keeps exact contracts within the runtime byte bound
+ok 7 - wide multilingual metadata keeps exact contracts within the runtime byte bound
+  ---
+  duration_ms: 29.006292
+  type: 'test'
+  ...
+# Subtest: indexed preparation compiles columns without embedding projection tables or losing document references
+ok 8 - indexed preparation compiles columns without embedding projection tables or losing document references
+  ---
+  duration_ms: 0.632333
+  type: 'test'
+  ...
+# Subtest: local provider declares the exact runtime data namespace independently of flow selection and package version
+ok 9 - local provider declares the exact runtime data namespace independently of flow selection and package version
+  ---
+  duration_ms: 0.823542
+  type: 'test'
+  ...
+# Subtest: ODCS target names survive provider selection
+ok 10 - ODCS target names survive provider selection
+  ---
+  duration_ms: 0.604083
+  type: 'test'
+  ...
+# Subtest: temporal ODCS projections retain source and target identities with exact nullable semantics
+ok 11 - temporal ODCS projections retain source and target identities with exact nullable semantics
+  ---
+  duration_ms: 0.102041
+  type: 'test'
+  ...
+# Subtest: local project defaults require no Azure or workspace settings
+ok 12 - local project defaults require no Azure or workspace settings
+  ---
+  duration_ms: 0.60225
+  type: 'test'
+  ...
+# Subtest: local project has one dependency environment and selectable isolated flow folders
+ok 13 - local project has one dependency environment and selectable isolated flow folders
+  ---
+  duration_ms: 1.193125
+  type: 'test'
+  ...
+# Subtest: runner preserves virtual environment interpreter identity
+ok 14 - runner preserves virtual environment interpreter identity
+  ---
+  duration_ms: 114.477167
+  type: 'test'
+  ...
+# Subtest: standalone runner defaults to the active interpreter
+ok 15 - standalone runner defaults to the active interpreter
+  ---
+  duration_ms: 88.820084
+  type: 'test'
+  ...
+# Subtest: local adapter retains complete core-owned schedule intent in every scoped runtime artifact
+ok 16 - local adapter retains complete core-owned schedule intent in every scoped runtime artifact
+  ---
+  duration_ms: 2.794291
+  type: 'test'
+  ...
+# Subtest: local adapter refuses foreign scope, native policies and unsupported handovers before preparation
+ok 17 - local adapter refuses foreign scope, native policies and unsupported handovers before preparation
+  ---
+  duration_ms: 1.116625
+  type: 'test'
+  ...
+# Subtest: manual local preparation retains its previous request shape without invented schedule intent
+ok 18 - manual local preparation retains its previous request shape without invented schedule intent
+  ---
+  duration_ms: 0.127916
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 247.011583
+................E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=7 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=9 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=6 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=8 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=9 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=6 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=8 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=9 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py:55: ResourceWarning: unclosed file <_io.TextIOWrapper name=6 encoding='UTF-8'>
+  parent = subprocess.Popen([sys.executable, str(entry)], stdin=subprocess.PIPE,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+E.../opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:2252: ResourceWarning: unclosed file <_io.FileIO name=5 mode='rb' closefd=True>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:2252: ResourceWarning: unclosed file <_io.FileIO name=8 mode='rb' closefd=True>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='prepare')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='catalogue')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='discover')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='review')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='approve')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='checkpoint_preview')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay (test_operation_acknowledgement.OperationAcknowledgement.test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay) (action='checkpoint_apply')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 64, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    worker_birth = subprocess.check_output(['ps', '-p', str(worker), '-o', 'lstart='], text=True).strip()
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/provider-local/test/test_operation_acknowledgement.py", line 89, in test_each_setup_finaliser_survives_parent_and_acknowledges_without_replay
+    command = subprocess.check_output(['ps', '-p', str(worker), '-o', 'command='], text=True, stderr=subprocess.DEVNULL).strip()
+              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 554, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 1989, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+----------------------------------------------------------------------
+Ran 21 tests in 1.165s
+
+FAILED (errors=7)
+ ELIFECYCLE  Test failed. See above for more details.
+ ELIFECYCLE  Command failed with exit code 1.

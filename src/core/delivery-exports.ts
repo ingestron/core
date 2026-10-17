@@ -102,10 +102,22 @@ export function deliveryExports(plan: Plan) {
         typeof dataset.location?.binding === "string"
       )
         bindings.add(dataset.location.binding);
-    const { digest: _digest, ...body } = plan;
+    const {
+      digest: _digest,
+      scheduleBoundaries: allBoundaries,
+      ...body
+    } = plan;
+    const boundaries = Object.fromEntries(
+      Object.entries(allBoundaries ?? {}).filter(([flow]) =>
+        nodes.some((n) => n.flow === flow),
+      ),
+    );
     const partBody = {
       ...body,
       selection: {},
+      ...(Object.keys(boundaries).length
+        ? { scheduleBoundaries: boundaries }
+        : {}),
       nodes: nodes.map((n) => ({
         ...n,
         needs: n.needs.filter((d) => ids.has(d)),

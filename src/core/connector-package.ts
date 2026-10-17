@@ -30,8 +30,25 @@ export const connectorPackageSchema = z
         contract: z.string().min(1),
         path: z.string().min(1),
         sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        metadataDocuments: z
+          .literal("ingestron.metadata-documents/v1")
+          .optional(),
       })
       .strict(),
+    sourceAccess: z
+      .object({
+        apiVersion: z.literal("ingestron.source-access/v1"),
+        entryPoint: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]*$/),
+        inventoryScopeSchema: schema.optional(),
+        metadataOptionsSchema: schema.optional(),
+        actions: z
+          .array(
+            z.enum(["test", "databases", "inventory", "metadata", "sample"]),
+          )
+          .min(1),
+      })
+      .strict()
+      .optional(),
     definition: z
       .object({
         settingsSchema: schema,

@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: project preparation embeds only references, projection and immutable input provenance
+ok 1 - project preparation embeds only references, projection and immutable input provenance
+  ---
+  duration_ms: 0.936542
+  type: 'test'
+  ...
+# Subtest: direct command rejects plaintext credentials, unsupported options and empty projection
+ok 2 - direct command rejects plaintext credentials, unsupported options and empty projection
+  ---
+  duration_ms: 0.233875
+  type: 'test'
+  ...
+# Subtest: ODCS columns derive the runtime projection; unsupported types fail explicitly
+ok 3 - ODCS columns derive the runtime projection; unsupported types fail explicitly
+  ---
+  duration_ms: 0.238834
+  type: 'test'
+  ...
+# Subtest: runtime capability accepts a source unknown to the engine and rejects another ABI
+ok 4 - runtime capability accepts a source unknown to the engine and rejects another ABI
+  ---
+  duration_ms: 0.07825
+  type: 'test'
+  ...
+# Subtest: incremental execution requires a policy on every reviewed table
+ok 5 - incremental execution requires a policy on every reviewed table
+  ---
+  duration_ms: 0.427292
+  type: 'test'
+  ...
+# Subtest: local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+ok 6 - local preparation rejects cloud mode, unsafe identity, timeout and missing source assets
+  ---
+  duration_ms: 0.306459
+  type: 'test'
+  ...
+# Subtest: wide multilingual metadata keeps exact contracts within the runtime byte bound
+ok 7 - wide multilingual metadata keeps exact contracts within the runtime byte bound
+  ---
+  duration_ms: 25.465833
+  type: 'test'
+  ...
+# Subtest: indexed preparation compiles columns without embedding projection tables or losing document references
+ok 8 - indexed preparation compiles columns without embedding projection tables or losing document references
+  ---
+  duration_ms: 0.560917
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64.17575

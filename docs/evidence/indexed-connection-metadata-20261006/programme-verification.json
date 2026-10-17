@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "date": "2026-10-06",
+  "scope": "Changed root documents and ledger; original verification output is in the active tool record, completion output retained below.",
+  "scopedFormatting": true,
+  "programmeCheck": {
+    "requiredFiles": 45,
+    "backlogItems": 64,
+    "trackedFiles": 318
+  },
+  "rootTestsPassed": 10,
+  "secretsPassed": true,
+  "ledger": {
+    "implementing": 16,
+    "complete": false
+  },
+  "diffCheck": true,
+  "exitCode": 0,
+  "completionOutput": "\n> ingestron-programme@0.1.0 secrets:check /Users/sacode/sa.projects/intentlabs/repo/ingestron\n> node scripts/scan-secrets.mjs\n\nNo recognised secrets found in tracked files.\n{\n  \"blocked\": 0,\n  \"implementing\": 16,\n  \"installed_verified\": 0,\n  \"local_verified\": 0,\n  \"planned\": 0,\n  \"qualified\": 0\n}\n",
+  "fullRootValidate": false,
+  "fullRootLimitation": "Untouched unrelated docs/solution/data-contract-documentation-mockups.md formatting issue remains from prior checkpoint."
+}

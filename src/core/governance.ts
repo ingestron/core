@@ -9,7 +9,7 @@ export interface DataProduct {
   team?: string;
   owners: string[];
   stewards: string[];
-  /** Quality rules recorded in the contract; enforcement arrives in PB-063 phase 3. */
+  /** Declared rules only; runtime coverage and results are reported separately. */
   qualityRules: number;
   enforcedQualityRules: number;
   flows: string[];
@@ -28,7 +28,9 @@ function members(contract: Record<string, any>): Record<string, any>[] {
     (m: any) =>
       m &&
       typeof m.username === "string" &&
-      !(typeof m.dateOut === "string" && m.dateOut <= today()),
+      m.username.trim().length > 0 &&
+      !(typeof m.dateOut === "string" && m.dateOut <= today()) &&
+      !(typeof m.dateIn === "string" && m.dateIn > today()),
   );
 }
 
@@ -89,11 +91,18 @@ export function checkContractGovernance(
 
 /** Data products used by the given flows, one entry per contract identity. */
 export function dataProducts(
-  flows: { id: string; tables?: Record<string, any> }[],
+  flows: {
+    id: string;
+    tables?: Record<string, any>;
+    publishes?: Record<string, any>;
+  }[],
 ): DataProduct[] {
   const products = new Map<string, DataProduct>();
   for (const flow of flows)
-    for (const table of Object.values(flow.tables ?? {})) {
+    for (const table of [
+      ...Object.values(flow.tables ?? {}),
+      ...Object.values(flow.publishes ?? {}),
+    ]) {
       const contract = table?.contract;
       if (!contract || typeof contract !== "object") continue;
       const product = contractGovernance(contract);

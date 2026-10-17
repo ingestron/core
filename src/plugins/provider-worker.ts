@@ -13,7 +13,7 @@ try {
     runtime = engine.newRuntime();
   runtime.setMemoryLimit(64 * 1024 * 1024);
   runtime.setMaxStackSize(512 * 1024);
-  const deadline = Date.now() + 2000;
+  let deadline = Date.now() + 2000;
   runtime.setInterruptHandler(() => Date.now() > deadline);
   runtime.setModuleLoader((name) => {
     if (name !== "provider-entry")
@@ -21,7 +21,10 @@ try {
     return request.code;
   });
   const context = runtime.newContext();
+  // Each bounded phase gets its own budget. Module parsing must not consume
+  // validation/render time; the outer process still has a 30-second ceiling.
   const evaluate = (source: string, module = false) => {
+    deadline = Date.now() + 2000;
     const result = context.evalCode(
       source,
       module ? "provider.mjs" : "request.js",
@@ -30,7 +33,10 @@ try {
     if (result.error) {
       const message = context.dump(result.error);
       result.error.dispose();
-      throw new Error(message.message ?? String(message));
+      throw Object.assign(new Error(message.message ?? String(message)), {
+        reason:
+          message.reason === "SOURCE_CONSISTENCY" ? message.reason : undefined,
+      });
     }
     const value = context.dump(result.value);
     result.value.dispose();
@@ -45,6 +51,11 @@ try {
       true,
     );
     const encoded = JSON.stringify(JSON.stringify(request.input));
+    if (request.operation === "render") {
+      evaluate(
+        `globalThis.__input = JSON.parse(${encoded}); const validation = __provider.validate(__input); if (validation && typeof validation.then === 'function') throw new Error('Provider validate must be synchronous');`,
+      );
+    }
     const result = evaluate(
       ["command", "author", "model", "validateOutput"].includes(
         request.operation,
@@ -52,7 +63,7 @@ try {
         ? `JSON.stringify((() => { const value = __provider[${JSON.stringify(request.operation)}](JSON.parse(${encoded})); if (value && typeof value.then === 'function') throw new Error('Provider command must be synchronous'); return value; })())`
         : request.operation === "expand"
           ? `JSON.stringify((() => { const value = __provider.expand(JSON.parse(${encoded})); if (value && typeof value.then === 'function') throw new Error('Provider expand must be synchronous'); return value; })())`
-          : `JSON.stringify((() => { const input = JSON.parse(${encoded}); const validation = __provider.validate(input); if (validation && typeof validation.then === 'function') throw new Error('Provider validate must be synchronous'); const result = ${request.validateOnly ? "{}" : "__provider.render(input)"}; if (result && typeof result.then === 'function') throw new Error('Provider render must be synchronous'); return result; })())`,
+          : `JSON.stringify((() => { const result = ${request.validateOnly ? "{}" : "__provider.render(__input)"}; if (result && typeof result.then === 'function') throw new Error('Provider render must be synchronous'); return result; })())`,
     );
     check(
       typeof result === "string" && result.length <= 8_000_000,
@@ -111,6 +122,10 @@ try {
     JSON.stringify({
       ok: false,
       error: error instanceof Error ? error.message : String(error),
+      reason:
+        (error as any)?.reason === "SOURCE_CONSISTENCY"
+          ? "SOURCE_CONSISTENCY"
+          : undefined,
     }),
   );
 }

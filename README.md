@@ -9,7 +9,7 @@ connector runtime assets and standards through explicit package references.
 
 ## Use the library
 
-Requires Node 22.12 or newer for runtime operations. The npm package name is
+Requires Node 22.13 or newer for runtime operations. The npm package name is
 `@ingestron/core`. To build the public source checkout:
 
 ```sh
@@ -78,3 +78,54 @@ Profiles cannot replace dataset schema/table identities. Select one flow with a
 profile in build, validate, plan or resolve operations. Environment is independent.
 The build records the selection; execution rejects a different profile. Use a
 separate output directory per profile. Local evidence does not qualify a cloud target.
+
+## Portable schedule clock preview
+
+The read-only `schedule_occurrences` operation accepts `schedule`, exact UTC
+`from` and `to` bounds, and an optional `limit` (default20, maximum1000).
+The window must be positive and no longer than366 elapsed days. It calculates
+interval, daily, weekly and monthly occurrences without reading the current clock,
+accessing sources, registering a daemon or executing work. Paused definitions can
+be inspected. Start/from are inclusive; end/to are exclusive. Interval occurrences
+retain the exact seconds of the reviewed UTC start. Calendar slots remain paired;
+missing month dates are skipped rather than rolled into the following month.
+
+Optional calendar `daylightSaving` choices are `gap: skip | shift-forward` and
+`fold: earlier | later | both`. Without a reviewed choice, an encountered ambiguous
+or nonexistent wall time returns `SCHEDULE_DST_REVIEW`. Forward shifting retains
+minutes within the actual offset jump, including half-hour and whole-date jumps.
+Colliding slots are merged into one UTC occurrence, retaining every requested slot.
+A definition with native missed-run/clock behaviour returns
+`SCHEDULE_NATIVE_CLOCK`: portable previews do not promise native platform timing.
+Elapsed UTC intervals and native-clock definitions reject portable DST overrides.
+
+Results include exact UTC instants, actual local times/offsets, requested slots,
+resolution, truncation, capped skipped-slot details, and the host time-zone database
+version. Occurrence IDs bind the definition digest, database version and instant.
+They do not authorise execution or replace reviewed project/plan identity.
+Portable overlap, missed-run dispatch and durable recovery remain separate work.
+
+Reviewed programme-to-project resource bindings are described in
+[programme definitions](docs/programme-definitions.md). They preserve explicit
+project/shared environment mappings and verify pinned inputs before a build.
+
+Reviewed native source handoff is available through `connection_flow_review` and
+`connection_flows_review`: an explicit `bridge` request composes a declared native
+landing source, an isolated publication configuration and a snapshot-history
+consumer. It preserves the metadata connection, requires reviewed required keys
+and a frozen-source declaration, and rejects conflicting or shared environment
+storage. The proposal uses the normal stale-input and apply guards. This authors
+local definitions only; provider validation and generated assets do not prove
+cloud deployment or data execution.
+
+A configuration referenced as a bridge publisher is reserved for generated
+publication legs. Flow inventories label that purpose; source target and execution
+profile choices exclude it. Direct flow and source authoring also enforce the
+restriction. The classification follows the saved bridge connection, not a naming
+convention, and does not prevent native bridge generation.
+
+Platform binding inspection returns original resource inputs when the binding was
+saved by a supporting compiler. Editors may use these as a draft for a new review;
+current shared profiles, provider schemas, ownership and stale-write checks still
+govern saving. Older bindings without retained inputs remain readable and require
+project-specific values to be entered once when re-reviewed.

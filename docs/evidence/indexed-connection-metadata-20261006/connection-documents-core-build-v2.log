@@ -1,0 +1,6 @@
+
+> @ingestron/core@0.12.55 build /Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core
+> node scripts/build-assets.mjs && tsc && node scripts/compiler-fingerprint.mjs
+
+src/plugins/compatibility.ts(154,31): error TS2339: Property 'metadataDocuments' does not exist on type '{}'.
+ ELIFECYCLE  Command failed with exit code 2.

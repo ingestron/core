@@ -67,6 +67,11 @@ try {
     assert.equal(validateDocument({kind: "environment", uri: "untitled:1", content: "apiVersion: ingestron.environment/v1"}).valid, true);
     const catalogue = await executeAsync({root: process.cwd()}, "catalogue", {kind: "standards"});
     assert.equal(catalogue.apiVersion, "ingestron.operation/v1");
+    const schedule = {apiVersion:"ingestron.schedule/v1",enabled:false,timeZone:"America/New_York",start:"2026-01-01T00:00:00Z",recurrence:{kind:"daily",times:["01:30"]},daylightSaving:{gap:"skip",fold:"both"}};
+    const timing = await executeAsync({root:process.cwd(),allowWrite:false,allowExecute:false,allowNetwork:false}, "schedule_occurrences", {schedule,from:"2026-11-01T00:00:00Z",to:"2026-11-02T00:00:00Z"});
+    assert.equal(timing.ok,true,JSON.stringify(timing));
+    assert.deepEqual(timing.result.occurrences.map(o=>o.at),["2026-11-01T05:30:00Z","2026-11-01T06:30:00Z"]);
+    assert.equal(timing.result.executionEnabled,false);
     process.stdout.write("Installed core exports and permission boundary passed\\n");
   `;
   writeFileSync(resolve(temporary, "check.mjs"), script);

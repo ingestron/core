@@ -1,11 +1,11 @@
 {
   "name": "@ingestron/core",
-  "version": "0.12.14",
+  "version": "0.12.65",
   "type": "module",
   "description": "Shared Ingestron project compiler, operations and editor schemas",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "files": [
     "dist",
@@ -30,6 +30,7 @@
     }
   },
   "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
     "@lezer/python": "1.1.19",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 export class Problem extends Error {
+  /** Optional public reason identifier; never arbitrary provider text. */
+  reason?: "SOURCE_CONSISTENCY";
   constructor(
     public code: string,
     message: string,

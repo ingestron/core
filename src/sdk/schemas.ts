@@ -1,5 +1,24 @@
+import { programmeSchema } from "../core/programme-schema.js";
+export { programmeSchema };
+import {
+  programmeManifestSchema,
+  platformDefinitionSchema,
+  platformEnvironmentSchema,
+  requirementsDefinitionSchema,
+} from "../core/programme-storage-schema.js";
+export {
+  programmeManifestSchema,
+  platformDefinitionSchema,
+  platformEnvironmentSchema,
+  requirementsDefinitionSchema,
+};
+export { scheduleSchema } from "../core/schedule-schema.js";
 /** Editor-safe exports: no filesystem access, runtime loading or plugin execution. */
 import { LineCounter, parseDocument, isMap, isSeq } from "yaml";
+import { deliveryPlanSchema } from "../core/delivery-plan-schema.js";
+export { deliveryPlanSchema };
+import { policySchema } from "../core/policy-schema.js";
+export { policySchema };
 import {
   projectSchema,
   flowSchema,
@@ -8,15 +27,29 @@ import {
 } from "../core/schema.js";
 export { projectSchema, flowSchema, environmentSchema, stepSchema };
 export const documentSchemas: {
+  readonly programme: typeof programmeSchema;
+  readonly "programme-manifest": typeof programmeManifestSchema;
+  readonly "platform-definition": typeof platformDefinitionSchema;
+  readonly "platform-environment": typeof platformEnvironmentSchema;
+  readonly "requirements-definition": typeof requirementsDefinitionSchema;
   readonly project: typeof projectSchema;
   readonly flow: typeof flowSchema;
   readonly environment: typeof environmentSchema;
   readonly step: typeof stepSchema;
+  readonly "delivery-plan": typeof deliveryPlanSchema;
+  readonly policy: typeof policySchema;
 } = {
+  programme: programmeSchema,
+  "programme-manifest": programmeManifestSchema,
+  "platform-definition": platformDefinitionSchema,
+  "platform-environment": platformEnvironmentSchema,
+  "requirements-definition": requirementsDefinitionSchema,
   project: projectSchema,
   flow: flowSchema,
   environment: environmentSchema,
   step: stepSchema,
+  "delivery-plan": deliveryPlanSchema,
+  policy: policySchema,
 } as const;
 export type DocumentKind = keyof typeof documentSchemas;
 export interface DocumentDiagnostic {
@@ -120,3 +153,19 @@ export function validateDocument(input: {
     diagnostics,
   };
 }
+
+export {
+  ingestionDefinitionSchema,
+  discoverySnapshotSchema,
+  ingestionDraftSchema,
+  ingestionHandoffSchema,
+} from "../core/ingestion-definition-schema.js";
+
+export * from "../core/portable-discovery-schema.js";
+
+export {
+  portableQualityRuleSchema,
+  qualityRuleSetSchema,
+  qualityBindingSchema,
+  qualityDefaultsSchema,
+} from "../core/portable-quality-schema.js";

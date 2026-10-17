@@ -1,0 +1,17 @@
+{
+  "candidate": true,
+  "published": false,
+  "project": "synthetic",
+  "coreArchiveInstalled": true,
+  "cliArchiveInstalled": true,
+  "temporaryCandidateOverrideOnly": true,
+  "persistentCliPinUnchanged": true,
+  "offlineCheck": true,
+  "editorSchema": true,
+  "cliCoreResultParity": true,
+  "readOnly": true,
+  "affectedWork": ["W_gold", "W_raw"],
+  "requirementChanged": ["R_sales"],
+  "planRevision": 2,
+  "verifiedDelivery": false
+}

@@ -56,7 +56,15 @@ export function executeProvider(
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
-  check(response.ok, "PROVIDER", response.error ?? "Provider renderer failed");
+  if (!response.ok) {
+    const error = new Problem(
+      "PROVIDER",
+      response.error ?? "Provider renderer failed",
+    );
+    if (response.reason === "SOURCE_CONSISTENCY")
+      error.reason = response.reason;
+    throw error;
+  }
   return response.assets;
 }
 

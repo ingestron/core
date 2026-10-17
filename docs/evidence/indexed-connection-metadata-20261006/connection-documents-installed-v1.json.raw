@@ -1,0 +1,20 @@
+{
+  "status": "failed",
+  "stage": "validate",
+  "error": "AssertionError [ERR_ASSERTION]: [{\"code\":\"LIMIT\",\"message\":\"Input for 'connection prepare' is 2163201 bytes; the limit is 2000000 bytes. Split large flows or select fewer fields, then retry.\"}]\n\nfalse !== true\n\n    at file:///Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/scripts/connection-documents-installed-v1.mjs:31:112",
+  "checks": [],
+  "details": {
+    "root": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-p4dGNp/project",
+    "base": "/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/.studio-finalisation-20261005/fixtures/indexed-connection-p4dGNp",
+    "candidate": {
+      "cli": "0.17.21",
+      "core": "0.12.55",
+      "provider": "0.4.18",
+      "files": "1.5.13"
+    },
+    "tables": 100,
+    "fields": 20000,
+    "scope": "Installed immutable compiler/provider/source preparation and local build. No browser, runtime discovery, approval, rows or native-cloud claim.",
+    "resolveBytes": 3689301
+  }
+}

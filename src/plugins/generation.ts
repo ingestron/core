@@ -2,10 +2,29 @@ import { deliveryExports } from "../core/delivery-exports.js";
 import { Ajv } from "ajv";
 import { executeProvider } from "./provider-renderer.js";
 import { contractColumns } from "../core/contracts.js";
-import { check } from "../core/errors.js";
+import { check, digest, canonical } from "../core/errors.js";
 import { Configuration } from "../core/config.js";
 import type { Plan } from "../core/schema.js";
 import { stringify } from "yaml";
+function nodeColumns(plan: Plan, node: Plan["nodes"][number]) {
+  const typedSql =
+    node.with.sqlFile &&
+    node.runtime?.capabilities?.typedTransformationLanguages?.includes("sql");
+  if (!node.with.pythonFile && !typedSql)
+    return node.contract ? contractColumns(node.contract) : [];
+  const contracts = Object.values(
+    plan.flows.find((flow) => flow.id === node.flow)?.publishes ?? {},
+  )
+    .filter((output) => output.from === `steps.${node.step}.outputs.result`)
+    .map((output) => output.contract);
+  check(
+    contracts.length > 0 && new Set(contracts.map(canonical)).size === 1,
+    "CONTRACT",
+    "Transformation source requires a consistent published output contract",
+  );
+  const contract = contracts[0];
+  return contract ? contractColumns(contract) : [];
+}
 function guestPlan(plan: Plan) {
   const needed = new Set(
     plan.nodes
@@ -19,9 +38,35 @@ function guestPlan(plan: Plan) {
     ),
   };
 }
-export function validateProviderPlan(plan: Plan) {
+function sourceRequest(plan: Plan, root?: string) {
+  const reader = root ? new Configuration(root) : undefined;
+  const source = (path: string | undefined) => {
+    if (!path || !reader) return undefined;
+    const content = reader.text(path);
+    check(
+      digest(content) === plan.files[path],
+      "STALE",
+      `Source changed since planning: ${path}`,
+    );
+    return content;
+  };
+  return {
+    ...guestPlan(plan),
+    sourceFilesChecked: !!reader,
+    nodes: plan.nodes.map((n) => ({
+      ...n,
+      columns: nodeColumns(plan, n),
+      sql: source(n.with.sqlFile) ?? "",
+      sqlFile: n.with.sqlFile,
+      python: source(n.with.pythonFile),
+      pythonFile: n.with.pythonFile,
+    })),
+  };
+}
+export function validateProviderPlan(plan: Plan, root?: string) {
   if (plan.selection.delivery) {
-    for (const entry of deliveryExports(plan)) validateProviderPlan(entry.plan);
+    for (const entry of deliveryExports(plan))
+      validateProviderPlan(entry.plan, root);
     return;
   }
   const renderer = plan.nodes[0]?.runtime?.rendererRef;
@@ -32,14 +77,7 @@ export function validateProviderPlan(plan: Plan) {
   );
   executeProvider(
     plan.activitySources[renderer],
-    {
-      ...guestPlan(plan),
-      nodes: plan.nodes.map((n) => ({
-        ...n,
-        columns: n.contract ? contractColumns(n.contract) : [],
-        sql: "",
-      })),
-    },
+    sourceRequest(plan, root),
     true,
   );
 }
@@ -89,17 +127,12 @@ export function generateProvider(
     );
     return files;
   }
-  validateProviderPlan(plan);
-  const reader = new Configuration(root);
-  const request = {
-    ...guestPlan(plan),
-    nodes: plan.nodes.map((n) => ({
-      ...n,
-      columns: n.contract ? contractColumns(n.contract) : [],
-      sql: n.with.sqlFile ? reader.text(n.with.sqlFile) : undefined,
-      sqlFile: n.with.sqlFile,
-    })),
-  };
+  const request = sourceRequest(plan, root);
+  executeProvider(
+    plan.activitySources[plan.nodes[0].runtime!.rendererRef!],
+    request,
+    true,
+  );
   const assets = executeProvider(
     plan.activitySources[plan.nodes[0].runtime!.rendererRef!],
     request,

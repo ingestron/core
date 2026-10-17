@@ -1,0 +1,238 @@
+TAP version 13
+# Subtest: locked connector browsing returns its authoring schema without connection values
+ok 1 - locked connector browsing returns its authoring schema without connection values
+  ---
+  duration_ms: 475.136417
+  type: 'test'
+  ...
+# Subtest: a declared source stream survives a different output table name
+ok 2 - a declared source stream survives a different output table name
+  ---
+  duration_ms: 603.048792
+  type: 'test'
+  ...
+# Subtest: connection and workflow authoring use reviewable project proposals
+ok 3 - connection and workflow authoring use reviewable project proposals
+  ---
+  duration_ms: 519.615917
+  type: 'test'
+  ...
+# Subtest: one connection selects multiple physical tables with contract-derived columns and short package refs
+ok 4 - one connection selects multiple physical tables with contract-derived columns and short package refs
+  ---
+  duration_ms: 296.754083
+  type: 'test'
+  ...
+# Subtest: connector registration writes a short package name in a top-level package map
+ok 5 - connector registration writes a short package name in a top-level package map
+  ---
+  duration_ms: 260.00375
+  type: 'test'
+  ...
+# Subtest: project connection resolves bindings through locked schema and offline operation
+ok 6 - project connection resolves bindings through locked schema and offline operation
+  ---
+  duration_ms: 365.085375
+  type: 'test'
+  ...
+# Subtest: connection preparation reuses a selected model contract
+ok 7 - connection preparation reuses a selected model contract
+  ---
+  duration_ms: 262.652958
+  type: 'test'
+  ...
+# Subtest: typed installation rejects the wrong package before changing its lock
+ok 8 - typed installation rejects the wrong package before changing its lock
+  ---
+  duration_ms: 254.962334
+  type: 'test'
+  ...
+# Subtest: rejects plain credentials, $env interpolation, unknown settings and modes
+ok 9 - rejects plain credentials, $env interpolation, unknown settings and modes
+  ---
+  duration_ms: 235.859083
+  type: 'test'
+  ...
+# Subtest: rejects missing references and unsupported exact connectors
+ok 10 - rejects missing references and unsupported exact connectors
+  ---
+  duration_ms: 259.518709
+  type: 'test'
+  ...
+# Subtest: ODCS table references are resolved, validated and preserved without a second selection
+ok 11 - ODCS table references are resolved, validated and preserved without a second selection
+  ---
+  duration_ms: 272.268458
+  type: 'test'
+  ...
+# Subtest: data-only source packages preserve connection semantics and reject unresolved licences
+ok 12 - data-only source packages preserve connection semantics and reject unresolved licences
+  ---
+  duration_ms: 909.13125
+  type: 'test'
+  ...
+# Subtest: retired selection and provider-owned connector formats are rejected
+ok 13 - retired selection and provider-owned connector formats are rejected
+  ---
+  duration_ms: 230.822167
+  type: 'test'
+  ...
+# Subtest: whole-project check validates mixed connector and native flows without a partial native selection
+not ok 14 - whole-project check validates mixed connector and native flows without a partial native selection
+  ---
+  duration_ms: 492.359959
+  type: 'test'
+  location: '/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core/test/integration/connections.test.ts:1:21178'
+  failureType: 'testCodeFailure'
+  error: |-
+    [{"code":"COMPILER","message":"Source changed since compilation; run pnpm build before planning"}]
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core/test/integration/connections.test.ts:847:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: connection flows use the connector's pre-commit quality checks for coverage
+ok 15 - connection flows use the connector's pre-commit quality checks for coverage
+  ---
+  duration_ms: 542.6845
+  type: 'test'
+  ...
+# Subtest: check lists source routes with reference records and blocks missing capabilities
+ok 16 - check lists source routes with reference records and blocks missing capabilities
+  ---
+  duration_ms: 1200.775125
+  type: 'test'
+  ...
+# Subtest: portable named profiles reach connection assembly without selecting excluded native flows
+not ok 17 - portable named profiles reach connection assembly without selecting excluded native flows
+  ---
+  duration_ms: 218.170084
+  type: 'test'
+  location: '/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core/test/integration/connections.test.ts:1:25724'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'COMPILER'
+    - 'CAPABILITY'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'CAPABILITY'
+  actual: 'COMPILER'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/Users/sacode/sa.projects/intentlabs/repo/ingestron/repo/core/test/integration/connections.test.ts:993:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: connection authoring validates effective installed settings before a proposal
+ok 18 - connection authoring validates effective installed settings before a proposal
+  ---
+  duration_ms: 266.170167
+  type: 'test'
+  ...
+# Subtest: connection configuration preserves installed ownership, bindings, siblings and comments
+ok 19 - connection configuration preserves installed ownership, bindings, siblings and comments
+  ---
+  duration_ms: 278.618416
+  type: 'test'
+  ...
+# Subtest: connection authoring resolves selected values and binds newly referenced inputs to approval
+ok 20 - connection authoring resolves selected values and binds newly referenced inputs to approval
+  ---
+  duration_ms: 281.56875
+  type: 'test'
+  ...
+# Subtest: connection authoring rejects unsafe referenced settings and missing bindings without writes
+ok 21 - connection authoring rejects unsafe referenced settings and missing bindings without writes
+  ---
+  duration_ms: 274.803
+  type: 'test'
+  ...
+# Subtest: one reviewed source setup validates an installed package and preserves external provider ownership
+ok 22 - one reviewed source setup validates an installed package and preserves external provider ownership
+  ---
+  duration_ms: 296.279917
+  type: 'test'
+  ...
+# Subtest: portable edits reject schema violations while native settings retain platform ownership
+ok 23 - portable edits reject schema violations while native settings retain platform ownership
+  ---
+  duration_ms: 274.540542
+  type: 'test'
+  ...
+# Subtest: portable preparation cannot silently omit a scheduled flow when its provider has no schedule capability
+ok 24 - portable preparation cannot silently omit a scheduled flow when its provider has no schedule capability
+  ---
+  duration_ms: 288.516167
+  type: 'test'
+  ...
+# Subtest: native calendar capabilities cannot authorise dropping a connector schedule
+ok 25 - native calendar capabilities cannot authorise dropping a connector schedule
+  ---
+  duration_ms: 264.110833
+  type: 'test'
+  ...
+# Subtest: an explicitly declared connector adapter receives complete digest-bound scheduling intent
+ok 26 - an explicitly declared connector adapter receives complete digest-bound scheduling intent
+  ---
+  duration_ms: 755.894042
+  type: 'test'
+  ...
+# Subtest: scheduled connector validation refuses a clock mismatch or unsupported recurrence before provider dispatch
+ok 27 - scheduled connector validation refuses a clock mismatch or unsupported recurrence before provider dispatch
+  ---
+  duration_ms: 261.97725
+  type: 'test'
+  ...
+# Subtest: indexed preparation keeps one hundred complete contracts while its isolated compilation request stays bounded
+ok 28 - indexed preparation keeps one hundred complete contracts while its isolated compilation request stays bounded
+  ---
+  duration_ms: 3127.635292
+  type: 'test'
+  ...
+# Subtest: indexed assembly preserves exact runners and documents and refuses ambiguous, changed or colliding destinations
+ok 29 - indexed assembly preserves exact runners and documents and refuses ambiguous, changed or colliding destinations
+  ---
+  duration_ms: 0.991459
+  type: 'test'
+  ...
+# Subtest: project metadata documents retain complete UTF-8 contracts, exact hashes and logical byte accounting
+ok 30 - project metadata documents retain complete UTF-8 contracts, exact hashes and logical byte accounting
+  ---
+  duration_ms: 0.535625
+  type: 'test'
+  ...
+# Subtest: document preparation rejects count, identity, malformed, nonfinite, document and collection bounds before producing a proposal
+ok 31 - document preparation rejects count, identity, malformed, nonfinite, document and collection bounds before producing a proposal
+  ---
+  duration_ms: 42.559084
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 29
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14224.751792

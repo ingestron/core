@@ -147,6 +147,10 @@ export class Configuration {
     }
     return this.walk(value, file, pointer, [...stack, key], depth + 1);
   }
+  /** Resolve a proposed value with the same include fences and limits as saved configuration. */
+  resolveReferences(value: unknown, from = "project.yaml") {
+    return this.walk(value, this.path(from), "", [], 0);
+  }
   private walk(
     value: any,
     file: string,
@@ -257,7 +261,12 @@ export class Configuration {
   values(
     value: any,
     context: Record<string, any>,
-    options: { draft?: boolean; table?: boolean; runtime?: boolean } = {},
+    options: {
+      draft?: boolean;
+      table?: boolean;
+      runtime?: boolean;
+      allowEnvironment?: boolean;
+    } = {},
   ): any {
     const resolving = new Set<string>();
     const lookup = (name: string): any => {
@@ -285,6 +294,11 @@ export class Configuration {
       if (Array.isArray(v)) return v.map(visit);
       if (isMap(v)) {
         if (Object.hasOwn(v, "$env")) {
+          check(
+            options.allowEnvironment !== false,
+            "SECRET",
+            "Compiler environment values are not permitted here",
+          );
           check(
             Object.keys(v).length === 1 &&
               typeof v.$env === "string" &&

@@ -3,6 +3,7 @@ import {
   isPortableConnection,
   nativeConnectionFlow,
 } from "./native-connections.js";
+import { resolveScheduleBoundaries } from "./schedule-boundaries.js";
 import { expandBridgeFlows } from "./bridge-connections.js";
 import { bindExecutionProfile } from "./execution-profiles.js";
 import { resolveModelContracts } from "./model-packs.js";
@@ -12,6 +13,7 @@ import { validateProviderPlan } from "../plugins/generation.js";
 import addFormats from "ajv-formats";
 import { resolve, relative, dirname } from "node:path";
 import { Configuration } from "./config.js";
+import { enforceProjectPolicy } from "./project-governance.js";
 import {
   projectSchema,
   flowSchema,
@@ -36,16 +38,8 @@ import { Ajv2020 as Ajv } from "ajv/dist/2020.js";
 import { compilerFingerprint } from "./fingerprint.js";
 import { version } from "../version.js";
 import { checkProviderCompatibility } from "../plugins/compatibility.js";
-const secretFields = new Set([
-  "password",
-  "auth_token",
-  "token",
-  "accessToken",
-  "clientSecret",
-  "accountKey",
-  "sasToken",
-]);
-const auditSecrets = (value: any, path: string) => {
+import { secretFields } from "./secret-fields.js";
+export const auditSecrets = (value: any, path: string) => {
   if (Array.isArray(value)) {
     value.forEach((child, index) => auditSecrets(child, `${path}[${index}]`));
     return;
@@ -73,6 +67,8 @@ export interface Select {
   nativeOnly?: boolean;
   flowIds?: string[];
   projectBuild?: boolean;
+  provider?: string;
+  catalogue?: string;
   flow?: string;
   table?: string;
   step?: string;
@@ -190,6 +186,8 @@ export function inspectProject(
         `${flow.id}: declare published outputs`,
       );
   }
+  if (!options.draft && !options.catalogue)
+    enforceProjectPolicy({ reader, project, flows }, options);
   return {
     reader,
     project,
@@ -548,6 +546,14 @@ export function planProject(
         reader,
         flow.provider,
       );
+      check(
+        !flow.schedule ||
+          selectedProvider.runtime.capabilities?.schedules?.includes(
+            flow.schedule.recurrence.kind,
+          ),
+        "SCHEDULE_UNSUPPORTED",
+        `${flow.id}: selected provider does not declare support for this schedule; install a compatible provider or remove the schedule`,
+      );
       const providerSource =
         projectPackages(project)[configuration.package]?.source;
       check(
@@ -638,6 +644,14 @@ export function planProject(
           profile.bindings,
           reader,
           step.provider ?? flow.provider,
+        );
+        check(
+          !flow.schedule ||
+            chosen.runtime.capabilities?.schedules?.includes(
+              flow.schedule.recurrence.kind,
+            ),
+          "SCHEDULE_UNSUPPORTED",
+          `${flow.id}: selected step provider does not declare support for this schedule`,
         );
         const preset = chosen.packs[step.uses];
         check(
@@ -919,6 +933,11 @@ export function planProject(
             chosen.runtime.lifecycleCode,
             {
               apiVersion: "ingestron.provider-model/v1",
+              flowContext: {
+                id: flow.id,
+                tableIds: Object.keys(flow.tables ?? {}).sort(),
+                schedule: flow.schedule ?? null,
+              },
               node: {
                 ...node,
                 runtime: {
@@ -983,7 +1002,7 @@ export function planProject(
           if (modeled.resources !== undefined) {
             check(
               Array.isArray(modeled.resources) &&
-                modeled.resources.length <= 100 &&
+                modeled.resources.length <= 128 &&
                 modeled.resources.every(
                   (r: any) =>
                     isMap(r) &&
@@ -1309,6 +1328,14 @@ export function planProject(
       node.generation.codeRef = ref;
       delete node.generation.code;
     }
+  const selectedFlows = flows.filter((f) =>
+    selected.some((n) => n.flow === f.id),
+  );
+  const scheduleBoundaries = Object.fromEntries(
+    selectedFlows
+      .filter((f) => f.schedule)
+      .map((f) => [f.id, resolveScheduleBoundaries(f.schedule!)]),
+  );
   const body = {
     activitySources,
     apiVersion: "ingestron.plan/v1" as const,
@@ -1328,7 +1355,8 @@ export function planProject(
     environment,
     bindings,
     nodes: selected,
-    flows: flows.filter((f) => selected.some((n) => n.flow === f.id)),
+    flows: selectedFlows,
+    ...(Object.keys(scheduleBoundaries).length ? { scheduleBoundaries } : {}),
     files: reader.files,
     datasets: Object.fromEntries(
       Object.entries(datasets).filter(([, d]) =>
@@ -1353,6 +1381,6 @@ export function planProject(
         "same-run dataset selection requires native provider generation",
       );
   }
-  if (!options.draft) validateProviderPlan(plan);
+  if (!options.draft) validateProviderPlan(plan, reader.root);
   return plan;
 }

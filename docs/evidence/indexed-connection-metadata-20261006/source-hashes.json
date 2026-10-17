@@ -1,0 +1,152 @@
+[
+  {
+    "owner": "connectors",
+    "path": "connectors/files/connector.yaml",
+    "sha256": "6ce8ea11abb7787a9f4e21ca60efd3c20d4d03b5b1f0d63efb4cff23eb7eaee5",
+    "beforeSha256": "8c8070c76ff3b620d333ab9f683be91a96375a67a84b74fa93c6be010630c97c"
+  },
+  {
+    "owner": "connectors",
+    "path": "docs/files.md",
+    "sha256": "dcc78c5927921ec7c93f038a076a6e493148700c7a3483330c3f30d78ce0f7c5",
+    "beforeSha256": "26f04e6f8326634c089a92d44f19dd744acd6df0f8c1ba8d8e60859903f282b9"
+  },
+  {
+    "owner": "connectors",
+    "path": "scripts/build-files.mjs",
+    "sha256": "6b48b7c2de75af83f5355f65a3e86123a4691876fe60113a30551b5cb51d2d97",
+    "beforeSha256": "9ec5cb024391e060f9e98fca76880c7833f197efae9086ab3e5e7cd0ab5e90a9"
+  },
+  {
+    "owner": "connectors",
+    "path": "scripts/build-source-access.mjs",
+    "sha256": "2cae042c636f30cb6be5d5eaa5e4e2c6bc6ed034a783bc92b00ba5b07ec99be7",
+    "beforeSha256": "3ea919e4dedacb5384bbd2db949472c17a6bba361cec82015f7b9bdce4a75e60"
+  },
+  {
+    "owner": "core",
+    "path": "docs/api.md",
+    "sha256": "fdb61f1b1f6979a934bb3de75bafc7d31bae00e8a95e96f5a08b2c50f5a1a2b2",
+    "beforeSha256": "4b313a8a1d0c2be9b520d0f49e3dbdd5f480980d4e5163cdad27288c39eb62a5"
+  },
+  {
+    "owner": "core",
+    "path": "package.json",
+    "sha256": "03503ac0ee6ccda48aae07b865679eb3c7081faae485d037c54379a2ae8edd29",
+    "beforeSha256": "f5c9cf0be3cf94c3023bdb25aa4557cdf145c0c55bd68d18b91ec24a52f4ad49"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/connections.ts",
+    "sha256": "1b57d8db9a7b330d2be4c84905895a7a9cb87cf3a88c6cdf729b2010225852c7",
+    "beforeSha256": "b56858f361595f9d3fcd97e42cd5665b40deb56611920d53366609d924d1de39"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/connector-package.ts",
+    "sha256": "dc09dbbdef566fe94d955c002151e3f41ea68472c1c80d971908eef4d5f3fd31",
+    "beforeSha256": "eca993bd7b27066986ea1e97db2156d9f05c8e6bec99862685db41c182fe89e2"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/metadata-documents.ts",
+    "sha256": "b4acd26c8a649f529ee3285e4ecd44c0e3289acd929e1c3b2124dfc3ee7afa88",
+    "beforeSha256": null
+  },
+  {
+    "owner": "core",
+    "path": "src/core/packages.ts",
+    "sha256": "b35358a6d4319d957498c32fe1a49a7f9f654d7a82b86e0d90de7806bfb7ae05",
+    "beforeSha256": "bde7719389b406af3f8ecfd71078dc5aac4afdf2178aa25748c0a877ed4a3440"
+  },
+  {
+    "owner": "core",
+    "path": "src/core/project-build.ts",
+    "sha256": "cf63ac31f670d6da0ab3f09959f12dab5e42c392c83955ea3ec8a4539f3409bb",
+    "beforeSha256": "3cd7c9c9271487fc4b3f40395bf76e1d4c6b95c4775e7f65266bd3a1483e5bed"
+  },
+  {
+    "owner": "core",
+    "path": "src/plugins/compatibility.ts",
+    "sha256": "24a8298c9d81dc0eadeb4144a2a743acc8af625675055d427926e2522f2cb858",
+    "beforeSha256": "1c2ade74f1078f7499819e8e724b47718a9d427cd65764c85899f57ab258a076"
+  },
+  {
+    "owner": "core",
+    "path": "test/integration/connections.test.ts",
+    "sha256": "039776fce072f94785f15901328b59b6af4c3f60bd9f420964aa266e191c58df",
+    "beforeSha256": "23f3806e35450cfb2ccf2161c9692c59a857a6afbbc221d7084071b16388bd92"
+  },
+  {
+    "owner": "core",
+    "path": "test/unit/metadata-documents.test.ts",
+    "sha256": "4e966a7acebb6dd47f569bf2cafe81fb08f3a34e19be6a1b146a1f25f7d1d076",
+    "beforeSha256": null
+  },
+  {
+    "owner": "provider-local",
+    "path": "docs/local-execution.md",
+    "sha256": "dd6afa357f9c64c7ee10558768444fa8c02f19495a55db543c55f95caa013355",
+    "beforeSha256": "2652dacb0a3ff3bd90465473d13c8759a4e814c45c77924231ae65eeec89dbe7"
+  },
+  {
+    "owner": "provider-local",
+    "path": "package.json",
+    "sha256": "0d3d60b88e80927c2cdc24e9c8d3eea71f399bd390279f1976ca74fc161e9d33",
+    "beforeSha256": "2eea3494fae083e6f32b8bb87d06c7dc46fb106627f6a2d8e1e12f9d6aec5e43"
+  },
+  {
+    "owner": "provider-local",
+    "path": "plugin/commands.mjs",
+    "sha256": "f2cfbd4b8b3ff8741797f968b1a6a7106934d98557a61cfcc0ca28c8a4a2923b",
+    "beforeSha256": "a39ebf5eb234176834c33ce675f2aa4c5cebd64310b1d93a60fff3bc91beafa8"
+  },
+  {
+    "owner": "provider-local",
+    "path": "plugin/provider.yaml",
+    "sha256": "f676db5ad744e51f9dd4a9dd19520a558c8d8e0bed4385aed2ecd26f3ee972b7",
+    "beforeSha256": "6ce0a97fc65399276e3f5e5c089d7dc7a263c1ce5bcbfdfd0083c91da3daea41"
+  },
+  {
+    "owner": "provider-local",
+    "path": "scripts/build.mjs",
+    "sha256": "911ba0c16c100b71dec0beaf5ab844696ec33ce029b1fd4691ebede92338d796",
+    "beforeSha256": "f01cfab150a9f7881e8693acc89c0e67f78dd44b05f00ae63533e7c9f0e031bd"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/commands.mjs",
+    "sha256": "55f0219bfc01f709d8383d7552153985f9cdd06ff762d75c1b18b30274a8138c",
+    "beforeSha256": "f32f4940f56624e72d7c7b523f75d767d087ffce7b48d2f1afba40caffbb628b"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/contracts/connection-contract.mjs",
+    "sha256": "9d608bc8a60c9803163bae91c34148db15e1ee7c8465bead0874d7f1b49aceb8",
+    "beforeSha256": "148e33072862a98ea7b1fe467ad8b4529bb73bc6932fed06ebfbc8e4714124bb"
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/contracts/metadata-projection.mjs",
+    "sha256": "d0d3c60c377622869b9155fe498321783c02aeed0e54a6bd209c088faefc6b0b",
+    "beforeSha256": null
+  },
+  {
+    "owner": "provider-local",
+    "path": "src/project-assembly.mjs",
+    "sha256": "bed4276f5df2ae4c75a71f3d02aa7d0b480628a38af74a0845edaeaa82411d52",
+    "beforeSha256": "0ff377af14103eafeb852fbb9cd3940a4bbffa0917b990790558a29f4cb65931"
+  },
+  {
+    "owner": "provider-local",
+    "path": "test/connections.test.mjs",
+    "sha256": "2bb6779e056a5659a8b17c2ebb916155fcf0019a1066b5ac52231998bca7a0aa",
+    "beforeSha256": "db3f76eaccb442706f371f89efbe171b7a7482ac41167815de7ad68c23438af6"
+  },
+  {
+    "owner": "provider-local",
+    "path": "test/project-assembly.test.mjs",
+    "sha256": "aee1b5a3606c7bd8171a76005c2e1318f2d31059581360c3f24a10ff388960e2",
+    "beforeSha256": "167be41e9fe2793c226decd8e563b4101ef3521be59286f6454bf5c28a23bb36"
+  }
+]
