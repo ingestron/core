@@ -153,3 +153,19 @@ export function validateDocument(input: {
     diagnostics,
   };
 }
+
+export {
+  ingestionDefinitionSchema,
+  discoverySnapshotSchema,
+  ingestionDraftSchema,
+  ingestionHandoffSchema,
+} from "../core/ingestion-definition-schema.js";
+
+export * from "../core/portable-discovery-schema.js";
+
+export {
+  portableQualityRuleSchema,
+  qualityRuleSetSchema,
+  qualityBindingSchema,
+  qualityDefaultsSchema,
+} from "../core/portable-quality-schema.js";

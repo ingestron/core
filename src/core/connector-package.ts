@@ -42,7 +42,9 @@ export const connectorPackageSchema = z
         inventoryScopeSchema: schema.optional(),
         metadataOptionsSchema: schema.optional(),
         actions: z
-          .array(z.enum(["test", "inventory", "metadata", "sample"]))
+          .array(
+            z.enum(["test", "databases", "inventory", "metadata", "sample"]),
+          )
           .min(1),
       })
       .strict()

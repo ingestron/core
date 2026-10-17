@@ -1,10 +1,17 @@
 /** Package review and registration share the installed lock and core proposal path. */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { z } from "zod";
+import { stringify } from "yaml";
 import { browseProviders } from "./installed-plugins.js";
-import { installPackage, resolvePackage, packageYaml } from "./packages.js";
+import {
+  installPackage,
+  resolvePackage,
+  packageYaml,
+  packageLock,
+  fence,
+} from "./packages.js";
 import { providerReference } from "../plugins/authoring.js";
 import { preview } from "./authoring.js";
 import { check, canonical, digest } from "./errors.js";
@@ -137,6 +144,25 @@ export function reviewPackageInstall(
         files: Object.keys(files).length,
         ...(input.tagPrefix ? { tagPrefix: input.tagPrefix } : {}),
       },
+      manifestText: readFileSync(
+        resolvePackage(temporary, installed.reference).file,
+        "utf8",
+      ),
+      lockFile: {
+        path: "packages.lock.yaml",
+        before: existsSync(fence(root, "packages.lock.yaml"))
+          ? readFileSync(fence(root, "packages.lock.yaml"), "utf8")
+          : null,
+        after: stringify({
+          ...packageLock(root),
+          packages: {
+            ...packageLock(root).packages,
+            [installed.reference]: { repository, path, commit, files },
+          },
+        }),
+      },
+      connector:
+        manifest.apiVersion === "ingestron.connector/v1" ? manifest : undefined,
       licence: selected.licence,
       dependencies: typeof manifest.model === "string" ? [manifest.model] : [],
       writes: [

@@ -375,6 +375,14 @@ export function executionBoundary(
     "Execution provider changed; rebuild",
   );
   const manifest = providerPackageSchema.parse(packageYaml(installed.file));
+  check(
+    ["execution_evidence", "execution_resources"].includes(operation) ||
+      manifest.platform === "local" ||
+      !build.deferredDestinations?.length,
+    "DEFERRED",
+    "Supply deployment settings for deferred destinations and regenerate before execution",
+  );
+
   checkProviderCompatibility(manifest);
   const capability = manifest.execution;
   check(

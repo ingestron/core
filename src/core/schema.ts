@@ -1,3 +1,4 @@
+import { destinationSetupSchema } from "./destination-schema.js";
 import { sharedConnectionBindingSchema } from "./platform-reuse-schema.js";
 import { platformBindingSchema } from "./platform-binding-schema.js";
 import { scheduleSchema } from "./schedule-schema.js";
@@ -34,7 +35,11 @@ export const packageReferenceSchema = z.preprocess(
 export const projectSchema = z
   .object({
     apiVersion: z.literal("ingestron.project/v1"),
+    name: z.string().trim().min(1).max(160).optional(),
     platformBindings: z.record(id, platformBindingSchema).optional(),
+    destinationSetups: z
+      .record(id, z.record(id, destinationSetupSchema))
+      .optional(),
     id,
     policy: policySchema.optional(),
     description: z.string().optional(),

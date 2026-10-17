@@ -403,6 +403,11 @@ test("failed authentication is a failing operation with a sanitised receipt", as
   assert.equal(result.ok, false);
   assert.equal(result.diagnostics[0].code, "SOURCE_ACCESS");
   assert.match(result.diagnostics[0].message, /ACCESS_AUTH/);
+  assert.equal(
+    result.diagnostics[0].hint,
+    "ACCESS_AUTH",
+    "Async operations must preserve safe connector codes for host recovery",
+  );
   assert.doesNotMatch(JSON.stringify(result), /synthetic-only/);
 });
 
@@ -1152,6 +1157,39 @@ test("explicit source cancellation remains interrupted and cleans private task f
   assert.equal(receipt.result, undefined);
 });
 
+test("saved inventory survives reopening but never grants metadata or contract authority", async (t) => {
+  const f = setup(t),
+    ctx = {
+      root: f.root,
+      environment: "dev",
+      allowWrite: true,
+      allowExecute: true,
+    };
+  const inventory = await executeAsync(ctx, "connection_inventory", {
+    connection: "sales",
+    envFile: ".private.env",
+  });
+  assert.equal(inventory.ok, true, JSON.stringify(inventory));
+  const saved = execute(ctx, "connection_journey", { connection: "sales" });
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  assert.deepEqual(saved.result.inventory.tables, inventory.result.tables);
+  assert.equal(saved.result.receipt, "");
+  assert.deepEqual(saved.result.tables, []);
+  assert.deepEqual(saved.result.drafts, []);
+  assert.doesNotMatch(JSON.stringify(saved), /synthetic-only/);
+  const wrongEnvironment = execute(
+    { ...ctx, environment: "prod" },
+    "connection_journey",
+    { connection: "sales" },
+  );
+  if (wrongEnvironment.ok)
+    assert.deepEqual(wrongEnvironment.result.inventory.tables, []);
+  f.project.connections.sales.settings.host = "changed.invalid";
+  f.put("project.yaml", f.project);
+  const stale = execute(ctx, "connection_journey", { connection: "sales" });
+  assert.deepEqual(stale.result.inventory.tables, []);
+});
+
 test("saved discovery resumes only current metadata and its isolated contract selection without execution", async (t) => {
   const f = setup(t);
   const ctx = {
@@ -1241,4 +1279,54 @@ test("saved source journey combines distinct current metadata batches with their
     new Set(receipts),
   );
   assert.equal(saved.result.draftsTruncated, false);
+});
+
+test("portable live discovery reuses current metadata receipts without target generation or extra source access", async (t) => {
+  const f = setup(t),
+    ctx = {
+      root: f.root,
+      environment: "dev",
+      allowWrite: true,
+      allowExecute: true,
+    };
+  const metadata = await executeAsync(ctx, "connection_metadata", {
+    connection: "sales",
+    envFile: ".private.env",
+    tables: [
+      { schema: "dbo", table: "Orders" },
+      { schema: "dbo", table: "Customers" },
+    ],
+  });
+  assert.equal(metadata.ok, true, JSON.stringify(metadata.diagnostics));
+  const inventory = execute(ctx, "discovery_read", { connection: "sales" });
+  assert.equal(inventory.ok, true, JSON.stringify(inventory.diagnostics));
+  const review = execute(
+    { root: f.root, environment: "dev" },
+    "discovery_review",
+    {
+      connection: "sales",
+      revision: inventory.result.revision,
+      receipts: [metadata.result.receipt],
+    },
+  );
+  assert.equal(review.ok, true, JSON.stringify(review.diagnostics));
+  assert.equal(review.result.input.snapshot.coverage.complete, false);
+  assert.equal(review.result.input.snapshot.objects.length, 2);
+  assert.equal(review.result.input.snapshot.connector.version, "1.0.0");
+  const saved = execute({ root: f.root, allowWrite: true }, "discovery_apply", {
+    input: review.result.input,
+    proposalId: review.result.proposal.id,
+  });
+  assert.equal(saved.ok, true, JSON.stringify(saved.diagnostics));
+  const stale = f.project.connections.sales.settings as any;
+  stale.host = "changed.invalid";
+  f.put("project.yaml", f.project);
+  const current = execute(ctx, "discovery_read", { connection: "sales" });
+  const rejected = execute(ctx, "discovery_review", {
+    connection: "sales",
+    revision: current.result.revision,
+    receipts: [metadata.result.receipt],
+  });
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.diagnostics[0].code, "STALE");
 });

@@ -1,7 +1,7 @@
 import { digest, canonical } from "../../src/core/errors.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { stringify, parse } from "yaml";
@@ -1579,5 +1579,484 @@ test("connection review does not expose literal credentials from sibling environ
         ),
       }),
     /runtime.*secret reference/,
+  );
+});
+
+test("discriminated authentication fields switch without retaining the former credential", (t) => {
+  const obj = (properties: any) => ({
+    type: "object",
+    properties,
+    required: Object.keys(properties),
+    additionalProperties: false,
+  });
+  const schema = obj({
+    authentication: {
+      oneOf: [
+        obj({
+          method: { type: "string", enum: ["password"] },
+          password: obj({ $secret: obj({ env: { type: "string" } }) }),
+        }),
+        obj({
+          method: { type: "string", enum: ["identity"] },
+          client: { type: "string" },
+        }),
+      ],
+    },
+  });
+  const f = setup(t, false, {
+    definition: {
+      settingsSchema: schema,
+      selectionSchema: { type: "object", additionalProperties: true },
+    },
+  });
+  f.project.connections = {};
+  f.project.environments.dev.bindings = {};
+  f.put("project.yaml", f.project);
+  let form = readConnectionEditor(f.root, "dev", { package: "source" });
+  const method = form.fields.find((f) => f.label.endsWith("method"))!;
+  const password = form.fields.find((f) => f.type === "secret")!;
+  const client = form.fields.find((f) => f.label.endsWith("client"))!;
+  assert.deepEqual(method.choices, ["password", "identity"]);
+  assert.deepEqual(password.when, [{ field: method.id, equals: "password" }]);
+  const intent = {
+    package: "source",
+    id: "new_source",
+    sourceId: "source",
+    tenantId: "local",
+  };
+  apply(
+    f.root,
+    reviewConnectionEditor(f.root, "dev", {
+      ...intent,
+      revision: form.revision,
+      values: { [method.id]: "password", [password.id]: "AUTH_PASSWORD" },
+    }),
+  );
+  form = readConnectionEditor(f.root, "dev", {
+    package: "source",
+    connection: "new_source",
+  });
+  apply(
+    f.root,
+    reviewConnectionEditor(f.root, "dev", {
+      ...intent,
+      connection: "new_source",
+      revision: form.revision,
+      values: { [method.id]: "identity", [client.id]: "identity-client" },
+    }),
+  );
+  const file = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  assert.equal(file.includes("AUTH_PASSWORD"), false);
+  assert.equal(file.includes("identity-client"), true);
+});
+
+test("connector lifecycle reinstalls exact locks, blocks used removal, upgrades aliases and removes unused versions", (t) => {
+  const f = setup(t);
+  f.run();
+  const ctx = { root: f.root, environment: "dev", allowNetwork: true },
+    write = { ...ctx, allowWrite: true };
+  const ok = (r: any) => {
+    assert.equal(r.ok, true, JSON.stringify(r.diagnostics));
+    return r.result;
+  };
+  const ref = "example/source/connector.yaml@1.0.0";
+  writeFileSync(resolve(f.root, "customer-data.csv"), "preserve me\n");
+  const library = ok(execute(ctx, "connector_library", {}));
+  const installed = library.packages.find((p: any) => p.kind === "connector");
+  assert.ok(installed.usedBy.length > 0);
+  assert.equal(
+    execute(ctx, "connector_change_review", {
+      action: "remove",
+      reference: ref,
+    }).diagnostics[0].code,
+    "IN_USE",
+  );
+  const reinstall = ok(
+    execute(ctx, "connector_change_review", {
+      action: "reinstall",
+      reference: ref,
+      fromGit: f.origin,
+    }),
+  );
+  assert.equal(
+    execute(ctx, "connector_change_apply", {
+      proposal: reinstall.proposal,
+      fromGit: f.origin,
+    }).diagnostics[0].code,
+    "PERMISSION",
+  );
+  ok(
+    execute(write, "connector_change_apply", {
+      proposal: reinstall.proposal,
+      fromGit: f.origin,
+    }),
+  );
+  const manifest = parse(
+    readFileSync(resolve(f.origin, "connector.yaml"), "utf8"),
+  );
+  manifest.version = "1.1.0";
+  writeFileSync(resolve(f.origin, "connector.yaml"), stringify(manifest));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: f.origin, stdio: "pipe" });
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "upgrade",
+  );
+  git("tag", "1.1.0");
+  const upgrade = ok(
+    execute(ctx, "connector_change_review", {
+      action: "upgrade",
+      reference: "example/source/connector.yaml@1.1.0",
+      registration: installed.registrations[0],
+      fromGit: f.origin,
+    }),
+  );
+  assert.ok(upgrade.usedBy.includes("sales"));
+  const saved = ok(
+    execute(write, "connector_change_apply", {
+      proposal: upgrade.proposal,
+      fromGit: f.origin,
+    }),
+  );
+  assert.equal(saved.registration, installed.registrations[0]);
+  assert.equal(
+    execute(ctx, "connector_change_review", {
+      action: "upgrade",
+      reference: ref,
+      registration: saved.registration,
+      fromGit: f.origin,
+    }).diagnostics[0].code,
+    "PACKAGE",
+  );
+  manifest.version = "1.2.0";
+  manifest.definition.settingsSchema.required.push("new_required_setting");
+  manifest.definition.settingsSchema.properties.new_required_setting = {
+    type: "string",
+  };
+  writeFileSync(resolve(f.origin, "connector.yaml"), stringify(manifest));
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "incompatible upgrade",
+  );
+  git("tag", "1.2.0");
+  assert.equal(
+    execute(ctx, "connector_change_review", {
+      action: "upgrade",
+      reference: "example/source/connector.yaml@1.2.0",
+      registration: saved.registration,
+      fromGit: f.origin,
+    }).diagnostics[0].code,
+    "CONNECTION",
+  );
+
+  const removal = ok(
+    execute(ctx, "connector_change_review", {
+      action: "remove",
+      reference: ref,
+    }),
+  );
+  ok(execute(write, "connector_change_apply", { proposal: removal.proposal }));
+  assert.ok(
+    !ok(execute(ctx, "connector_library", {})).packages.some(
+      (p: any) => p.reference === ref,
+    ),
+  );
+  assert.equal(
+    execute(write, "connector_change_apply", { proposal: removal.proposal })
+      .diagnostics[0].code,
+    "STALE",
+  );
+  const install = ok(
+    execute(ctx, "connector_change_review", {
+      action: "install",
+      reference: ref,
+      fromGit: f.origin,
+    }),
+  );
+  ok(
+    execute(write, "connector_change_apply", {
+      proposal: install.proposal,
+      fromGit: f.origin,
+    }),
+  );
+  const unused = ok(
+    execute(ctx, "connector_change_review", {
+      action: "remove",
+      reference: ref,
+    }),
+  );
+  assert.ok(unused.files.some((f: any) => f.path === "project.yaml"));
+  ok(execute(write, "connector_change_apply", { proposal: unused.proposal }));
+  assert.equal(
+    readFileSync(resolve(f.root, "customer-data.csv"), "utf8"),
+    "preserve me\n",
+  );
+  const final = parse(readFileSync(resolve(f.root, "project.yaml"), "utf8"));
+  assert.equal(final.connections.sales.package, "source");
+});
+
+test("connector lifecycle review never returns inline connection secrets", (t) => {
+  const f = setup(t);
+  f.run();
+  const project = parse(readFileSync(resolve(f.root, "project.yaml"), "utf8"));
+  project.connections.sales.settings.password = "synthetic-inline-value";
+  writeFileSync(resolve(f.root, "project.yaml"), stringify(project));
+  const result = execute(
+    { root: f.root, allowNetwork: true },
+    "connector_change_review",
+    {
+      action: "reinstall",
+      reference: "example/source/connector.yaml@1.0.0",
+      fromGit: f.origin,
+    },
+  );
+  assert.equal(result.diagnostics[0].code, "SECRET");
+  assert.equal(
+    JSON.stringify(result).includes("synthetic-inline-value"),
+    false,
+  );
+});
+
+test("controlled upgrade fences portable consumers across environments, preserves exact bytes and reconciles partial installation", (t) => {
+  const f = setup(t);
+  f.run();
+  const ctx = {
+    root: f.root,
+    environment: "dev",
+    allowNetwork: true,
+    allowWrite: true,
+  };
+  const ok = (r: any) => {
+    assert.equal(r.ok, true, JSON.stringify(r.diagnostics));
+    return r.result;
+  };
+  const manifest = parse(
+    readFileSync(resolve(f.origin, "connector.yaml"), "utf8"),
+  );
+  manifest.version = "1.1.0";
+  writeFileSync(resolve(f.origin, "connector.yaml"), stringify(manifest));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: f.origin, stdio: "pipe" });
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "candidate",
+  );
+  git("tag", "1.1.0");
+  const definition = {
+    apiVersion: "ingestron.ingestion-definition/v1",
+    id: "retail",
+    name: "Retail",
+    status: "draft",
+    source: {
+      id: "sales",
+      connector: { id: "example/source/connector.yaml", version: "1.0.0" },
+    },
+    objects: Array.from({ length: 480 }, (_, i) => ({
+      id: `table_${i}`,
+      kind: "table",
+      fields: [],
+      mapping: [],
+      quality: [{ engine: "custom", keep: true }],
+      governance: { owner: "Data team", masking: [] },
+      metadata: [],
+    })),
+  };
+  for (const folder of [
+    "ingestions",
+    "ingestion-drafts/test",
+    "discovery/dev/sales",
+  ])
+    mkdirSync(resolve(f.root, folder), { recursive: true });
+  const preserved: Record<string, string> = {
+    "ingestions/retail.yaml": stringify(definition),
+    "ingestion-drafts/test/retail.yaml": stringify({
+      apiVersion: "ingestron.ingestion-draft/v1",
+      definition,
+    }),
+    "discovery/dev/sales/old.yaml": stringify({
+      snapshot: {
+        id: "old",
+        source: "sales",
+        environment: "dev",
+        connector: definition.source.connector,
+      },
+    }),
+  };
+  for (const [file, raw] of Object.entries(preserved))
+    writeFileSync(resolve(f.root, file), raw);
+  const request = {
+    action: "upgrade",
+    reference: "example/source/connector.yaml@1.1.0",
+    registration: "source",
+    fromGit: f.origin,
+  };
+  const review = () => ok(execute(ctx, "connector_change_review", request));
+  const initial = review();
+  assert(
+    initial.impact.consumers.some(
+      (c: any) => c.kind === "Working copy" && c.environment === "test",
+    ),
+  );
+  assert(
+    initial.impact.consumers.some(
+      (c: any) => c.kind === "Ingestion definition",
+    ),
+  );
+  assert(
+    initial.impact.consumers.some((c: any) => c.kind === "Source settings"),
+  );
+  assert(initial.files.some((c: any) => c.path === "packages.lock.yaml"));
+  const before = readFileSync(resolve(f.root, "project.yaml"), "utf8");
+  const apply = (r: any) =>
+    execute(ctx, "connector_change_apply", {
+      proposal: r.proposal,
+      fromGit: f.origin,
+    });
+  // Cancellation is read-only; any changed, new or removed consumer invalidates review.
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  writeFileSync(
+    resolve(f.root, "ingestion-drafts/test/retail.yaml"),
+    preserved["ingestion-drafts/test/retail.yaml"] + "\n# concurrent edit\n",
+  );
+  assert.equal(apply(initial).diagnostics[0].code, "STALE");
+  writeFileSync(
+    resolve(f.root, "ingestion-drafts/test/retail.yaml"),
+    preserved["ingestion-drafts/test/retail.yaml"],
+  );
+  const second = review();
+  writeFileSync(resolve(f.root, ".ingestron-write.lock"), "another author");
+  const partial = ok(apply(second));
+  assert.equal(partial.outcome, "installed-not-applied");
+  assert.equal(partial.changed, false);
+  assert.equal(readFileSync(resolve(f.root, "project.yaml"), "utf8"), before);
+  for (const [file, raw] of Object.entries(preserved))
+    assert.equal(readFileSync(resolve(f.root, file), "utf8"), raw);
+  // The other writer owns the guard, and the candidate remains installed for reconciliation.
+  assert.equal(
+    readFileSync(resolve(f.root, ".ingestron-write.lock"), "utf8"),
+    "another author",
+  );
+  rmSync(resolve(f.root, ".ingestron-write.lock"));
+  const resumed = review();
+  assert.equal(resumed.impact.candidateInstalled, true);
+  assert.equal(ok(apply(resumed)).changed, true);
+  for (const [file, raw] of Object.entries(preserved))
+    assert.equal(readFileSync(resolve(f.root, file), "utf8"), raw);
+  for (const file of resumed.files)
+    assert.equal(readFileSync(resolve(f.root, file.path), "utf8"), file.after);
+  assert.equal(
+    execute(ctx, "connector_change_review", {
+      action: "remove",
+      reference: "example/source/connector.yaml@1.0.0",
+    }).diagnostics[0].code,
+    "IN_USE",
+  );
+  // Manifest-ID aliases are also valid pins and must not bypass removal protection.
+  for (const [file, raw] of Object.entries(preserved))
+    writeFileSync(
+      resolve(f.root, file),
+      raw.replaceAll("example/source/connector.yaml", "synthetic"),
+    );
+  assert.equal(
+    execute(ctx, "connector_change_review", {
+      action: "remove",
+      reference: "example/source/connector.yaml@1.0.0",
+    }).diagnostics[0].code,
+    "IN_USE",
+  );
+});
+
+test("environment secret authoring keeps values out of proposals and preserves other environment references", (t) => {
+  const f = setup(t);
+  f.project.environments.test = {
+    ...structuredClone(f.project.environments.dev),
+    environment: "test",
+  };
+  f.project.connections.sales.settings = {
+    host: "synthetic.invalid",
+    password: { $secret: { env: "ORIGINAL_SECRET" } },
+  };
+  delete f.project.connections.sales.binding;
+  f.put("environments/dev.yaml", f.project.environments.dev);
+  f.put("environments/test.yaml", f.project.environments.test);
+  f.project.environments = {
+    dev: { $resolve: "./environments/dev.yaml" },
+    test: { $resolve: "./environments/test.yaml" },
+  };
+  f.put("project.yaml", f.project);
+  const request = () => {
+    const form = readConnectionEditor(f.root, "dev", {
+      package: "source",
+      connection: "sales",
+    });
+    const field = form.fields.find((f) => f.type === "secret")!;
+    return {
+      package: "source",
+      connection: "sales",
+      id: "sales",
+      sourceId: form.sourceId,
+      tenantId: form.tenantId,
+      revision: form.revision,
+      environmentSecrets: true,
+      values: { [field.id]: "DEV_SECRET" },
+    };
+  };
+  const proposal = reviewConnectionEditor(f.root, "dev", request());
+  assert.ok(
+    proposal.changes.some(
+      (c) =>
+        c.path === "environments/dev.yaml" && c.after.includes("DEV_SECRET"),
+    ),
+  );
+  apply(f.root, proposal);
+  assert.equal(
+    readConnectionEditor(f.root, "dev", {
+      package: "source",
+      connection: "sales",
+    }).fields.find((f) => f.type === "secret")!.value,
+    "DEV_SECRET",
+  );
+  assert.equal(
+    readConnectionEditor(f.root, "test", {
+      package: "source",
+      connection: "sales",
+    }).fields.find((f) => f.type === "secret")!.value,
+    "ORIGINAL_SECRET",
+  );
+  const sibling = readFileSync(
+    resolve(f.root, "environments/test.yaml"),
+    "utf8",
+  );
+  const changed = request();
+  changed.values[Object.keys(changed.values)[0]] = "ROTATED_SECRET";
+  apply(f.root, reviewConnectionEditor(f.root, "dev", changed));
+  assert.equal(
+    readFileSync(resolve(f.root, "environments/test.yaml"), "utf8"),
+    sibling,
+  );
+  assert.equal(
+    readConnectionEditor(f.root, "dev", {
+      package: "source",
+      connection: "sales",
+    }).fields.find((f) => f.type === "secret")!.value,
+    "ROTATED_SECRET",
   );
 });

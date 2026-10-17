@@ -551,7 +551,7 @@ export function addFlow(
   files["project.yaml"] = project.toString();
   return preview(root, files);
 }
-function validateAuthoredConnection(
+export function validateAuthoredConnection(
   reader: Configuration,
   project: ReturnType<typeof projectSchema.parse>,
   environment: string,

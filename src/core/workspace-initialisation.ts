@@ -1,5 +1,6 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { z } from "zod";
+import { stringify } from "yaml";
 import { canonical, check, digest } from "./errors.js";
 import {
   initialProjectFiles,
@@ -26,7 +27,7 @@ const id = z
   .string()
   .regex(/^[a-z][a-z0-9_-]{0,79}$/)
   .refine((v) => !["constructor", "prototype", "__proto__"].includes(v));
-export const workspaceInitialisationSchema = z
+const legacyInitialisationSchema = z
   .object({
     programme: z
       .object({
@@ -70,6 +71,23 @@ export const workspaceInitialisationSchema = z
         message: "Use distinct environments and targets",
       });
   });
+// Standalone projects do not create programme or planning records.
+const projectFirstSchema = z
+  .object({
+    mode: z.literal("project"),
+    project: z
+      .object({
+        id: compilerProjectId,
+        name,
+        outcome: z.string().trim().min(1).max(4000),
+      })
+      .strict(),
+  })
+  .strict();
+export const workspaceInitialisationSchema = z.union([
+  projectFirstSchema,
+  legacyInitialisationSchema,
+]);
 export const workspaceInitialisationApplySchema = z
   .object({ input: workspaceInitialisationSchema, proposal: z.unknown() })
   .strict();
@@ -79,6 +97,28 @@ type Input = z.infer<typeof workspaceInitialisationSchema>;
 export function inspectWorkspace(root: string) {
   root = realpathSync(root);
   check(statSync(root).isDirectory(), "PATH", "Select a workspace directory");
+  const projectBytes = programmeBytes(root, "project.yaml");
+  if (projectBytes !== null) {
+    const config = programmeYaml(projectBytes).toJS();
+    check(
+      config?.apiVersion === "ingestron.project/v1",
+      "PROJECT",
+      "Invalid project definition",
+    );
+    const projectId = compilerProjectId.parse(config.id);
+    return {
+      status: "existing" as const,
+      platforms: [],
+      projects: [
+        {
+          id: projectId,
+          name: typeof config.name === "string" ? config.name : projectId,
+          path: "",
+          environments: Object.keys(config.environments ?? {}),
+        },
+      ],
+    };
+  }
   const candidates: {
     folder: string;
     document: ReturnType<typeof programmeSchema.parse>;
@@ -134,8 +174,8 @@ export function inspectWorkspace(root: string) {
   };
 }
 
-export function reviewWorkspaceInitialisation(root: string, input: Input) {
-  input = workspaceInitialisationSchema.parse(input);
+export function reviewWorkspaceInitialisation(root: string, raw: Input) {
+  const input = workspaceInitialisationSchema.parse(raw);
   root = realpathSync(root);
   check(
     inspectWorkspace(root).status === "new",
@@ -155,6 +195,23 @@ export function reviewWorkspaceInitialisation(root: string, input: Input) {
       "OWNER",
       `Existing ${path} must be opened or registered before initialising`,
     );
+  const projectOnly = "mode" in input;
+  const project = input.project;
+  if (projectOnly) {
+    const files = initialProjectFiles(project.id, ["dev"]);
+    const config = programmeYaml(files["project.yaml"]).toJS();
+    files["project.yaml"] = stringify({
+      ...config,
+      name: project.name,
+      description: project.outcome,
+    });
+    return {
+      input,
+      proposal: preview(root, files),
+      summary: { project: project.name, targetSetup: "pending" as const },
+    };
+  }
+  const environments = input.environments;
   const document = programmeSchema.parse({
     apiVersion: "ingestron.programme/v1",
     id: input.programme.id,
@@ -167,7 +224,7 @@ export function reviewWorkspaceInitialisation(root: string, input: Input) {
         id: input.project.id,
         compilerId: input.project.id,
         name: input.project.name,
-        platformId: input.platform.id,
+        ...{ platformId: input.platform.id },
       },
     ],
     platforms: [
@@ -210,7 +267,7 @@ export function reviewWorkspaceInitialisation(root: string, input: Input) {
     ...Object.entries(
       initialProjectFiles(
         input.project.id,
-        input.environments.map((e) => e.name),
+        environments.map((e) => e.name),
       ),
     ).map(([path, raw]) => [`projects/${input.project.id}/${path}`, raw]),
   ]);

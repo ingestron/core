@@ -46,6 +46,9 @@ const source = z.record(z.string(), z.unknown());
 export const sourceAccessSchemas = {
   connection_access: z.object(selection).strict(),
   connection_runtime_prepare: z.object(access).strict(),
+  connection_databases: z
+    .object({ ...access, limit: z.number().int().min(1).max(200).default(100) })
+    .strict(),
   connection_test: z.object({ ...access, source: source.optional() }).strict(),
   connection_inventory: z
     .object({
@@ -138,7 +141,7 @@ const response = z
   .object({
     apiVersion: z.literal("ingestron.source-access-result/v1"),
     status: z.enum(["succeeded", "unsupported", "failed"]),
-    action: z.enum(["test", "inventory", "metadata", "sample"]),
+    action: z.enum(["test", "databases", "inventory", "metadata", "sample"]),
     code: z
       .string()
       .regex(/^[A-Z][A-Z0-9_]{2,40}$/)
@@ -165,6 +168,7 @@ const response = z
       })
       .strict()
       .optional(),
+    databases: z.array(z.string().min(1).max(128)).max(200).optional(),
     tables: z.array(table).max(200).default([]),
     nextCursor: z.string().max(4000).optional(),
   })
@@ -282,6 +286,7 @@ export async function performSourceAccess(
     return {
       apiVersion: "ingestron.source-access-info/v1",
       connection: args.connection,
+      secretNames: [...connectionSecretNames(def.settings)],
       actions: def.unsupported
         ? []
         : (def.manifest.sourceAccess?.actions ?? []),
@@ -536,6 +541,22 @@ export async function performSourceAccess(
     action: prepare ? "prepare" : action,
     status: "running",
     startedAt: new Date().toISOString(),
+    // Persist hashes, never connection settings or raw discovery filters.
+    ...(action === "inventory" && !prepare
+      ? {
+          inventoryRequest: {
+            scope: digest(
+              canonical({
+                query: args.query ?? "",
+                schema: args.schema ?? "",
+                scope: args.scope ?? null,
+                limit: args.limit,
+              }),
+            ),
+            cursor: args.cursor ? digest(args.cursor) : null,
+          },
+        }
+      : {}),
     result: undefined as any,
   };
   const receiptFile = fence(root, `.ingestron/source-access/${runId}.json`);
@@ -651,11 +672,14 @@ export async function performSourceAccess(
           }
         : result;
     store();
-    check(
-      result.status === "succeeded",
-      result.status === "unsupported" ? "CAPABILITY" : "SOURCE_ACCESS",
-      `Source ${action} ${result.status}: ${result.code ?? "ACCESS_FAILED"}. Check the selected scope, network, permissions and referenced credentials.`,
-    );
+    if (result.status !== "succeeded")
+      throw new Problem(
+        result.status === "unsupported" ? "CAPABILITY" : "SOURCE_ACCESS",
+        `Source ${action} ${result.status}: ${result.code ?? "ACCESS_FAILED"}. Check the selected scope, network, permissions and referenced credentials.`,
+        undefined,
+        undefined,
+        result.code ?? "ACCESS_FAILED",
+      );
     return {
       ...result,
       ...(args.source ? { accessScope: args.source } : {}),

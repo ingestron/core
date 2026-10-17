@@ -1,4 +1,55 @@
 import {
+  ingestionQualityPreviewSchema,
+  previewPortableQuality,
+} from "./portable-quality.js";
+import {
+  discoveryReadSchema,
+  discoveryReviewSchema,
+  discoveryApplySchema,
+  readDiscovery,
+  reviewDiscovery,
+  applyDiscovery,
+} from "./portable-discovery.js";
+import {
+  ingestionEditorReadSchema,
+  ingestionAdoptSchema,
+  ingestionDraftWriteSchema,
+  readIngestionEditor,
+  adoptIngestionDiscovery,
+  writeIngestionDraft,
+  ingestionReadSchema,
+  ingestionReviewSchema,
+  ingestionDiscoveryUpdateSchema,
+  previewIngestionDiscoveryUpdate,
+  ingestionApplySchema,
+  ingestionContractSchema,
+  readIngestionDefinitions,
+  reviewIngestionDefinition,
+  applyIngestionDefinition,
+  checkIngestionContract,
+} from "./ingestion-definition.js";
+import {
+  inspectConnectorLibrary,
+  connectorChangeSchema,
+  connectorApplySchema,
+  reviewConnectorChange,
+  applyConnectorChange,
+} from "./connector-lifecycle.js";
+import {
+  fileHandoffReadSchema,
+  fileHandoffReviewSchema,
+  readFileHandoff,
+  reviewFileHandoff,
+} from "./file-handoff.js";
+import {
+  flowModesReadSchema,
+  flowModesReviewSchema,
+  readFlowModes,
+  reviewFlowMode,
+} from "./flow-modes.js";
+import { readDestinations, reviewDestination } from "./destinations.js";
+import { destinationReviewSchema } from "./destination-schema.js";
+import {
   programmeFlowReviewSchema,
   programmeFlowApplySchema,
   reviewProgrammeFlow,
@@ -246,6 +297,18 @@ import * as workflows from "./workflows.js";
 import { providerVersions, friendlyReference } from "./package-references.js";
 import { browseProviders, pluginDetails } from "./installed-plugins.js";
 export const operationSchemas = {
+  discovery_read: discoveryReadSchema,
+  discovery_review: discoveryReviewSchema,
+  discovery_apply: discoveryApplySchema,
+  ingestion_quality_preview: ingestionQualityPreviewSchema,
+  ingestion_editor_read: ingestionEditorReadSchema,
+  ingestion_discovery_adopt: ingestionAdoptSchema,
+  ingestion_discovery_update: ingestionDiscoveryUpdateSchema,
+  ingestion_draft_write: ingestionDraftWriteSchema,
+  ingestion_definition_read: ingestionReadSchema,
+  ingestion_definition_review: ingestionReviewSchema,
+  ingestion_definition_apply: ingestionApplySchema,
+  ingestion_contract_check: ingestionContractSchema,
   platform_binding_inspect: bindingInspectSchema,
   platform_binding_propose: bindingProposeSchema,
   platform_binding_apply: bindingApplySchema,
@@ -261,6 +324,8 @@ export const operationSchemas = {
   ...schedulerSchemas,
   ...workerSchemas,
   ...sourceAccessSchemas,
+  destination_read: z.object({}).strict(),
+  destination_review: destinationReviewSchema,
   provider_configuration_inspect: z
     .object({ configuration: workflows.identifier })
     .strict(),
@@ -508,6 +573,10 @@ export const operationSchemas = {
   programme_flow_review: programmeFlowReviewSchema,
   programme_flow_apply: programmeFlowApplySchema,
   flow_editor_create: flowEditorCreateSchema,
+  flow_handoff_read: fileHandoffReadSchema,
+  flow_handoff_review: fileHandoffReviewSchema,
+  flow_modes_read: flowModesReadSchema,
+  flow_modes_review: flowModesReviewSchema,
   flow_profiles_read: executionProfilesReadSchema,
   flow_profiles_review: executionProfilesReviewSchema,
   flow_editor_read: flowEditorReadSchema,
@@ -711,6 +780,9 @@ export const operationSchemas = {
   presentation_snapshot_apply: snapshotImportApplySchema,
   presentation_catalogue: z.object({}).strict(),
   presentation_review: presentationReviewSchema,
+  connector_library: z.object({}).strict(),
+  connector_change_review: connectorChangeSchema,
+  connector_change_apply: connectorApplySchema,
   package_library: z.object({}).strict(),
   package_install_review: packageInstallReviewSchema,
   package_install_apply: packageInstallApplySchema,
@@ -809,6 +881,45 @@ export function execute(
       );
     let result: any;
     switch (operation) {
+      case "discovery_read":
+        result = readDiscovery(context, args);
+        break;
+      case "discovery_review":
+        result = reviewDiscovery(context, args);
+        break;
+      case "discovery_apply":
+        write();
+        result = applyDiscovery(context, args);
+        break;
+      case "ingestion_quality_preview":
+        result = previewPortableQuality(args);
+        break;
+      case "ingestion_editor_read":
+        result = readIngestionEditor(context, args);
+        break;
+      case "ingestion_discovery_update":
+        result = previewIngestionDiscoveryUpdate(context, args);
+        break;
+      case "ingestion_discovery_adopt":
+        result = adoptIngestionDiscovery(context, args);
+        break;
+      case "ingestion_draft_write":
+        write();
+        result = writeIngestionDraft(context, args);
+        break;
+      case "ingestion_definition_read":
+        result = readIngestionDefinitions(root, args);
+        break;
+      case "ingestion_definition_review":
+        result = reviewIngestionDefinition(root, args, context.environment);
+        break;
+      case "ingestion_definition_apply":
+        write();
+        result = applyIngestionDefinition(root, args, context.environment);
+        break;
+      case "ingestion_contract_check":
+        result = checkIngestionContract(args.value);
+        break;
       case "programme_platform_catalogue":
         result = { document: null, digest: null, catalogue: platformCatalogue };
         break;
@@ -893,6 +1004,12 @@ export function execute(
         break;
       case "execution_features":
         result = executionFeatures();
+        break;
+      case "destination_read":
+        result = readDestinations(root, environment);
+        break;
+      case "destination_review":
+        result = reviewDestination(root, environment, args);
         break;
       case "provider_configuration_inspect":
         result = inspectProviderConfiguration(
@@ -1049,12 +1166,14 @@ export function execute(
       }
       case "connection_access":
       case "connection_runtime_prepare":
+      case "connection_databases":
       case "connection_test":
       case "connection_inventory":
       case "connection_sample":
       case "connection_metadata":
       case "connection_contracts":
       case "connection_drafts":
+      case "delivery_preview":
       case "delivery_inspect":
       case "delivery_execution_review":
       case "delivery_execution_apply":
@@ -1206,6 +1325,18 @@ export function execute(
         break;
       case "flow_editor_create":
         result = createFlowEditor(root, environment, args);
+        break;
+      case "flow_handoff_read":
+        result = readFileHandoff(root, environment, args);
+        break;
+      case "flow_handoff_review":
+        result = reviewFileHandoff(root, environment, args);
+        break;
+      case "flow_modes_read":
+        result = readFlowModes(root, args);
+        break;
+      case "flow_modes_review":
+        result = reviewFlowMode(root, args);
         break;
       case "flow_profiles_read":
         result = readExecutionProfiles(root, args);
@@ -1711,6 +1842,31 @@ export function execute(
       case "presentation_review":
         result = reviewPresentation(root, environment, args);
         break;
+      case "connector_library":
+        result = inspectConnectorLibrary(root);
+        break;
+      case "connector_change_review":
+      case "connector_change_apply": {
+        if (operation === "connector_change_apply") write();
+        const request =
+          operation === "connector_change_review"
+            ? args
+            : args.proposal.request;
+        if (request.action !== "remove") {
+          check(
+            context.allowNetwork || args.fromGit,
+            "PERMISSION",
+            "Connector package access requires package-network permission",
+          );
+          if (args.fromGit && !context.allowNetwork)
+            args.fromGit = fence(root, args.fromGit);
+        }
+        result =
+          operation === "connector_change_review"
+            ? reviewConnectorChange(root, args)
+            : applyConnectorChange(root, args);
+        break;
+      }
       case "package_library":
         result = inspectPackageLibrary(root);
         break;
@@ -1935,7 +2091,13 @@ export async function executeAsync(
       apiVersion: "ingestron.operation/v1",
       operation,
       ok: false,
-      diagnostics: [{ code: e.code, message: e.message }],
+      diagnostics: [
+        {
+          code: e.code,
+          message: e.message,
+          ...(e.hint ? { hint: e.hint } : {}),
+        },
+      ],
     };
   }
 }

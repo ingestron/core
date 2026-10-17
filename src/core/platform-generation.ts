@@ -143,7 +143,7 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
       [
         option(
           "auto-loader",
-          "Auto Loader",
+          "Direct file ingestion · Auto Loader / Lakeflow",
           "provider",
           "Ingest files from supported cloud storage under the selected delivery standard.",
           "append-only@v1 / snapshot-with-history@v1 / change-feed-with-history@v1",
@@ -375,6 +375,14 @@ export const generationCatalogue: Record<string, GenerationSetting[]> = {
       "Data layers",
       "ADF moves data into an explicitly selected downstream platform.",
       [
+        option(
+          "python-batch",
+          "Python on Azure Batch",
+          "provider",
+          "Portable connector execution using the installed ADF Batch runtime; configure the Batch account, storage, identity and network before deployment.",
+          "ingestion.execution.mode=adf-batch",
+        ),
+
         option(
           "snapshot-copy",
           "Snapshot Copy activity",

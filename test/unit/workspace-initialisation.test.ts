@@ -145,3 +145,43 @@ test("workspace input rejects ambiguous targets, paths and missing accountable i
     );
   assert.deepEqual(readdirSync(root), []);
 });
+
+test("project-first setup requires only name and outcome and parks enterprise structures", (t) => {
+  const root = fixture(t);
+  const intent = {
+    mode: "project",
+    project: {
+      id: "daily-sales",
+      name: "Daily sales",
+      outcome: "Understand sales trends",
+    },
+  };
+  const review = execute({ root }, "workspace_initialisation_review", intent);
+  assert.equal(review.ok, true, JSON.stringify(review.diagnostics));
+  const result = execute(
+    { root, allowWrite: true },
+    "workspace_initialisation_apply",
+    { input: review.result.input, proposal: review.result.proposal },
+  );
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(result.result.workspace.platforms, []);
+  assert.deepEqual(result.result.workspace.projects[0].environments, ["dev"]);
+  assert.equal(result.result.workspace.projects[0].platformId, undefined);
+  assert.equal(result.result.workspace.programme, undefined);
+  assert.equal(result.result.workspace.projects[0].path, "");
+  assert.equal(result.result.workspace.projects[0].name, "Daily sales");
+  assert.deepEqual(readdirSync(root).sort(), [
+    ".gitignore",
+    "environments",
+    "project.yaml",
+  ]);
+  assert.match(
+    readFileSync(join(root, "project.yaml"), "utf8"),
+    /description: Understand sales trends/,
+  );
+  assert.equal(execute({ root }, "environments", {}).ok, true);
+  assert.equal(
+    execute({ root }, "workspace_inspect", {}).result.projects[0].id,
+    "daily-sales",
+  );
+});

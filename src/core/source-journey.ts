@@ -13,7 +13,7 @@ import {
   packageYaml,
 } from "./packages.js";
 import { projectPackages } from "./project-packages.js";
-import { check } from "./errors.js";
+import { check, digest } from "./errors.js";
 import type { Context } from "./operations.js";
 
 export const sourceJourneySchema = z
@@ -52,6 +52,7 @@ export function inspectSourceJourney(
     v.fingerprint === def.fingerprint;
   const folder = ".ingestron/source-access";
   const records: any[] = [];
+  const inventories: any[] = [];
   if (existsSync(fence(context.root, folder))) {
     const files = readdirSync(fence(context.root, folder)).filter(
       (n) => n.endsWith(".json") && uuid.test(n.slice(0, -5)),
@@ -66,19 +67,23 @@ export function inspectSourceJourney(
       if (
         r.apiVersion === "ingestron.source-access-receipt/v1" &&
         matches(r) &&
-        r.action === "metadata" &&
+        ["metadata", "inventory"].includes(r.action) &&
         r.status === "succeeded" &&
         r.result?.status === "succeeded" &&
         Array.isArray(r.result.tables) &&
         r.result.tables.length <= 200 &&
         r.id === file.slice(0, -5)
       )
-        records.push(r);
+        (r.action === "metadata" ? records : inventories).push(r);
     }
   }
   records.sort((a, b) =>
     String(b.startedAt).localeCompare(String(a.startedAt)),
   );
+  inventories.sort((a, b) =>
+    String(b.startedAt).localeCompare(String(a.startedAt)),
+  );
+  const inventory = restoreInventory(inventories);
   const selected = args.receipt
     ? records.find((r) => r.id === args.receipt)
     : records[0];
@@ -206,9 +211,47 @@ export function inspectSourceJourney(
       objects: r.result.tables.length,
     })),
     tables: selected?.result.tables ?? [],
+    inventory: inventory
+      ? { tables: inventory.tables, nextCursor: inventory.nextCursor }
+      : { tables: [] },
     drafts: drafts.slice(0, 500),
     providers,
     sourceKind: def.unsupported ? "" : def.manifest.id,
     draftsTruncated: drafts.length > 500,
   };
+}
+
+/** Join only the latest uninterrupted cursor chain in an identical discovery scope.
+ * Older receipts lack request hashes and deliberately remain single-batch snapshots.
+ */
+export function restoreInventory(receipts: any[]) {
+  const latest = receipts[0];
+  if (!latest) return undefined;
+  const result = sourceAccessResponseSchema.parse(latest.result);
+  if (!latest.inventoryRequest) return result;
+  const chain = [result];
+  let cursor = latest.inventoryRequest.cursor;
+  let count = result.tables.length;
+  for (const older of receipts.slice(1)) {
+    if (!cursor) break;
+    if (older.inventoryRequest?.scope !== latest.inventoryRequest.scope)
+      continue;
+    const previous = sourceAccessResponseSchema.parse(older.result);
+    if (previous.nextCursor && digest(previous.nextCursor) === cursor) {
+      count += previous.tables.length;
+      check(
+        count <= 2000,
+        "LIMIT",
+        "Narrow discovery to at most 2,000 objects",
+      );
+      chain.unshift(previous);
+      cursor = older.inventoryRequest.cursor;
+    }
+    // Never cross a refresh boundary, even if a connector reuses cursors.
+    if (older.inventoryRequest.cursor === null) break;
+  }
+  const tables = new Map(
+    chain.flatMap((page) => page.tables).map((table) => [table.id, table]),
+  );
+  return { ...result, tables: [...tables.values()] };
 }

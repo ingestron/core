@@ -20,6 +20,7 @@ import {
 import { executionBoundary, performExecution } from "./execution.js";
 import { connectionSecretNames } from "./connection-settings.js";
 import { canonical, check, digest, Problem } from "./errors.js";
+import { previewLocalOutput } from "./local-output-preview.js";
 import { deliveryMapping, deliveryResults } from "./delivery-evidence.js";
 import { buildCompilerCurrent } from "./compiler-identity.js";
 import type { Context } from "./operations.js";
@@ -69,6 +70,17 @@ export const deliverySchemas = {
       flow: id.optional(),
       profile: id.optional(),
       from: path.optional(),
+    })
+    .strict(),
+  delivery_preview: z
+    .object({
+      flow: id,
+      from: path,
+      profile: id.optional(),
+      run: id,
+      stream: z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$/),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/),
+      limit: z.number().int().min(1).max(20).default(20),
     })
     .strict(),
   delivery_execution_review: requestSchema,
@@ -392,6 +404,78 @@ export async function performDelivery(
   operation: keyof typeof deliverySchemas,
   input: any,
 ): Promise<any> {
+  if (operation === "delivery_preview") {
+    check(
+      context.allowExecute,
+      "PERMISSION",
+      "Reading local data requires explicit execution permission",
+    );
+    const record = await runRecord(context, input.run);
+    const boundary = executionBoundary(context, input, "execution_evidence");
+    check(
+      record.status === "succeeded" &&
+        record.action === "run" &&
+        record.project === boundary.build.project &&
+        record.environment === (context.environment ?? "dev") &&
+        record.from === input.from &&
+        (record.profile ?? "") === (input.profile ?? "") &&
+        record.flows.length === 1 &&
+        record.flows[0] === input.flow &&
+        record.fingerprint === boundary.fingerprint &&
+        boundary.manifest.platform === "local",
+      "STALE",
+      "Select a successful local run for this unchanged flow and build",
+    );
+    const output = deliveryResults(record).outputs.find(
+      (o: { flow: string; stream: string; rows: number; sha256?: string }) =>
+        o.flow === input.flow && o.stream === input.stream,
+    );
+    check(
+      output?.sha256 === input.sha256,
+      "STALE",
+      "Selected output differs from the saved run",
+    );
+    const inv = await inventory(context, {
+      flow: input.flow,
+      from: input.from,
+      profile: input.profile,
+    });
+    const prepared = inv.runs.find(
+      (r) =>
+        r.action === "prepare" &&
+        r.status === "succeeded" &&
+        r.fingerprint === boundary.fingerprint &&
+        r.flows.includes(input.flow),
+    );
+    check(
+      prepared,
+      "RUNTIME",
+      "Prepare this flow's local runtime before inspecting data",
+    );
+    const preparation = await runRecord(context, prepared.id);
+    const runtime = preparation.result?.flows?.find(
+      (f: any) => f.flow === input.flow,
+    )?.environment;
+    const preview = await previewLocalOutput(
+      context.root,
+      boundary.packageRoot,
+      { ...input, rows: output.rows, runtime },
+    );
+    check(
+      executionBoundary(context, input, "execution_evidence").fingerprint ===
+        boundary.fingerprint,
+      "STALE",
+      "Flow changed while reading output",
+    );
+    return {
+      apiVersion: "ingestron.local-output-preview/v1",
+      run: input.run,
+      stream: input.stream,
+      sha256: input.sha256,
+      totalRows: output.rows,
+      ...preview,
+    };
+  }
   if (operation === "delivery_inspect") return inventory(context, input);
   if (operation === "delivery_execution_review")
     return reviewed(context, input);

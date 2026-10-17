@@ -143,7 +143,7 @@ function providerConfiguration(root: string, selected?: string) {
 /** Register installed provider authoring defaults without overwriting another
  * provider's bindings or values. Cache installation and registration are distinct
  * shared operations; a registration conflict leaves the immutable cache usable. */
-function packageEditor(root: string) {
+export function packageEditor(root: string) {
   const reader = new Configuration(root);
   const project = parseDocument(reader.text("project.yaml"));
   const reference = project.toJS().providers?.$resolve;
@@ -180,7 +180,7 @@ function packageEditor(root: string) {
 function packageValue(raw: any, name: string) {
   return raw.packages?.[name] ?? raw.providers?.packages?.[name];
 }
-function packagePath(raw: any, name: string) {
+export function packagePath(raw: any, name: string) {
   return raw.packages?.[name] ||
     (raw.packages && !raw.providers?.packages?.[name])
     ? ["packages", name]

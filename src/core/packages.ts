@@ -166,10 +166,18 @@ export const providerPackageSchema = z
           .strict(),
       )
       .optional(),
+    fileHandoff: z
+      .object({
+        apiVersion: z.literal("ingestron.file-handoff/v1"),
+        role: z.enum(["producer", "consumer"]),
+      })
+      .strict()
+      .optional(),
     platformBinding: z
       .object({
         apiVersion: z.literal("ingestron.platform-binding-authoring/v1"),
         resourcesSchema: z.record(z.string(), z.unknown()),
+        designResources: z.record(z.string(), z.string()).optional(),
       })
       .strict()
       .optional(),

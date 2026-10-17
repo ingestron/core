@@ -768,6 +768,11 @@ export function renderProjectBuild(
     },
     packages,
     deployment: { executed: false, omissionMeansDeletion: false },
+    deferredDestinations: packages
+      .map((p) => p.configuration)
+      .filter(
+        (name) => project.destinationSetups?.[environment]?.[name]?.deferred,
+      ),
     files: Object.fromEntries(
       Object.entries(files).map(([n, t]) => [n, digest(t)]),
     ),
