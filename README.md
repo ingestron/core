@@ -9,7 +9,7 @@ connector runtime assets and standards through explicit package references.
 
 ## Use the library
 
-Requires Node 22.12 or newer for runtime operations. The npm package name is
+Requires Node 22.13 or newer for runtime operations. The npm package name is
 `@ingestron/core`. To build the public source checkout:
 
 ```sh
